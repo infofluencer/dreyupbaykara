@@ -4,3 +4,6 @@ nixPkgs = ["nodejs_20", "npm-9_x"]
 
 [start]
 cmd = "npm run start"
+
+[variables]
+PORT = "3005"
