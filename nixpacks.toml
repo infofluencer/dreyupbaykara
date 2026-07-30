@@ -1,10 +1,10 @@
-# Dokploy / Nixpacks: Next.js 16 requires Node >= 20.9
-# Production app listens on 3005 — set Dokploy domain/container port to 3005
+# Fallback if Dokploy still uses Nixpacks instead of Dockerfile
 [phases.setup]
 nixPkgs = ["nodejs_20", "npm-9_x"]
 
 [start]
-cmd = "npx next start --hostname 0.0.0.0 --port 3005"
+cmd = "node scripts/prod-start.js"
 
 [variables]
 PORT = "3005"
+HOSTNAME = "0.0.0.0"
