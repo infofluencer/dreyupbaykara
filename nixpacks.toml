@@ -1,0 +1,6 @@
+# Dokploy / Nixpacks: Next.js 16 requires Node >= 20.9
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-9_x"]
+
+[start]
+cmd = "npm run start"

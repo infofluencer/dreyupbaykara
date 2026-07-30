@@ -192,14 +192,8 @@ const ILLUSTRATIONS: Record<
   (props: IllustrationProps) => ReactElement
 > = {
   "bel-fitigi": BelFitigi,
-  "beyin-kanamasi": BeyinKanamasi,
-  "beyin-tumoru": BeyinTumoru,
-  parkinson: Parkinson,
   "boyun-fitigi": BoyunFitigi,
-  "omurga-tumorleri": OmurgaTumorleri,
   "kanal-darligi": KanalDarligi,
-  skolyoz: Skolyoz,
-  kifoz: Kifoz,
 };
 
 export function TreatmentIllustration({
