@@ -18,10 +18,12 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
+# build sonrası public + .next/static standalone içine kopyalanıyor
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/prod-start.js ./scripts/prod-start.js
 
 USER nextjs
 EXPOSE 3005
-CMD ["node", "server.js"]
+
+# prod-start.js dışarıdan gelen PORT'u yok sayıp 3005'e bağlar
+CMD ["node", "scripts/prod-start.js"]
