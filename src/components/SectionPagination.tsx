@@ -22,8 +22,7 @@ const TREATMENTS = [
 const NAV_LINKS = [
   { id: "home", href: "/", label: "Anasayfa" },
   { id: "tedaviler", href: "/#tedavi-arsivi", label: "Tedavilerimiz", dropdown: true },
-  { id: "videolar", href: "/hasta-videolari", label: "Hasta Videoları" },
-  { id: "hikayeler", href: "/hasta-hikayeleri", label: "Hasta Hikayeleri" },
+  { id: "deneyimler", href: "/hasta-deneyimleri", label: "Hasta Deneyimleri" },
   { id: "hakkimizda", href: "/hakkimizda", label: "Hakkımızda" },
   { id: "iletisim", href: "/iletisim", label: "İletişim" },
   { id: "blog", href: "/blog", label: "Blog" },
@@ -32,6 +31,7 @@ const NAV_LINKS = [
 function isActive(pathname: string, id: string, href: string) {
   if (id === "home") return pathname === "/";
   if (id === "tedaviler") return pathname.startsWith("/tedaviler");
+  if (id === "deneyimler") return pathname.startsWith("/hasta-deneyimleri");
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

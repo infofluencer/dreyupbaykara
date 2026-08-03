@@ -16,7 +16,6 @@ const EMAIL = "info@endospineistanbul.com";
 export default function IletisimPage() {
   return (
     <PageShell
-      eyebrow="İletişim"
       title="Bize Ulaşın"
       description="Randevu ve sorularınız için telefon, WhatsApp veya e-posta ile bize ulaşabilirsiniz."
       breadcrumb={[

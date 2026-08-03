@@ -59,6 +59,31 @@ html {
   to   { transform: translateY(0); }
 }
 
+[data-section-reveal="pending"] {
+  opacity: 0;
+  transform: translateY(42px);
+}
+
+[data-section-reveal] {
+  transition:
+    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+[data-section-reveal="visible"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-section-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 /* Blog yazı gövdesi — Endospine içeriği */
 .blog-prose {
   color: #466254;

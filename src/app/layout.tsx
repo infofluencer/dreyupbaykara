@@ -29,6 +29,7 @@ export const viewport: Viewport = {
 };
 
 import { Footer } from "@/components/Footer";
+import { SectionReveal } from "@/components/SectionReveal";
 import { SectionPagination } from "@/components/SectionPagination";
 
 export default function RootLayout({
@@ -42,6 +43,7 @@ export default function RootLayout({
       className={`${instrumentSans.variable} ${poppins.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-bg text-text">
+        <SectionReveal />
         <SectionPagination />
         {children}
         <Footer />

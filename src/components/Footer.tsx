@@ -18,8 +18,7 @@ const TREATMENTS = [
 
 const NAV = [
   { href: "/", label: "Anasayfa" },
-  { href: "/hasta-videolari", label: "Hasta Videoları" },
-  { href: "/hasta-hikayeleri", label: "Hasta Hikayeleri" },
+  { href: "/hasta-deneyimleri", label: "Hasta Deneyimleri" },
   { href: "/hakkimizda", label: "Hakkımızda" },
   { href: "/iletisim", label: "İletişim" },
   { href: "/blog", label: "Blog" },

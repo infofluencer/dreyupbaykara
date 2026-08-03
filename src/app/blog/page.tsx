@@ -24,7 +24,6 @@ export default function BlogPage() {
   return (
     <main className="min-h-screen bg-[#f7f1e9]">
       <PageHero
-        eyebrow="Blog"
         title="Sağlık Rehberi"
         description="Omurga sağlığı, fıtık ve endoskopik cerrahi hakkında güncel yazılar."
         breadcrumb={[
@@ -33,7 +32,7 @@ export default function BlogPage() {
         ]}
       />
 
-      <div className="relative">
+      <section className="relative">
         <VectorPattern tone="light" opacity={0.04} size={400} />
         <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6 md:pb-28 md:pt-14 lg:px-10">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7 xl:grid-cols-4">
@@ -83,7 +82,7 @@ export default function BlogPage() {
             ))}
           </div>
         </div>
-      </div>
+      </section>
     </main>
   );
 }

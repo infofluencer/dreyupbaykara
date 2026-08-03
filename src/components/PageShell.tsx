@@ -3,7 +3,6 @@ import { PageHero, type PageHeroCrumb } from "@/components/PageHero";
 import { VectorPattern } from "@/components/VectorPattern";
 
 type PageShellProps = {
-  eyebrow?: string;
   title: string;
   description?: string;
   image?: string;
@@ -14,7 +13,6 @@ type PageShellProps = {
 
 /** Krem zeminli iç sayfa kabuğu — üstte ortak PageHero */
 export function PageShell({
-  eyebrow,
   title,
   description,
   image,
@@ -25,19 +23,18 @@ export function PageShell({
   return (
     <main className="min-h-screen bg-[#f7f1e9]">
       <PageHero
-        eyebrow={eyebrow}
         title={title}
         description={description}
         image={image}
         imageAlt={imageAlt}
         breadcrumb={breadcrumb}
       />
-      <div className="relative">
+      <section className="relative">
         <VectorPattern tone="light" opacity={0.04} size={400} />
         <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6 md:pb-28 md:pt-14 lg:px-10">
           {children}
         </div>
-      </div>
+      </section>
     </main>
   );
 }

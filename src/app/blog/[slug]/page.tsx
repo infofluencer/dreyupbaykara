@@ -53,7 +53,6 @@ export default async function BlogPostPage({ params }: PageProps) {
   return (
     <main className="min-h-screen bg-[#f7f1e9]">
       <PageHero
-        eyebrow="Blog"
         title={post.title}
         description={post.excerpt}
         image={post.image}
@@ -65,7 +64,7 @@ export default async function BlogPostPage({ params }: PageProps) {
         ]}
       />
 
-      <div className="relative">
+      <section className="relative">
         <VectorPattern tone="light" opacity={0.04} size={400} />
         <article className="relative mx-auto max-w-7xl px-4 pb-16 pt-10 sm:px-6 md:pb-24 md:pt-14 lg:px-10">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start xl:gap-14">
@@ -120,7 +119,7 @@ export default async function BlogPostPage({ params }: PageProps) {
             ) : null}
           </div>
         </article>
-      </div>
+      </section>
     </main>
   );
 }

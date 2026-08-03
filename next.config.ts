@@ -18,6 +18,16 @@ const nextConfig: NextConfig = {
         destination: "/hakkimizda",
         permanent: true,
       },
+      {
+        source: "/hasta-videolari",
+        destination: "/hasta-deneyimleri",
+        permanent: true,
+      },
+      {
+        source: "/hasta-hikayeleri",
+        destination: "/hasta-deneyimleri",
+        permanent: true,
+      },
     ];
   },
 };

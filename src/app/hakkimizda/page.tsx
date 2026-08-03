@@ -11,7 +11,6 @@ export const metadata: Metadata = {
 export default function HakkimizdaPage() {
   return (
     <PageShell
-      eyebrow="Hakkımızda"
       title="Op. Dr. Eyüp Baykara"
       description="Beyin ve sinir cerrahisi uzmanı. Full endoskopik, minimal invaziv omurga cerrahisinde deneyimli."
       image="/hero/hero_dr.webp"
