@@ -12,18 +12,17 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3005
+# Dokploy Domains → Container Port varsayılanı 3000
+ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
-# build sonrası public + .next/static standalone içine kopyalanıyor
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/prod-start.js ./scripts/prod-start.js
 
 USER nextjs
-EXPOSE 3005
+EXPOSE 3000
 
-# prod-start.js dışarıdan gelen PORT'u yok sayıp 3005'e bağlar
 CMD ["node", "scripts/prod-start.js"]

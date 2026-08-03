@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * Production başlatıcı — her koşulda 3005'e bağlanır.
- * Dışarıdan gelen PORT (Dokploy/Nixpacks) yok sayılır.
+ * Production başlatıcı — Dokploy/Traefik ile uyumlu.
+ * PORT yoksa 3000 (Dokploy Domains varsayılanı).
  */
 const { spawn } = require("node:child_process");
 const { existsSync } = require("node:fs");
 const path = require("node:path");
 
-const PORT = "3005";
-const HOSTNAME = "0.0.0.0";
+const PORT = process.env.PORT || "3000";
+const HOSTNAME = process.env.HOSTNAME || "0.0.0.0";
 
 const candidates = [
   path.join(process.cwd(), "server.js"),
@@ -23,6 +23,8 @@ if (!server) {
   );
   process.exit(1);
 }
+
+console.log(`[prod-start] ${server} → ${HOSTNAME}:${PORT}`);
 
 const child = spawn(process.execPath, [server], {
   stdio: "inherit",
