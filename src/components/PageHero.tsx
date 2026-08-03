@@ -52,7 +52,10 @@ export function PageHero({
   const resolvedCta =
     cta === false
       ? null
-      : (cta ?? { label: "Randevu al", href: "/iletisim" });
+      : (cta ?? {
+          label: "Randevu al",
+          href: "https://wa.me/905307837224",
+        });
 
   return (
     <section
@@ -123,15 +126,29 @@ export function PageHero({
                 </p>
               ) : null}
               {resolvedCta ? (
-                <Link
-                  href={resolvedCta.href}
-                  className="mt-7 inline-flex items-center gap-3 rounded-full bg-[#17372a] py-2 pl-6 pr-2 text-sm font-semibold text-white transition hover:bg-[#0b6b45]"
-                >
-                  {resolvedCta.label}
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#73df68] text-[#17372a]">
-                    <ArrowUpRight className="h-4 w-4" aria-hidden />
-                  </span>
-                </Link>
+                resolvedCta.href.startsWith("http") ? (
+                  <a
+                    href={resolvedCta.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-7 inline-flex items-center gap-3 rounded-full bg-[#17372a] py-2 pl-6 pr-2 text-sm font-semibold text-white transition hover:bg-[#0b6b45]"
+                  >
+                    {resolvedCta.label}
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#73df68] text-[#17372a]">
+                      <ArrowUpRight className="h-4 w-4" aria-hidden />
+                    </span>
+                  </a>
+                ) : (
+                  <Link
+                    href={resolvedCta.href}
+                    className="mt-7 inline-flex items-center gap-3 rounded-full bg-[#17372a] py-2 pl-6 pr-2 text-sm font-semibold text-white transition hover:bg-[#0b6b45]"
+                  >
+                    {resolvedCta.label}
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#73df68] text-[#17372a]">
+                      <ArrowUpRight className="h-4 w-4" aria-hidden />
+                    </span>
+                  </Link>
+                )
               ) : null}
             </div>
           ) : null}
