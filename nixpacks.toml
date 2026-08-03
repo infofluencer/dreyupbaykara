@@ -6,5 +6,5 @@ nixPkgs = ["nodejs_20", "npm-9_x"]
 cmd = "node scripts/prod-start.js"
 
 [variables]
-PORT = "3000"
+PORT = "3005"
 HOSTNAME = "0.0.0.0"
