@@ -1,8 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef } from "react";
-import { motion, useTransform } from "framer-motion";
+import { useEffect, useState, useRef } from "react";
+import { motion, useMotionValueEvent, useTransform } from "framer-motion";
 import { HomeDoctorCard } from "./HomeDoctorCard";
 import { HomeTreatmentCards } from "./HomeTreatmentCards";
 import { TreatmentSection } from "./TreatmentSection";
@@ -20,6 +20,8 @@ const SpineScene = dynamic(() => import("./SpineScene"), { ssr: false });
 
 export default function Home() {
   const wrapperRef = useRef<HTMLElement>(null);
+  const [showSpineScene, setShowSpineScene] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const { progressRef, scrollYProgress } = useHomeProgress(wrapperRef);
 
   const textOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0]);
@@ -29,6 +31,64 @@ export default function Home() {
   );
 
   const flashOpacity = useTransform(scrollYProgress, [0.82, 1], [0, 1]);
+  // Mobilde model, yazı/kart solduktan sonra belirir (kesik şerit yok)
+  const mobileSpineOpacity = useTransform(
+    scrollYProgress,
+    [0.12, 0.28],
+    [0, 1],
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  // Desktop: idle sonrası model. Mobil: scroll ile içerik geçildikten sonra.
+  useEffect(() => {
+    let cancelled = false;
+    let idleId = 0;
+    let timeoutId = 0;
+
+    const enable = () => {
+      if (!cancelled) setShowSpineScene(true);
+    };
+
+    if (isDesktop) {
+      const win = window as Window & {
+        requestIdleCallback?: (
+          cb: () => void,
+          opts?: { timeout: number },
+        ) => number;
+        cancelIdleCallback?: (id: number) => void;
+      };
+
+      if (typeof win.requestIdleCallback === "function") {
+        idleId = win.requestIdleCallback(enable, { timeout: 1200 });
+      } else {
+        timeoutId = window.setTimeout(enable, 450);
+      }
+
+      return () => {
+        cancelled = true;
+        if (idleId && typeof win.cancelIdleCallback === "function") {
+          win.cancelIdleCallback(idleId);
+        }
+        if (timeoutId) window.clearTimeout(timeoutId);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDesktop]);
+
+  useMotionValueEvent(scrollYProgress, "change", (value) => {
+    if (isDesktop) return;
+    if (value >= 0.1) setShowSpineScene(true);
+  });
 
   return (
     <>
@@ -38,36 +98,61 @@ export default function Home() {
         className="relative h-[280vh] bg-bg"
         aria-label="Ana sayfa bölümü"
       >
-        <div className="sticky top-0 h-screen w-full overflow-hidden bg-bg">
+        <div className="sticky top-0 h-dvh w-full overflow-hidden bg-bg">
           <div className="absolute inset-0 z-[1] bg-bg">
             <div
               className="pointer-events-none absolute inset-0"
               aria-hidden="true"
             >
-              <div className="absolute left-1/4 top-1/4 h-[55vh] w-[55vh] rounded-full bg-accent/15 blur-[120px]" />
+              <div className="absolute left-1/4 top-1/4 h-[55dvh] w-[55dvh] rounded-full bg-accent/15 blur-[120px]" />
               <div className="absolute bottom-0 left-0 h-1/3 w-full bg-gradient-to-t from-bg to-transparent" />
             </div>
           </div>
 
-          <div className="pointer-events-none absolute inset-0 z-[8]">
-            <SpineScene progressRef={progressRef} />
-          </div>
+          {/* Tek full-bleed canvas — mobilde opacity ile gelir, kesilmez */}
+          <motion.div
+            className="pointer-events-none absolute inset-0 z-[8]"
+            style={isDesktop ? undefined : { opacity: mobileSpineOpacity }}
+          >
+            {showSpineScene ? <SpineScene progressRef={progressRef} /> : null}
+          </motion.div>
 
+          {/* ── Desktop doctor card (right rail) ── */}
           <HomeDoctorCard style={{ opacity: textOpacity, y: textY }} />
 
+          {/* ── Desktop copy (left) ── */}
           <motion.div
+            suppressHydrationWarning
             style={{
               opacity: textOpacity,
               y: textY,
             }}
-            className="pointer-events-none absolute inset-0 z-10 flex items-center pt-28 sm:pt-32"
+            className="pointer-events-none absolute inset-0 z-10 hidden items-center pt-32 lg:flex"
           >
-            <div className="flex w-full justify-start pl-4 pr-[48%] sm:pl-6 md:pl-8 lg:pl-10 xl:pl-12">
+            <div className="flex w-full justify-start pl-10 pr-[48%] xl:pl-12">
               <HomeTreatmentCards pointerEvents={textPE} />
             </div>
           </motion.div>
 
+          {/* ── Mobile copy + doctor card ── */}
           <motion.div
+            suppressHydrationWarning
+            style={{
+              opacity: textOpacity,
+              y: textY,
+            }}
+            className="pointer-events-none absolute inset-x-0 top-0 z-10 px-3 pb-3 pt-[4.75rem] lg:hidden"
+          >
+            <div className="flex h-[calc(100dvh-5.25rem)] flex-col rounded-[1.5rem] bg-[#fdfaf5] p-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+              <HomeTreatmentCards pointerEvents={textPE} compact />
+              <div className="mt-auto pt-4">
+                <HomeDoctorCard mobile />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            suppressHydrationWarning
             style={{
               opacity: flashOpacity,
               background:
@@ -104,7 +189,7 @@ export default function Home() {
           </div>
         </div>
         {/* Fotoğrafın tam ekran sticky penceresi */}
-        <div className="pointer-events-none h-screen w-full shrink-0" aria-hidden />
+        <div className="pointer-events-none h-dvh w-full shrink-0" aria-hidden />
         <YouTubeGallery />
         <HomeBlogSection />
       </StatsBannerLayer>

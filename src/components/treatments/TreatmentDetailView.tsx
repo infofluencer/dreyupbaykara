@@ -42,7 +42,7 @@ export function TreatmentDetailView({ treatment }: { treatment: Treatment }) {
   const stats = treatment.stats?.slice(0, 2) ?? [];
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f5f7ef] text-[#17372a]">
+    <main className="min-h-screen overflow-x-hidden bg-[#f5f7ef] text-[#17372a]">
       <PageHero
         title={treatment.h1.replace("Full Endoskopik Tam Kapalı ", "")}
         description={treatment.heroSubtitle}

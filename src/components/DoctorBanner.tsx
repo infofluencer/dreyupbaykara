@@ -20,7 +20,7 @@ export function DoctorBanner() {
         <img
           src="/banner_dr.jpg"
           alt="Op. Dr. Eyüp Baykara — ameliyathane"
-          className="block h-[min(78vh,48rem)] w-full object-cover object-[72%_center] sm:h-[min(85vh,52rem)]"
+          className="block h-[min(78dvh,48rem)] w-full object-cover object-[72%_center] sm:h-[min(85dvh,52rem)]"
           loading="lazy"
           decoding="async"
         />

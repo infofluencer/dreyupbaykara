@@ -35,7 +35,7 @@ export function TreatmentArchive() {
           {ARCHIVE_ITEMS.map((item, i) => (
             <article
               key={item.id}
-              className="sticky top-10 flex flex-col gap-6 overflow-hidden rounded-[2rem] border border-[#0b6b45]/10 bg-white p-5 shadow-[0_20px_50px_rgba(18,53,36,0.08)] sm:top-12 sm:p-6 lg:flex-row lg:items-stretch lg:gap-10 lg:p-7"
+              className="relative flex flex-col gap-6 overflow-hidden rounded-[2rem] border border-[#0b6b45]/10 bg-white p-5 shadow-[0_20px_50px_rgba(18,53,36,0.08)] md:sticky md:top-20 md:p-6 lg:flex-row lg:items-stretch lg:gap-10 lg:p-7"
               style={{ zIndex: i + 1 }}
             >
               <div className="relative w-full shrink-0 overflow-hidden rounded-[1.5rem] bg-[#123524] aspect-[3/2] lg:aspect-auto lg:min-h-[22rem] lg:w-[52%]">

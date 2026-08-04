@@ -11,7 +11,7 @@ export function AdvantageCards({ items }: { items?: TreatmentAdvantage[] }) {
 
   return (
     <section className="py-12 md:py-16" aria-label="Avantajlar">
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
         {items.map((item, i) => {
           const Icon = TREATMENT_ICONS[item.icon] ?? TREATMENT_ICONS.Check;
           return (

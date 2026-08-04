@@ -223,7 +223,7 @@ export function TreatmentSection({
         {/* Sol — fotoğraf */}
         <motion.div
           variants={itemVariants}
-          className="relative min-h-[36rem] overflow-hidden rounded-[1.75rem] bg-[#eef6f1]"
+          className="relative min-h-[22rem] overflow-hidden rounded-[1.75rem] bg-[#eef6f1] sm:min-h-[28rem] lg:min-h-[36rem]"
         >
           <div
             className="absolute right-5 top-5 z-10 rounded-2xl border border-[#0b6b45]/20 bg-white p-3"

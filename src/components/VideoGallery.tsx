@@ -128,15 +128,15 @@ export function VideoGallery() {
             href="https://www.instagram.com/doktoreyupbaykara/"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden items-center gap-2 rounded-full border border-[#0b6b45]/20 px-5 py-2.5 text-sm font-medium text-[#0b6b45] transition hover:border-[#0b6b45] hover:bg-[#f4fbf7] sm:inline-flex"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[#0b6b45]/20 px-4 py-2 text-sm font-medium text-[#0b6b45] transition hover:border-[#0b6b45] hover:bg-[#f4fbf7] sm:px-5 sm:py-2.5"
           >
             Takip Et
           </a>
         </motion.div>
 
-        <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden">
+        <div className="relative -mx-6 overflow-x-clip md:-mx-10 lg:-mx-16">
           <motion.div
-            className="flex w-max gap-5 px-6 md:px-10 lg:px-16"
+            className="flex w-max gap-4 px-6 sm:gap-5 md:px-10 lg:px-16"
             animate={{ x: ["0%", "-50%"] }}
             transition={{
               duration: 42,
@@ -158,7 +158,7 @@ export function VideoGallery() {
                   delay: Math.min(i, 7) * 0.05,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                className="group block w-[18.5rem] shrink-0 overflow-hidden rounded-[1.4rem] border-2 border-[#0b6b45]/25 bg-white shadow-sm transition duration-300 hover:border-[#0b6b45] hover:shadow-[0_8px_28px_rgba(11,107,69,0.12)]"
+                className="group block w-[min(16.5rem,78vw)] shrink-0 overflow-hidden rounded-[1.4rem] border-2 border-[#0b6b45]/25 bg-white shadow-sm transition duration-300 hover:border-[#0b6b45] hover:shadow-[0_8px_28px_rgba(11,107,69,0.12)] sm:w-[18.5rem]"
                 aria-label={v.title}
               >
                 <div className="relative overflow-hidden" style={{ aspectRatio: "9/13" }}>

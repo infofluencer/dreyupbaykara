@@ -112,7 +112,7 @@ export function PageHero({
           <div>
             <h1
               id="page-hero-title"
-              className="max-w-4xl font-[family-name:var(--font-instrument-sans)] text-[clamp(3rem,7vw,7.4rem)] font-medium leading-[0.92] tracking-[-0.055em] text-[#17372a]"
+              className="max-w-4xl font-[family-name:var(--font-instrument-sans)] text-[clamp(2.35rem,7.2vw,7.4rem)] font-medium leading-[0.92] tracking-[-0.055em] text-[#17372a]"
             >
               {title}
             </h1>

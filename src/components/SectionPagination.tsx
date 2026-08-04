@@ -49,6 +49,15 @@ export function SectionPagination() {
   }, [pathname]);
 
   useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
+
+  useEffect(() => {
     if (!desktopDrop) return;
     const onDoc = (e: MouseEvent) => {
       if (!dropRef.current?.contains(e.target as Node)) setDesktopDrop(false);
@@ -103,7 +112,7 @@ export function SectionPagination() {
                           aria-expanded={desktopDrop}
                           aria-haspopup="true"
                           onClick={() => setDesktopDrop((v) => !v)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 text-[13px] font-medium transition ${
+                          className={`inline-flex min-h-11 items-center gap-1 px-3 py-2 text-[13px] font-medium transition ${
                             active
                               ? "text-[#72a082]"
                               : "text-[#3d4450] hover:text-[#72a082]"
@@ -154,7 +163,7 @@ export function SectionPagination() {
                     <Link
                       href={link.href}
                       aria-current={active ? "page" : undefined}
-                      className={`px-2.5 py-1 text-[13px] font-medium transition ${
+                      className={`inline-flex min-h-11 items-center px-3 py-2 text-[13px] font-medium transition ${
                         active
                           ? "text-[#72a082]"
                           : "text-[#3d4450] hover:text-[#72a082]"
@@ -178,7 +187,7 @@ export function SectionPagination() {
 
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-[#3d4450] transition hover:bg-black/5 xl:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-[#3d4450] transition hover:bg-black/5 xl:hidden"
               aria-label={mobileOpen ? "Menüyü kapat" : "Menüyü aç"}
               aria-expanded={mobileOpen}
               onClick={() => setMobileOpen((v) => !v)}
@@ -216,7 +225,7 @@ export function SectionPagination() {
                       <button
                         type="button"
                         onClick={() => setMobileDrop((v) => !v)}
-                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                        className={`flex min-h-11 w-full items-center justify-between rounded-xl px-3 py-3 text-sm font-medium transition ${
                           active
                             ? "bg-[#72a082]/12 text-[#72a082]"
                             : "text-[#3d4450] hover:bg-black/[0.03]"
@@ -247,7 +256,7 @@ export function SectionPagination() {
                               key={t.href}
                               href={t.href}
                               onClick={() => setMobileOpen(false)}
-                              className="block rounded-lg px-3 py-2 text-sm text-[#3d4450]"
+                              className="block min-h-11 rounded-lg px-3 py-3 text-sm text-[#3d4450]"
                             >
                               {t.label}
                             </Link>
@@ -263,7 +272,7 @@ export function SectionPagination() {
                     key={link.id}
                     href={link.href}
                     onClick={() => setMobileOpen(false)}
-                    className={`rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                    className={`flex min-h-11 items-center rounded-xl px-3 py-3 text-sm font-medium transition ${
                       active
                         ? "bg-[#72a082]/12 text-[#72a082]"
                         : "text-[#3d4450] hover:bg-black/[0.03]"

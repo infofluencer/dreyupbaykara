@@ -71,7 +71,7 @@ export default function SpineScene({
 
   return (
     <div
-      className="relative h-full w-full select-none"
+      className="relative isolate h-full w-full select-none"
       aria-label="3D omurga modeli"
     >
       <Canvas
@@ -85,7 +85,12 @@ export default function SpineScene({
         }}
         dpr={[1, 1.5]}
         frameloop="always"
-        gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance",
+          preserveDrawingBuffer: false,
+        }}
       >
         <ambientLight intensity={0.85} />
         <directionalLight position={[3, 4, 5]} intensity={1.45} color="#ffffff" />

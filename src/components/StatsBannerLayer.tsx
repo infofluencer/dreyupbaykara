@@ -11,7 +11,7 @@ export function StatsBannerLayer({ children }: { children?: ReactNode }) {
     <div className="relative grid grid-cols-1">
       <section
         id="doktor-banner"
-        className="col-start-1 row-start-1 sticky top-0 z-0 h-screen w-full self-start overflow-hidden bg-[#123524]"
+        className="col-start-1 row-start-1 sticky top-0 z-0 h-dvh w-full self-start overflow-hidden bg-[#123524]"
         aria-label="Op. Dr. Eyüp Baykara"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}

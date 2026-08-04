@@ -41,8 +41,9 @@ export default function RootLayout({
     <html
       lang="tr"
       className={`${instrumentSans.variable} ${poppins.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full bg-bg text-text">
+      <body className="min-h-full bg-bg text-text" suppressHydrationWarning>
         <SectionReveal />
         <SectionPagination />
         {children}
