@@ -18,11 +18,24 @@ import { useHomeProgress } from "./useHomeProgress";
 
 const SpineScene = dynamic(() => import("./SpineScene"), { ssr: false });
 
+/** Mobil: hero solduktan sonra iskelet mount */
+const MOBILE_SPINE_LOAD = 0.32;
+/** Mobil: kamera/fıtık detayı bu progress'ten sonra başlar (öncesi default duruş) */
+const MOBILE_DETAIL_START = 0.52;
+
+function mapSceneProgress(raw: number, isDesktop: boolean): number {
+  if (isDesktop) return raw;
+  if (raw <= MOBILE_DETAIL_START) return 0;
+  return Math.min(1, (raw - MOBILE_DETAIL_START) / (1 - MOBILE_DETAIL_START));
+}
+
 export default function Home() {
   const wrapperRef = useRef<HTMLElement>(null);
   const [showSpineScene, setShowSpineScene] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const { progressRef, scrollYProgress } = useHomeProgress(wrapperRef);
+  /** 3D sahneye giden progress — mobilde detay gecikmeli */
+  const sceneProgressRef = useRef(0);
 
   const textOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0]);
   const textY = useTransform(scrollYProgress, [0, 0.35], [0, -80]);
@@ -31,10 +44,10 @@ export default function Home() {
   );
 
   const flashOpacity = useTransform(scrollYProgress, [0.82, 1], [0, 1]);
-  // Mobilde model, yazı/kart solduktan sonra belirir (kesik şerit yok)
+  // Mobilde model, hero tamamen solduktan sonra belirir
   const mobileSpineOpacity = useTransform(
     scrollYProgress,
-    [0.12, 0.28],
+    [0.32, 0.44],
     [0, 1],
   );
 
@@ -46,7 +59,26 @@ export default function Home() {
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  // Desktop: idle sonrası model. Mobil: scroll ile içerik geçildikten sonra.
+  // Raw scroll → scene progress (mobilde default hold + gecikmeli detay)
+  useEffect(() => {
+    let raf = 0;
+    let running = true;
+    const tick = () => {
+      if (!running) return;
+      sceneProgressRef.current = mapSceneProgress(
+        progressRef.current,
+        isDesktop,
+      );
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      running = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [isDesktop, progressRef]);
+
+  // Desktop: idle sonrası model. Mobil: hero solduktan sonra.
   useEffect(() => {
     let cancelled = false;
     let idleId = 0;
@@ -87,7 +119,7 @@ export default function Home() {
 
   useMotionValueEvent(scrollYProgress, "change", (value) => {
     if (isDesktop) return;
-    if (value >= 0.1) setShowSpineScene(true);
+    if (value >= MOBILE_SPINE_LOAD) setShowSpineScene(true);
   });
 
   return (
@@ -95,7 +127,7 @@ export default function Home() {
       <section
         id="home"
         ref={wrapperRef}
-        className="relative h-[280vh] bg-bg"
+        className="relative h-[280vh] bg-bg max-lg:h-[340vh]"
         aria-label="Ana sayfa bölümü"
       >
         <div className="sticky top-0 h-dvh w-full overflow-hidden bg-bg">
@@ -114,7 +146,9 @@ export default function Home() {
             className="pointer-events-none absolute inset-0 z-[8]"
             style={isDesktop ? undefined : { opacity: mobileSpineOpacity }}
           >
-            {showSpineScene ? <SpineScene progressRef={progressRef} /> : null}
+            {showSpineScene ? (
+              <SpineScene progressRef={sceneProgressRef} />
+            ) : null}
           </motion.div>
 
           {/* ── Desktop doctor card (right rail) ── */}
