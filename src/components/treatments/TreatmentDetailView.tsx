@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
-  MoveUpRight,
   Play,
   Quote,
   Stethoscope,
@@ -88,15 +87,15 @@ export function TreatmentDetailView({ treatment }: { treatment: Treatment }) {
             </div>
           </div>
 
-          <div className="order-1 overflow-hidden rounded-[2rem] bg-[#17372a] p-3 lg:order-2">
-            <div className="aspect-[4/3] overflow-hidden rounded-[1.45rem]">
+          <div className="order-1 min-w-0 overflow-hidden rounded-[2rem] bg-[#17372a] p-3 lg:order-2">
+            <div className="relative aspect-video w-full overflow-hidden rounded-[1.45rem]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={treatment.image}
                 alt={treatment.h1}
-                width={1000}
-                height={750}
-                className="h-full w-full object-cover"
+                width={1672}
+                height={941}
+                className="h-full w-full max-w-full object-contain object-center"
               />
             </div>
           </div>
@@ -121,7 +120,7 @@ export function TreatmentDetailView({ treatment }: { treatment: Treatment }) {
               return (
                 <div
                   key={item.text}
-                  className="group grid gap-4 py-5 sm:grid-cols-[60px_1fr_auto] sm:items-center"
+                  className="grid gap-4 py-5 sm:grid-cols-[60px_1fr] sm:items-center"
                 >
                   <span className="text-sm text-white/35">
                     0{index + 1}
@@ -132,10 +131,6 @@ export function TreatmentDetailView({ treatment }: { treatment: Treatment }) {
                       {item.text}
                     </h3>
                   </div>
-                  <MoveUpRight
-                    className="hidden h-5 w-5 text-white/25 transition group-hover:text-[#73df68] sm:block"
-                    aria-hidden
-                  />
                 </div>
               );
             })}
@@ -160,7 +155,7 @@ export function TreatmentDetailView({ treatment }: { treatment: Treatment }) {
                   Modern cerrahi yaklaşım
                 </p>
                 <p className="mt-2 font-[family-name:var(--font-instrument-sans)] text-xl font-medium">
-                  Daha küçük giriş, daha hızlı günlük yaşama dönüş
+                  4–5 mm giriş, daha hızlı günlük yaşama dönüş
                 </p>
               </div>
             </div>
@@ -188,8 +183,8 @@ export function TreatmentDetailView({ treatment }: { treatment: Treatment }) {
                         {item.title}
                       </h3>
                       <p className="mt-2 text-sm leading-6 text-[#466254]">
-                        Kas ve çevre dokuları mümkün olduğunca korumayı
-                        hedefleyen kişiselleştirilmiş yaklaşım.
+                        {item.desc ??
+                          "Kas ve çevre dokuları mümkün olduğunca korumayı hedefleyen kişiselleştirilmiş yaklaşım."}
                       </p>
                     </div>
                   );
@@ -307,11 +302,11 @@ export function TreatmentDetailView({ treatment }: { treatment: Treatment }) {
               Tedaviyi izleyin
             </p>
             <h2 className="mt-4 font-[family-name:var(--font-instrument-sans)] text-4xl font-medium leading-[1.05] tracking-[-0.04em] sm:text-5xl">
-              Yöntemi doktorunuzdan dinleyin
+              Yöntemi hastalarımızdan dinleyin
             </h2>
             <p className="mt-6 text-base leading-8 text-[#466254]">
               Tedavi yaklaşımı, uygulama süreci ve iyileşme dönemi hakkında
-              merak ettiklerinizi kısa videoda keşfedin.
+              merak ettiklerinizi hasta deneyim videolarında keşfedin.
             </p>
           </div>
         </div>

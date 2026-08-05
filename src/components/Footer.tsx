@@ -143,7 +143,7 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="https://www.youtube.com/@op.dr.eyupbaykara465"
+                href="https://www.youtube.com/@opdreyupbaykara"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-white/55 transition hover:text-white"
@@ -183,17 +183,6 @@ export function Footer() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-white/40">
               © {year} Op. Dr. Eyüp Baykara. Tüm hakları saklıdır.
-            </p>
-            <p className="text-xs text-white/35">
-              3D model: &ldquo;The human spinal column&rdquo; by 3D (Sketchfab),{" "}
-              <a
-                href="https://creativecommons.org/licenses/by/4.0/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline decoration-white/20 underline-offset-2 transition hover:text-white/60 hover:decoration-white/40"
-              >
-                CC BY 4.0
-              </a>
             </p>
           </div>
         </div>

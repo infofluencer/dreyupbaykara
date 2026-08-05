@@ -22,6 +22,7 @@ export type TreatmentShort = {
 export type TreatmentAdvantage = {
   icon: TreatmentIconName;
   title: string;
+  desc?: string;
 };
 
 export type TreatmentSymptom = {
@@ -98,7 +99,11 @@ export type Treatment = {
 const SHARED_ADVANTAGES: TreatmentAdvantage[] = [
   { icon: "Scissors", title: "Minimal İnvaziv" },
   { icon: "HeartPulse", title: "Az Ağrı" },
-  { icon: "Zap", title: "Hızlı İyileşme" },
+  {
+    icon: "Zap",
+    title: "4–6 Saat Taburcu",
+    desc: "Çoğu hasta işlemden 4–6 saat sonra taburcu olur.",
+  },
   { icon: "Sparkles", title: "Kozmetik Görünüm" },
   { icon: "TrendingUp", title: "Yüksek Başarı" },
 ];
@@ -212,8 +217,16 @@ export const treatments: Treatment[] = [
         a: "Çoğu hastada aynı gün ayağa kalkma ve taburcu mümkün olur. Kesin zamanlama, genel sağlık durumunuz ve ameliyat bulgularına göre belirlenir.",
       },
       {
+        q: "Ne zaman taburcu olurum?",
+        a: "Çoğu hasta işlemden sonra 4–6 saat içinde taburcu edilir. Genel sağlık durumunuz ve ameliyat bulgularına göre bu süre kişiselleştirilir.",
+      },
+      {
         q: "Açık ameliyattan farkı nedir?",
         a: "Büyük kesi ve kas kesisi yerine milimetrik bir giriş kullanılır. Bu da daha az ağrı, daha kısa iyileşme ve daha az iz demektir.",
+      },
+      {
+        q: "Nükleoplastiden farkı nedir?",
+        a: "Nükleoplasti, erken evre fıtıklarda diskin hacmini ısı enerjisiyle azaltmayı hedefler. Full endoskopik ameliyatta ise sinire baskı yapan fıtıklaşmış doku kamera rehberliğinde doğrudan çıkarılır; ameliyat düzeyindeki hastalarda kalıcı çözüm için tercih edilir.",
       },
     ],
     metaTitle:
@@ -290,6 +303,10 @@ export const treatments: Treatment[] = [
         q: "Ne kadar sürede iyileşirim?",
         a: "Birçok hasta 2–7 gün içinde günlük faaliyetlere döner. Ağır efor ve spor için hekiminizin verdiği takvime uyulması önemlidir.",
       },
+      {
+        q: "Ne zaman taburcu olurum?",
+        a: "Çoğu hasta işlemden sonra 4–6 saat içinde taburcu edilir. Kesin süre, genel sağlık durumunuz ve ameliyat bulgularına göre belirlenir.",
+      },
     ],
     metaTitle:
       "Full Endoskopik Tam Kapalı Boyun Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara",
@@ -348,8 +365,11 @@ export const treatments: Treatment[] = [
     advantages: [
       { icon: "Scissors", title: "Minimal İnvaziv" },
       { icon: "HeartPulse", title: "Az Ağrı" },
-      { icon: "Zap", title: "Hızlı İyileşme" },
-      { icon: "Sparkles", title: "Platin gerekmeyebilir" },
+      {
+        icon: "Zap",
+        title: "4–6 Saat Taburcu",
+        desc: "Çoğu hasta işlemden 4–6 saat sonra taburcu olur.",
+      },
       { icon: "TrendingUp", title: "Yürüme mesafesinde artış" },
     ],
     comparison: {
@@ -378,6 +398,10 @@ export const treatments: Treatment[] = [
     ],
     stats: SHARED_STATS,
     faq: [
+      {
+        q: "Ne zaman taburcu olurum?",
+        a: "Çoğu hasta işlemden sonra 4–6 saat içinde taburcu edilir. Kesin süre, genel sağlık durumunuz ve ameliyat bulgularına göre belirlenir.",
+      },
       {
         q: "Platin gerekir mi?",
         a: "Seçilmiş hastalarda endoskopik dekompresyon platin olmadan uygulanabilir. Sabitleme ihtiyacı olup olmadığı muayene ve görüntülemeyle belirlenir.",

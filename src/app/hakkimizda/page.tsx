@@ -46,6 +46,7 @@ export default function HakkimizdaPage() {
             <li>Full endoskopik kanal darlığı ameliyatı</li>
             <li>Minimal invaziv omurga cerrahisi</li>
           </ul>
+          <PageCta />
         </div>
 
         <div className="overflow-hidden rounded-[1.5rem] border border-[#0b6b45]/10 bg-white shadow-[0_12px_36px_rgba(18,53,36,0.06)]">
@@ -59,8 +60,6 @@ export default function HakkimizdaPage() {
           />
         </div>
       </div>
-
-      <PageCta />
     </PageShell>
   );
 }

@@ -77,7 +77,30 @@ export function SectionPagination() {
       }
       aria-label="Ana navigasyon"
     >
-      <div className="h-1.5 w-full bg-[#72a082]" aria-hidden="true" />
+      <a
+        href="https://wa.me/905307837224"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="pointer-events-auto flex min-h-10 w-full items-center justify-center gap-2.5 bg-[#0b6b45] px-4 py-2.5 text-center text-[13px] font-medium leading-snug text-white transition hover:bg-[#085436] sm:min-h-11 sm:text-sm"
+      >
+        <span>
+          Randevu ve sorularınız için asistanımıza{" "}
+          <span className="font-semibold underline decoration-white/70 underline-offset-2">
+            tıklayarak ulaşabilirsiniz
+          </span>
+        </span>
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+          className="shrink-0"
+        >
+          <path d="M17.47 14.38c-.28-.14-1.64-.81-1.9-.9-.25-.1-.44-.14-.62.14-.18.27-.71.9-.87 1.08-.16.18-.32.2-.6.07-.28-.14-1.17-.43-2.23-1.38-.82-.73-1.38-1.64-1.54-1.91-.16-.28-.02-.43.12-.57.13-.12.28-.32.42-.48.14-.16.18-.27.28-.45.09-.18.05-.34-.02-.48-.07-.14-.62-1.5-.85-2.05-.22-.53-.45-.46-.62-.47h-.53c-.18 0-.48.07-.73.34-.25.28-.96.94-.96 2.3s.99 2.66 1.12 2.84c.14.18 1.95 2.98 4.72 4.18.66.28 1.18.46 1.58.58.66.2 1.27.18 1.75.11.53-.08 1.64-.67 1.87-1.32.23-.65.23-1.2.16-1.32-.07-.11-.25-.18-.53-.32z" />
+          <path d="M12.04 2C6.5 2 2 6.48 2 12c0 1.76.46 3.48 1.34 5L2.1 21.9l4.99-1.3A9.96 9.96 0 0 0 12.04 22C17.56 22 22 17.52 22 12S17.56 2 12.04 2zm0 18.2c-1.58 0-3.13-.42-4.48-1.22l-.32-.19-2.96.78.79-2.89-.21-.34A8.17 8.17 0 0 1 3.8 12c0-4.54 3.7-8.22 8.24-8.22 4.54 0 8.24 3.68 8.24 8.22 0 4.54-3.7 8.2-8.24 8.2z" />
+        </svg>
+      </a>
 
       <div className="pointer-events-auto border-b border-black/5 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-[4.25rem] sm:px-6 lg:px-10">

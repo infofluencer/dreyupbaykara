@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState, useRef } from "react";
-import { motion, useMotionValueEvent, useTransform } from "framer-motion";
+import { motion, useTransform } from "framer-motion";
 import { HomeDoctorCard } from "./HomeDoctorCard";
 import { HomeTreatmentCards } from "./HomeTreatmentCards";
 import { TreatmentSection } from "./TreatmentSection";
@@ -20,19 +20,22 @@ const SpineScene = dynamic(() => import("./SpineScene"), { ssr: false });
 
 /** Mobil: hero solduktan sonra iskelet mount */
 const MOBILE_SPINE_LOAD = 0.32;
-/** Mobil: kamera/fıtık detayı bu progress'ten sonra başlar (öncesi default duruş) */
-const MOBILE_DETAIL_START = 0.52;
+/** Desktop: kırmızı fıtık/kamera detayı biraz daha geç başlasın */
+const DESKTOP_DETAIL_START = 0.18;
+/** Mobil: kamera/fıtık detayı daha geç başlasın (öncesi default duruş) */
+const MOBILE_DETAIL_START = 0.62;
 
 function mapSceneProgress(raw: number, isDesktop: boolean): number {
-  if (isDesktop) return raw;
-  if (raw <= MOBILE_DETAIL_START) return 0;
-  return Math.min(1, (raw - MOBILE_DETAIL_START) / (1 - MOBILE_DETAIL_START));
+  const detailStart = isDesktop ? DESKTOP_DETAIL_START : MOBILE_DETAIL_START;
+  if (raw <= detailStart) return 0;
+  return Math.min(1, (raw - detailStart) / (1 - detailStart));
 }
 
 export default function Home() {
   const wrapperRef = useRef<HTMLElement>(null);
   const [showSpineScene, setShowSpineScene] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
+  /** null = henüz ölçülmedi — opacity'yi 0'a kilitleme */
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
   const { progressRef, scrollYProgress } = useHomeProgress(wrapperRef);
   /** 3D sahneye giden progress — mobilde detay gecikmeli */
   const sceneProgressRef = useRef(0);
@@ -44,7 +47,6 @@ export default function Home() {
   );
 
   const flashOpacity = useTransform(scrollYProgress, [0.82, 1], [0, 1]);
-  // Mobilde model, hero tamamen solduktan sonra belirir
   const mobileSpineOpacity = useTransform(
     scrollYProgress,
     [0.32, 0.44],
@@ -61,14 +63,19 @@ export default function Home() {
 
   // Raw scroll → scene progress (mobilde default hold + gecikmeli detay)
   useEffect(() => {
+    if (isDesktop === null) return;
     let raf = 0;
     let running = true;
     const tick = () => {
       if (!running) return;
-      sceneProgressRef.current = mapSceneProgress(
-        progressRef.current,
-        isDesktop,
-      );
+      const rawProgress = progressRef.current;
+      sceneProgressRef.current = mapSceneProgress(rawProgress, isDesktop);
+
+      // Mobilde mount sadece "change" event'ine kalmasın; mevcut progress de hesaba katılsın.
+      if (!isDesktop && !showSpineScene && rawProgress >= MOBILE_SPINE_LOAD) {
+        setShowSpineScene(true);
+      }
+
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -76,10 +83,12 @@ export default function Home() {
       running = false;
       cancelAnimationFrame(raf);
     };
-  }, [isDesktop, progressRef]);
+  }, [isDesktop, progressRef, showSpineScene]);
 
   // Desktop: idle sonrası model. Mobil: hero solduktan sonra.
   useEffect(() => {
+    if (isDesktop !== true) return;
+
     let cancelled = false;
     let idleId = 0;
     let timeoutId = 0;
@@ -88,39 +97,28 @@ export default function Home() {
       if (!cancelled) setShowSpineScene(true);
     };
 
-    if (isDesktop) {
-      const win = window as Window & {
-        requestIdleCallback?: (
-          cb: () => void,
-          opts?: { timeout: number },
-        ) => number;
-        cancelIdleCallback?: (id: number) => void;
-      };
+    const win = window as Window & {
+      requestIdleCallback?: (
+        cb: () => void,
+        opts?: { timeout: number },
+      ) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
 
-      if (typeof win.requestIdleCallback === "function") {
-        idleId = win.requestIdleCallback(enable, { timeout: 1200 });
-      } else {
-        timeoutId = window.setTimeout(enable, 450);
-      }
-
-      return () => {
-        cancelled = true;
-        if (idleId && typeof win.cancelIdleCallback === "function") {
-          win.cancelIdleCallback(idleId);
-        }
-        if (timeoutId) window.clearTimeout(timeoutId);
-      };
+    if (typeof win.requestIdleCallback === "function") {
+      idleId = win.requestIdleCallback(enable, { timeout: 1200 });
+    } else {
+      timeoutId = window.setTimeout(enable, 450);
     }
 
     return () => {
       cancelled = true;
+      if (idleId && typeof win.cancelIdleCallback === "function") {
+        win.cancelIdleCallback(idleId);
+      }
+      if (timeoutId) window.clearTimeout(timeoutId);
     };
   }, [isDesktop]);
-
-  useMotionValueEvent(scrollYProgress, "change", (value) => {
-    if (isDesktop) return;
-    if (value >= MOBILE_SPINE_LOAD) setShowSpineScene(true);
-  });
 
   return (
     <>
@@ -141,10 +139,12 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Tek full-bleed canvas — mobilde opacity ile gelir, kesilmez */}
+          {/* Tek full-bleed canvas — mobilde opacity ile gelir; desktop her zaman görünür */}
           <motion.div
             className="pointer-events-none absolute inset-0 z-[8]"
-            style={isDesktop ? undefined : { opacity: mobileSpineOpacity }}
+            style={{
+              opacity: isDesktop === false ? mobileSpineOpacity : 1,
+            }}
           >
             {showSpineScene ? (
               <SpineScene progressRef={sceneProgressRef} />
@@ -175,12 +175,12 @@ export default function Home() {
               opacity: textOpacity,
               y: textY,
             }}
-            className="pointer-events-none absolute inset-x-0 top-0 z-10 px-3 pb-3 pt-[4.75rem] lg:hidden"
+            className="pointer-events-none absolute inset-x-0 top-0 z-10 px-3 pb-3 pt-[6.75rem] lg:hidden"
           >
             <div className="flex h-[calc(100dvh-5.25rem)] flex-col rounded-[1.5rem] bg-[#fdfaf5] p-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
-              <HomeTreatmentCards pointerEvents={textPE} compact />
+              <HomeDoctorCard mobile />
               <div className="mt-auto pt-4">
-                <HomeDoctorCard mobile />
+                <HomeTreatmentCards pointerEvents={textPE} compact />
               </div>
             </div>
           </motion.div>

@@ -107,7 +107,8 @@ export function HomeTreatmentCards({
           Full Endoskopik Tedavi
         </p>
         <p className="mt-2.5 text-sm leading-relaxed text-text-muted sm:text-[15px]">
-          Birkaç milimetrelik tek girişten, kas kesmeden, dikişsiz.
+          4 milimetrelik bir delikten kamera ile girilip fıtıklaşan dokunun
+          alınmasıdır.
         </p>
       </div>
 

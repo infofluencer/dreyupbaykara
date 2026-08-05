@@ -123,8 +123,6 @@ function SlotDigits({ value }: { value: number }) {
 const STATS = [
   { icon: "heart",  value: 15,   suffix: "+", label: "Yıl deneyim"   },
   { icon: "trophy", value: 1000, suffix: "+", label: "Memnun hasta"  },
-  { icon: "thumb",  value: 80,   suffix: "%", label: "Başarı oranı"  },
-  { icon: "star",   value: 42,   suffix: "+", label: "Ameliyat türü" },
 ] as const;
 
 function StatIcon({ type }: { type: string }) {
@@ -134,21 +132,10 @@ function StatIcon({ type }: { type: string }) {
       <path d="M9 9c.5 1.5 1.5 2.5 3 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
     </svg>
   );
-  if (type === "trophy") return (
+  return (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M8 21h8M12 17v4M5 3H3v3a4 4 0 0 0 4 4M19 3h2v3a4 4 0 0 1-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
       <path d="M7 3h10v6a5 5 0 0 1-10 0V3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
-    </svg>
-  );
-  if (type === "thumb") return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-      <path d="M11 13V5a2 2 0 0 1 4 0v4h2.5a2 2 0 0 1 2 2.3l-1 6a2 2 0 0 1-2 1.7H11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -250,7 +237,10 @@ export function TreatmentSection({
         <motion.div variants={itemVariants} className="flex flex-col justify-center">
           <RevealText />
 
-          <motion.div variants={itemVariants} className="mt-8 grid grid-cols-2 gap-4">
+          <motion.div
+            variants={itemVariants}
+            className="mx-auto mt-8 grid w-full max-w-md grid-cols-2 gap-4"
+          >
             {STATS.map((s) => (
               <StatCard key={s.label} {...s} />
             ))}

@@ -18,9 +18,9 @@ export function DoctorBanner() {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/banner_dr.jpg"
+          src="/drtv.webp"
           alt="Op. Dr. Eyüp Baykara — ameliyathane"
-          className="block h-[min(78dvh,48rem)] w-full object-cover object-[72%_center] sm:h-[min(85dvh,52rem)]"
+          className="block h-[min(78dvh,48rem)] w-full object-cover object-[48%_center] sm:h-[min(85dvh,52rem)]"
           loading="lazy"
           decoding="async"
         />

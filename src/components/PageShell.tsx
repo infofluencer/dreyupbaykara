@@ -41,21 +41,13 @@ export function PageShell({
 
 export function PageCta() {
   return (
-    <div className="mt-14 flex flex-wrap gap-3">
+    <div className="pt-1">
       <Link
         href="/iletisim"
         className="inline-flex items-center justify-center rounded-full bg-[#0b6b45] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#085436]"
       >
         Randevu Al
       </Link>
-      <a
-        href="https://wa.me/905307837224"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center justify-center rounded-full border border-[#0b6b45]/25 px-7 py-3 text-sm font-semibold text-[#0b6b45] transition hover:border-[#0b6b45]"
-      >
-        WhatsApp
-      </a>
     </div>
   );
 }

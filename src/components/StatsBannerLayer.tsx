@@ -16,11 +16,11 @@ export function StatsBannerLayer({ children }: { children?: ReactNode }) {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/banner_dr.jpg"
+          src="/drtv.webp"
           alt="Op. Dr. Eyüp Baykara — ameliyathane"
-          width={1916}
-          height={821}
-          className="h-full w-full object-cover object-[72%_center]"
+          width={2768}
+          height={1848}
+          className="h-full w-full object-cover object-[48%_center]"
           decoding="async"
           loading="lazy"
         />
