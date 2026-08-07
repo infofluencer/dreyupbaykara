@@ -20,6 +20,11 @@ export const metadata: Metadata = {
   title: "Op. Dr. Eyüp Baykara | Beyin ve Sinir Cerrahisi Uzmanı",
   description:
     "Full endoskopik tam kapalı bel fıtığı ameliyatı ve minimal invaziv beyin & omurga cerrahisi. Op. Dr. Eyüp Baykara — Silivri, İstanbul.",
+  icons: {
+    icon: [{ url: "/hero/endospinelogo.ico", type: "image/x-icon" }],
+    shortcut: "/hero/endospinelogo.ico",
+    apple: "/hero/endospinelogo.png",
+  },
 };
 
 export const viewport: Viewport = {
