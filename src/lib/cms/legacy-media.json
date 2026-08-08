@@ -1,0 +1,124 @@
+{
+  "images": [
+    {
+      "publicPath": "hero/hero_dr.webp",
+      "objectPath": "legacy/hero/hero_dr.webp",
+      "alt": "Op. Dr. Eyüp Baykara",
+      "pageSlugs": ["/", "/hakkimizda"]
+    },
+    {
+      "publicPath": "hero/belfitigi.webp",
+      "objectPath": "legacy/hero/belfitigi.webp",
+      "alt": "Full endoskopik bel fıtığı ameliyatı",
+      "pageSlugs": ["/tedaviler/bel-fitigi-ameliyati"]
+    },
+    {
+      "publicPath": "hero/boyunfitigi.webp",
+      "objectPath": "legacy/hero/boyunfitigi.webp",
+      "alt": "Full endoskopik boyun fıtığı ameliyatı",
+      "pageSlugs": ["/tedaviler/boyun-fitigi-ameliyati"]
+    },
+    {
+      "publicPath": "hero/kanaldarligi.webp",
+      "objectPath": "legacy/hero/kanaldarligi.webp",
+      "alt": "Full endoskopik kanal darlığı ameliyatı",
+      "pageSlugs": ["/tedaviler/kanal-darligi-ameliyati"]
+    },
+    {
+      "publicPath": "banner_dr.jpg",
+      "objectPath": "legacy/banner_dr.jpg",
+      "alt": "Op. Dr. Eyüp Baykara",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "drtv.webp",
+      "objectPath": "legacy/drtv.webp",
+      "alt": "Op. Dr. Eyüp Baykara",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "vector_dr.webp",
+      "objectPath": "legacy/vector_dr.webp",
+      "alt": "Op. Dr. Eyüp Baykara",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "kaduseus-green.png",
+      "objectPath": "legacy/kaduseus-green.png",
+      "alt": "Asklepios asası",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/endospinelogo.png",
+      "objectPath": "legacy/hero/endospinelogo.png",
+      "alt": "Endoskopik Bel Ameliyatı",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/instagram/reel-DYpmtdTBQrc.jpg",
+      "objectPath": "legacy/hero/instagram/reel-DYpmtdTBQrc.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": ["/hasta-deneyimleri"]
+    },
+    {
+      "publicPath": "hero/instagram/post-DNGq36fuxkG.jpg",
+      "objectPath": "legacy/hero/instagram/post-DNGq36fuxkG.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/instagram/post-DWo4I_ghjgO.jpg",
+      "objectPath": "legacy/hero/instagram/post-DWo4I_ghjgO.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/instagram/reel-DOgy7JVDAa6.jpg",
+      "objectPath": "legacy/hero/instagram/reel-DOgy7JVDAa6.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/instagram/reel-DEIh4vpIMZp.jpg",
+      "objectPath": "legacy/hero/instagram/reel-DEIh4vpIMZp.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/instagram/reel-DPWyN1yDJOi.jpg",
+      "objectPath": "legacy/hero/instagram/reel-DPWyN1yDJOi.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/instagram/reel-Da0p51xg6Xg.jpg",
+      "objectPath": "legacy/hero/instagram/reel-Da0p51xg6Xg.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/instagram/reel-DXzde1cszGk.jpg",
+      "objectPath": "legacy/hero/instagram/reel-DXzde1cszGk.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/instagram/reel-DXcW45PANjc.jpg",
+      "objectPath": "legacy/hero/instagram/reel-DXcW45PANjc.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/instagram/reel-DUtSl19DJ2i.jpg",
+      "objectPath": "legacy/hero/instagram/reel-DUtSl19DJ2i.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": []
+    },
+    {
+      "publicPath": "hero/instagram/reel-DTyETquDIMi.jpg",
+      "objectPath": "legacy/hero/instagram/reel-DTyETquDIMi.jpg",
+      "alt": "Hasta deneyimi videosu",
+      "pageSlugs": []
+    }
+  ]
+}

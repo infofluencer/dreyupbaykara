@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Mail, MapPin, Phone } from "lucide-react";
 import type { Treatment } from "@/data/treatments";
+import { TrackedWhatsAppLink } from "@/components/TrackedWhatsAppLink";
 
 const PHONE_DISPLAY = "0530 783 72 24";
 const PHONE_TEL = "+905307837224";
 const EMAIL = "info@endospineistanbul.com";
-const WHATSAPP = "https://wa.me/905307837224";
 
 type TreatmentSidebarProps = {
   related: Treatment[];
@@ -104,14 +104,12 @@ export function TreatmentSidebar({ related }: TreatmentSidebarProps) {
           >
             Randevu Al
           </Link>
-          <a
-            href={WHATSAPP}
-            target="_blank"
-            rel="noopener noreferrer"
+          <TrackedWhatsAppLink
+            channel="treatment_sidebar"
             className="inline-flex items-center justify-center rounded-full border border-[#0b6b45]/25 px-5 py-3 text-sm font-semibold text-[#0b6b45] transition hover:border-[#0b6b45]"
           >
             WhatsApp
-          </a>
+          </TrackedWhatsAppLink>
         </div>
       </div>
     </aside>

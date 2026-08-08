@@ -16,7 +16,10 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.eyupbaykara.com"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ||
+      "https://endoskopikbelameliyati.com",
+  ),
   title: "Op. Dr. Eyüp Baykara | Beyin ve Sinir Cerrahisi Uzmanı",
   description:
     "Full endoskopik tam kapalı bel fıtığı ameliyatı ve minimal invaziv beyin & omurga cerrahisi. Op. Dr. Eyüp Baykara — Silivri, İstanbul.",
@@ -33,10 +36,6 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-import { Footer } from "@/components/Footer";
-import { SectionReveal } from "@/components/SectionReveal";
-import { SectionPagination } from "@/components/SectionPagination";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -49,10 +48,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full bg-bg text-text" suppressHydrationWarning>
-        <SectionReveal />
-        <SectionPagination />
         {children}
-        <Footer />
       </body>
     </html>
   );

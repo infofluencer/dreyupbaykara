@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { VectorPattern } from "@/components/VectorPattern";
+import { TrackedWhatsAppLink } from "@/components/TrackedWhatsAppLink";
 
 export type PageHeroCrumb = {
   label: string;
@@ -22,7 +23,9 @@ export type PageHeroProps = {
   align?: "left";
 };
 
-const SITE_ORIGIN = "https://www.eyupbaykara.com";
+const SITE_ORIGIN =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://endoskopikbelameliyati.com";
 
 function absoluteUrl(href: string) {
   if (href.startsWith("http")) return href;
@@ -49,13 +52,7 @@ export function PageHero({
         }
       : null;
 
-  const resolvedCta =
-    cta === false
-      ? null
-      : (cta ?? {
-          label: "Randevu al",
-          href: "https://wa.me/905307837224",
-        });
+  const resolvedCta = cta === false ? null : cta === undefined ? "whatsapp" : cta;
 
   return (
     <section
@@ -125,7 +122,17 @@ export function PageHero({
                   {description}
                 </p>
               ) : null}
-              {resolvedCta ? (
+              {resolvedCta === "whatsapp" ? (
+                <TrackedWhatsAppLink
+                  channel="hero"
+                  className="mt-7 inline-flex items-center gap-3 rounded-full bg-[#17372a] py-2 pl-6 pr-2 text-sm font-semibold text-white transition hover:bg-[#0b6b45]"
+                >
+                  Randevu al
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#73df68] text-[#17372a]">
+                    <ArrowUpRight className="h-4 w-4" aria-hidden />
+                  </span>
+                </TrackedWhatsAppLink>
+              ) : resolvedCta ? (
                 resolvedCta.href.startsWith("http") ? (
                   <a
                     href={resolvedCta.href}

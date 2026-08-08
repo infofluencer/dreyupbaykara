@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
-
-const WHATSAPP_NUMBER = "905307837224";
+import { buildTrackingPath } from "@/lib/crm/tracking";
 
 type FormState = {
   name: string;
@@ -20,22 +19,6 @@ const INITIAL: FormState = {
   age: "",
 };
 
-function buildWhatsAppUrl(data: FormState) {
-  const lines = [
-    "Merhaba Op. Dr. Eyüp Baykara,",
-    "",
-    "Kalçadan bacağa vuran ağrı / full endoskopik tedavi için bilgi formu:",
-    `• İsim: ${data.name.trim() || "—"}`,
-    `• Daha önce ameliyat önerildi mi?: ${data.surgeryRecommended.trim() || "—"}`,
-    `• Son MR: ${data.lastMri.trim() || "—"}`,
-    `• Beyin ve sinir cerrahisi uzmanına muayene: ${data.seenSpecialist.trim() || "—"}`,
-    `• Yaş: ${data.age.trim() || "—"}`,
-    "",
-    "Beni aramanızı rica ederim.",
-  ];
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`;
-}
-
 export function LeadForm() {
   const [form, setForm] = useState<FormState>(INITIAL);
 
@@ -48,7 +31,21 @@ export function LeadForm() {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    window.open(buildWhatsAppUrl(form), "_blank", "noopener,noreferrer");
+
+    const href = buildTrackingPath({
+      site: "endoskopikbelameliyati",
+      channel: "lead_form",
+      page: "/#randevu-formu",
+      extra: {
+        name: form.name.trim(),
+        surgeryRecommended: form.surgeryRecommended || undefined,
+        lastMri: form.lastMri || undefined,
+        seenSpecialist: form.seenSpecialist || undefined,
+        age: form.age || undefined,
+      },
+    });
+
+    window.location.href = href;
   };
 
   return (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TrackedWhatsAppLink } from "@/components/TrackedWhatsAppLink";
 import { VectorPattern } from "@/components/VectorPattern";
 
 const TREATMENTS = [
@@ -40,10 +41,8 @@ export function Footer() {
               Full endoskopik tam kapalı bel, boyun fıtığı ve kanal darlığı
               cerrahisi.
             </p>
-            <a
-              href="https://wa.me/905307837224"
-              target="_blank"
-              rel="noopener noreferrer"
+            <TrackedWhatsAppLink
+              channel="footer"
               className="mt-6 inline-flex items-center gap-2 border-b border-white/30 pb-1 text-sm font-semibold text-white transition hover:border-white"
             >
               Randevu al
@@ -56,7 +55,7 @@ export function Footer() {
                   strokeLinejoin="round"
                 />
               </svg>
-            </a>
+            </TrackedWhatsAppLink>
           </div>
 
           <div>
