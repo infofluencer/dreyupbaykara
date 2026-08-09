@@ -207,6 +207,23 @@ export function mergeHomeSections(raw: unknown): HomeSections {
   };
 }
 
+export async function getHomeSections(): Promise<HomeSections> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return mergeHomeSections(undefined);
+  const { createClient } = await import("@supabase/supabase-js");
+  const supabase = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("setting_key", "home.sections")
+    .eq("is_public", true)
+    .maybeSingle();
+  return mergeHomeSections(data?.value);
+}
+
 export function homeImageUrl(path: string): string {
   if (!path) return path;
   if (
