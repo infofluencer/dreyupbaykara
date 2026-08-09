@@ -4,6 +4,7 @@ import {
   saveBotSettings,
 } from "@/app/admin/actions";
 import { requireAdminSession } from "@/lib/admin/auth";
+import { faqLang } from "@/lib/whatsapp/bot-match";
 import { createClient } from "@/lib/supabase/server";
 
 const input =
@@ -43,8 +44,9 @@ export default async function BotPage() {
           Otomatik yanıt botu
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#466254]">
-          Kural tabanlı karşılama ve SSS. Tıbbi teşhis, görüntü yorumlama veya
-          tedavi önerisi üretmez.
+          Hastalar Türkçe, İngilizce veya Arapça (bazen Latin Arabizi: wein,
+          se3r) yazar. SSS tutarsa aynı dilde sabit cevap gider. Tutmazsa
+          ChatGPT uydurmaz; asistan kuyruğuna düşer. Tıbbi teşhis yok.
         </p>
       </div>
 
@@ -94,30 +96,35 @@ export default async function BotPage() {
             />
           </Field>
         </div>
-        <Field label="Karşılama mesajı">
+        <Field label="Karşılama (ilk mesaj, SSS yok)">
           <textarea
             name="welcome_message"
-            rows={3}
+            rows={6}
             defaultValue={settings.welcome_message}
             className={input}
           />
         </Field>
-        <Field label="Mesai dışı mesajı">
+        <Field label="Mesai dışı (SSS yok)">
           <textarea
             name="after_hours_message"
-            rows={3}
+            rows={5}
             defaultValue={settings.after_hours_message}
             className={input}
           />
         </Field>
-        <Field label="Genel güvenli yanıt">
+        <Field label="Eşleşmeyen soru → asistan (fallback)">
           <textarea
             name="fallback_message"
-            rows={3}
+            rows={6}
             defaultValue={settings.fallback_message}
             className={input}
           />
         </Field>
+        <p className="text-xs leading-5 text-[#466254]">
+          Fallback, hoş geldinden sonra gelen eşleşmeyen soruda da gider; hasta
+          sessiz bırakılmaz. Aynı fallback 30 dk içinde tekrarlanmaz — asistan
+          Inbox’tan devam eder.
+        </p>
         <button className="rounded-full bg-[#0b6b45] px-6 py-2.5 text-sm font-semibold text-white">
           Bot ayarlarını kaydet
         </button>
@@ -127,8 +134,8 @@ export default async function BotPage() {
         <div>
           <h2 className="text-lg font-semibold">Sık sorulan sorular</h2>
           <p className="mt-1 text-sm text-[#466254]">
-            Virgülle ayrılmış anahtar kelimelerden biri mesajda geçerse sabit
-            cevap gönderilir.
+            TR / EN / AR ayrı maddeler. Virgülle keyword; biri tutarsa o dildeki
+            cevap gider. Arapça maddeye wein, se3r gibi Arabizi de ekleyin.
           </p>
         </div>
         {faqs?.map((faq) => (
@@ -138,6 +145,13 @@ export default async function BotPage() {
             className="space-y-4 rounded-2xl border border-[#123524]/10 bg-white p-5"
           >
             <input type="hidden" name="id" value={faq.id} />
+            <p className="text-[11px] font-semibold tracking-wide text-[#466254] uppercase">
+              {faqLang(faq) === "ar"
+                ? "AR · Arapça"
+                : faqLang(faq) === "tr"
+                  ? "TR · Türkçe"
+                  : "EN · English"}
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Soru / başlık">
                 <input

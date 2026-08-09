@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { HOME_FALLBACK, type HomeCopyBlock } from "@/lib/cms/home";
 
 const RATING_BADGES = [
   {
@@ -86,7 +87,13 @@ const TESTIMONIALS = [
   },
 ] as const;
 
-export function Testimonials({ showHeader = true }: { showHeader?: boolean }) {
+export function Testimonials({
+  showHeader = true,
+  copy = HOME_FALLBACK.testimonials,
+}: {
+  showHeader?: boolean;
+  copy?: HomeCopyBlock;
+}) {
   return (
     <section
       id="yorumlar"
@@ -104,10 +111,10 @@ export function Testimonials({ showHeader = true }: { showHeader?: boolean }) {
             className="mb-10 text-center md:mb-12"
           >
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#0b6b45]/70">
-              Hasta hikâyeleri
+              {copy.kicker}
             </p>
             <h2 className="font-[family-name:var(--font-instrument-sans)] text-3xl font-semibold tracking-tight text-[#123524] sm:text-4xl">
-              Hasta hikayeleri
+              {copy.title}
             </h2>
           </motion.div>
         ) : null}

@@ -2,8 +2,14 @@
 
 import { motion, type MotionValue } from "framer-motion";
 import { VectorPattern } from "@/components/VectorPattern";
+import {
+  HOME_FALLBACK,
+  homeImageUrl,
+  type HomeHero,
+} from "@/lib/cms/home";
 
 interface HomeDoctorCardProps {
+  hero?: HomeHero;
   style?: {
     opacity?: MotionValue<number>;
     y?: MotionValue<number>;
@@ -12,7 +18,13 @@ interface HomeDoctorCardProps {
   mobile?: boolean;
 }
 
-function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
+function DoctorCardInner({
+  mobile = false,
+  hero = HOME_FALLBACK.hero,
+}: {
+  mobile?: boolean;
+  hero?: HomeHero;
+}) {
   if (mobile) {
     return (
       <div className="pointer-events-auto relative flex h-[14rem] overflow-hidden rounded-[1.35rem] bg-[#e8f3ef] shadow-[0_16px_40px_rgba(15,39,68,0.1)]">
@@ -25,13 +37,12 @@ function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
         <div className="relative z-10 flex w-[56%] flex-col justify-between p-4">
           <div>
             <h2 className="font-[family-name:var(--font-instrument-sans)] text-[1.2rem] font-semibold leading-[1.15] tracking-tight text-[#1e3352]">
-              Op. Dr.
+              {hero.doctorName1}
               <br />
-              Eyüp Baykara
+              {hero.doctorName2}
             </h2>
             <p className="mt-2 text-[11px] leading-snug text-[#5b6b7c]">
-              Beyin ve Sinir Cerrahisi Uzmanı. Full endoskopik yöntemle hızlı
-              iyileşme.
+              {hero.doctorBio}
             </p>
           </div>
           <a
@@ -41,7 +52,7 @@ function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
             className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-white px-2.5 py-2 shadow-sm"
           >
             <span className="font-[family-name:var(--font-instrument-sans)] text-base font-bold text-[#1e3352]">
-              4,9
+              {hero.rating}
             </span>
             <div className="flex gap-0.5" aria-hidden="true">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -57,7 +68,7 @@ function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
               ))}
             </div>
             <span className="text-[10px] font-semibold text-[#5b6b7c]">
-              276 yorum
+              {hero.reviewCount}
             </span>
           </a>
         </div>
@@ -65,8 +76,8 @@ function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
         <div className="absolute inset-y-0 right-0 w-[44%]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/hero/hero_dr.webp"
-            alt="Op. Dr. Eyüp Baykara"
+            src={homeImageUrl(hero.doctorImage)}
+            alt={`${hero.doctorName1} ${hero.doctorName2}`}
             className="h-full w-full object-cover object-[center_18%]"
             decoding="async"
           />
@@ -90,13 +101,12 @@ function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
       <div className="relative z-10 flex w-[52%] flex-col justify-between p-5 lg:p-6">
         <div>
           <h2 className="font-[family-name:var(--font-instrument-sans)] text-[1.35rem] font-semibold leading-[1.15] tracking-tight text-[#1e3352] lg:text-[1.55rem]">
-            Op. Dr.
+            {hero.doctorName1}
             <br />
-            Eyüp Baykara
+            {hero.doctorName2}
           </h2>
           <p className="mt-2.5 max-w-[14rem] text-xs leading-relaxed text-[#5b6b7c] lg:text-[13px]">
-            Beyin ve Sinir Cerrahisi Uzmanı. Full endoskopik tam kapalı yöntemle
-            hızlı iyileşme.
+            {hero.doctorBio}
           </p>
         </div>
 
@@ -133,7 +143,7 @@ function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
                 />
               </svg>
               <span className="font-[family-name:var(--font-instrument-sans)] text-lg font-bold tracking-tight text-[#1e3352]">
-                4,9
+                {hero.rating}
               </span>
               <div className="flex gap-0.5" aria-hidden="true">
                 {[1, 2, 3, 4, 5].map((i) => (
@@ -150,12 +160,12 @@ function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
               </div>
             </div>
             <p className="mt-1 text-[11px] font-semibold text-[#5b6b7c]">
-              Google · 276 yorum
+              Google · {hero.reviewCount}
             </p>
           </a>
           <div className="rounded-xl bg-white px-3 py-2.5 shadow-sm">
             <p className="font-[family-name:var(--font-instrument-sans)] text-xl font-bold text-[#1e3352]">
-              15+
+              {hero.doctorYears}
             </p>
             <p className="mt-0.5 text-[11px] leading-tight text-[#5b6b7c]">
               Yıl cerrahi
@@ -168,9 +178,7 @@ function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
               ✓
             </p>
             <p className="mt-0.5 text-[11px] leading-tight text-[#5b6b7c]">
-              Aynı gün
-              <br />
-              taburcu
+              {hero.doctorPerk}
             </p>
           </div>
         </div>
@@ -179,8 +187,8 @@ function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
       <div className="absolute inset-y-0 right-0 w-[56%]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/hero/hero_dr.webp"
-          alt="Op. Dr. Eyüp Baykara"
+          src={homeImageUrl(hero.doctorImage)}
+          alt={`${hero.doctorName1} ${hero.doctorName2}`}
           className="h-full w-full object-cover object-[center_18%]"
           decoding="async"
         />
@@ -193,17 +201,21 @@ function DoctorCardInner({ mobile = false }: { mobile?: boolean }) {
   );
 }
 
-export function HomeDoctorCard({ style, mobile = false }: HomeDoctorCardProps) {
+export function HomeDoctorCard({
+  hero = HOME_FALLBACK.hero,
+  style,
+  mobile = false,
+}: HomeDoctorCardProps) {
   if (mobile) {
     return (
       <motion.aside
         className="pointer-events-none w-full"
-        aria-label="Op. Dr. Eyüp Baykara"
+        aria-label={`${hero.doctorName1} ${hero.doctorName2}`}
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
       >
-        <DoctorCardInner mobile />
+        <DoctorCardInner hero={hero} mobile />
       </motion.aside>
     );
   }
@@ -212,12 +224,12 @@ export function HomeDoctorCard({ style, mobile = false }: HomeDoctorCardProps) {
     <motion.aside
       style={style}
       className="pointer-events-none absolute inset-y-0 right-0 z-[12] hidden w-[min(46%,34rem)] items-center justify-end pr-3 lg:flex lg:pr-8 xl:pr-10"
-      aria-label="Op. Dr. Eyüp Baykara"
+      aria-label={`${hero.doctorName1} ${hero.doctorName2}`}
       initial={{ opacity: 0, x: 36, scale: 0.985 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       transition={{ duration: 0.9, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
     >
-      <DoctorCardInner />
+      <DoctorCardInner hero={hero} />
     </motion.aside>
   );
 }

@@ -1,11 +1,29 @@
 # CRM / Takvim test scripti
 
-Ortam: `http://localhost:3005/admin` (veya canlı domain `/admin`)  
+Terminal:
+
+```bash
+npm run test:crm
+npm run test:sources
+```
+
+Canlı site ayaktaysa:
+
+```bash
+BASE_URL=https://ALAN-ADINIZ npm run test:crm
+```
+
+Script canlı Supabase’e bağlanır: şema, hasta kimliği, not, 1 saat muayene, 3 saat ameliyat, çakışma, temizlik.
+
+---
+
+Elle tarayıcı kontrolü: `/admin` (veya canlı domain `/admin`)  
 Hesap: `admin` / `doctor` / `assistant` rolünden biri  
 Önkoşul: Supabase SQL Editor’da **tüm migration’lar** çalışmış olsun, özellikle:
 
 - `20260808041000_calendar_enhancements.sql`
 - `20260808160000_patients.sql`
+- `20260808180000_appointment_no_overlap.sql`
 
 WhatsApp env boşsa inbox/bot/hatırlatma adımlarını atlayın.
 

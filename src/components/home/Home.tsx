@@ -15,6 +15,7 @@ import { YouTubeGallery } from "@/components/YouTubeGallery";
 import { HomeBlogSection } from "@/components/HomeBlogSection";
 import { VectorPattern } from "@/components/VectorPattern";
 import { useHomeProgress } from "./useHomeProgress";
+import { HOME_FALLBACK, type HomeSections } from "@/lib/cms/home";
 
 const SpineScene = dynamic(() => import("./SpineScene"), { ssr: false });
 
@@ -31,7 +32,11 @@ function mapSceneProgress(raw: number, isDesktop: boolean): number {
   return Math.min(1, (raw - detailStart) / (1 - detailStart));
 }
 
-export default function Home() {
+export default function Home({
+  sections = HOME_FALLBACK,
+}: {
+  sections?: HomeSections;
+}) {
   const wrapperRef = useRef<HTMLElement>(null);
   const [showSpineScene, setShowSpineScene] = useState(false);
   /** null = henüz ölçülmedi — opacity'yi 0'a kilitleme */
@@ -152,7 +157,10 @@ export default function Home() {
           </motion.div>
 
           {/* ── Desktop doctor card (right rail) ── */}
-          <HomeDoctorCard style={{ opacity: textOpacity, y: textY }} />
+          <HomeDoctorCard
+            hero={sections.hero}
+            style={{ opacity: textOpacity, y: textY }}
+          />
 
           {/* ── Desktop copy (left) ── */}
           <motion.div
@@ -164,7 +172,7 @@ export default function Home() {
             className="pointer-events-none absolute inset-0 z-10 hidden items-center pt-32 lg:flex"
           >
             <div className="flex w-full justify-start pl-10 pr-[48%] xl:pl-12">
-              <HomeTreatmentCards pointerEvents={textPE} />
+              <HomeTreatmentCards hero={sections.hero} pointerEvents={textPE} />
             </div>
           </motion.div>
 
@@ -178,9 +186,13 @@ export default function Home() {
             className="pointer-events-none absolute inset-x-0 top-0 z-10 px-3 pb-3 pt-[6.75rem] lg:hidden"
           >
             <div className="flex h-[calc(100dvh-5.25rem)] flex-col rounded-[1.5rem] bg-[#fdfaf5] p-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
-              <HomeDoctorCard mobile />
+              <HomeDoctorCard hero={sections.hero} mobile />
               <div className="mt-auto pt-4">
-                <HomeTreatmentCards pointerEvents={textPE} compact />
+                <HomeTreatmentCards
+                  hero={sections.hero}
+                  pointerEvents={textPE}
+                  compact
+                />
               </div>
             </div>
           </motion.div>
@@ -202,13 +214,13 @@ export default function Home() {
       <div className="relative z-10 bg-[#f7f1e9]">
         <VectorPattern tone="light" opacity={0.045} size={400} />
         <div className="relative">
-          <TreatmentSection />
-          <LeadForm />
-          <VideoGallery />
+          <TreatmentSection whyUs={sections.whyUs} />
+          <LeadForm copy={sections.leadForm} />
+          <VideoGallery copy={sections.instagram} />
         </div>
       </div>
 
-      <StatsBannerLayer>
+      <StatsBannerLayer banner={sections.banner}>
         {/* Tedavi + yorumlar — tek krem zemin, tek pattern (sert geçiş olmasın) */}
         <div className="relative z-20 rounded-b-[2rem] bg-[#f7f1e9] md:rounded-b-[2.5rem]">
           <VectorPattern
@@ -219,13 +231,13 @@ export default function Home() {
           />
           <div className="relative">
             <TreatmentArchive />
-            <Testimonials />
+            <Testimonials copy={sections.testimonials} />
           </div>
         </div>
         {/* Fotoğrafın tam ekran sticky penceresi */}
         <div className="pointer-events-none h-dvh w-full shrink-0" aria-hidden />
-        <YouTubeGallery />
-        <HomeBlogSection />
+        <YouTubeGallery copy={sections.youtube} />
+        <HomeBlogSection copy={sections.blog} />
       </StatsBannerLayer>
     </>
   );

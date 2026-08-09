@@ -1,12 +1,19 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { HOME_FALLBACK, homeImageUrl, type HomeBanner } from "@/lib/cms/home";
 
 /**
  * Sticky alt katman — tam ekran.
  * Tedavi + galeri bu fotoğrafın üzerinden kayar.
  */
-export function StatsBannerLayer({ children }: { children?: ReactNode }) {
+export function StatsBannerLayer({
+  children,
+  banner = HOME_FALLBACK.banner,
+}: {
+  children?: ReactNode;
+  banner?: HomeBanner;
+}) {
   return (
     <div className="relative grid grid-cols-1">
       <section
@@ -16,8 +23,8 @@ export function StatsBannerLayer({ children }: { children?: ReactNode }) {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/drtv.webp"
-          alt="Op. Dr. Eyüp Baykara — ameliyathane"
+          src={homeImageUrl(banner.image)}
+          alt={banner.alt}
           width={2768}
           height={1848}
           className="h-full w-full object-cover object-[48%_center]"

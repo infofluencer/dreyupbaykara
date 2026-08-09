@@ -15,6 +15,7 @@ import {
   LEGACY_SITE_IMAGES,
   mimeFromFileName,
 } from "@/lib/cms/legacy-media";
+import { mergeHomeSections, type HomeSections } from "@/lib/cms/home";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -395,6 +396,7 @@ export async function deleteMediaAsset(formData: FormData) {
   const { error } = await supabase.from("media_assets").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/media");
+  revalidatePath("/admin/content");
 }
 
 export async function importExistingSiteMedia() {
@@ -468,12 +470,12 @@ export async function importExistingSiteMedia() {
   revalidatePath("/tedaviler/boyun-fitigi-ameliyati");
   revalidatePath("/tedaviler/kanal-darligi-ameliyati");
   redirect(
-    `/admin/media?imported=${uploaded}&linked=${linked}&failed=${failed}`,
+    `/admin/content?tab=media&imported=${uploaded}&linked=${linked}&failed=${failed}`,
   );
 }
 
 export async function saveSiteSettings(formData: FormData) {
-  const session = await requireAdminSession(["admin", "editor"]);
+  const session = await requireAdminSession(["admin", "editor", "agency"]);
   const supabase = await createClient();
   const rows = [
     {
@@ -503,7 +505,115 @@ export async function saveSiteSettings(formData: FormData) {
     .upsert(rows, { onConflict: "setting_key" });
   if (error) throw new Error(error.message);
   revalidatePath("/admin/content/settings");
+  revalidatePath("/admin/content");
   revalidatePath("/iletisim");
+}
+
+const HOME_SECTION_KEYS = [
+  "hero",
+  "whyUs",
+  "leadForm",
+  "instagram",
+  "testimonials",
+  "youtube",
+  "blog",
+  "banner",
+] as const;
+
+function homeFromForm(formData: FormData, current: HomeSections): HomeSections {
+  const key = text(formData, "section");
+  if (!(HOME_SECTION_KEYS as readonly string[]).includes(key)) {
+    throw new Error("Geçersiz section.");
+  }
+  if (key === "hero") {
+    return {
+      ...current,
+      hero: {
+        ...current.hero,
+        kicker: text(formData, "kicker") || current.hero.kicker,
+        titleBefore: text(formData, "title_before") || current.hero.titleBefore,
+        titleHighlight:
+          text(formData, "title_highlight") || current.hero.titleHighlight,
+        titleAfter: text(formData, "title_after") || current.hero.titleAfter,
+        line1: text(formData, "line1") || current.hero.line1,
+        line1Highlight:
+          text(formData, "line1_highlight") || current.hero.line1Highlight,
+        line2: text(formData, "line2") || current.hero.line2,
+        description: text(formData, "description") || current.hero.description,
+        ctaLabel: text(formData, "cta_label") || current.hero.ctaLabel,
+        ctaHref: text(formData, "cta_href") || current.hero.ctaHref,
+        doctorName1: text(formData, "doctor_name_1") || current.hero.doctorName1,
+        doctorName2: text(formData, "doctor_name_2") || current.hero.doctorName2,
+        doctorBio: text(formData, "doctor_bio") || current.hero.doctorBio,
+        rating: text(formData, "rating") || current.hero.rating,
+        reviewCount: text(formData, "review_count") || current.hero.reviewCount,
+        doctorImage: text(formData, "doctor_image") || current.hero.doctorImage,
+        doctorYears: text(formData, "doctor_years") || current.hero.doctorYears,
+        doctorPerk: text(formData, "doctor_perk") || current.hero.doctorPerk,
+      },
+    };
+  }
+  if (key === "whyUs") {
+    return {
+      ...current,
+      whyUs: {
+        label: text(formData, "label") || current.whyUs.label,
+        text: text(formData, "text") || current.whyUs.text,
+        image: text(formData, "image") || current.whyUs.image,
+        stats: [1, 2].map((i) => ({
+          icon: text(formData, `stat${i}_icon`) || current.whyUs.stats[i - 1]?.icon || "heart",
+          value: Number(text(formData, `stat${i}_value`) || current.whyUs.stats[i - 1]?.value || 0),
+          suffix: text(formData, `stat${i}_suffix`) || current.whyUs.stats[i - 1]?.suffix || "",
+          label: text(formData, `stat${i}_label`) || current.whyUs.stats[i - 1]?.label || "",
+        })),
+      },
+    };
+  }
+  if (key === "banner") {
+    return {
+      ...current,
+      banner: {
+        image: text(formData, "image") || current.banner.image,
+        alt: text(formData, "alt") || current.banner.alt,
+      },
+    };
+  }
+  const blockKey = key as "leadForm" | "instagram" | "testimonials" | "youtube" | "blog";
+  return {
+    ...current,
+    [blockKey]: {
+      ...current[blockKey],
+      kicker: text(formData, "kicker") || current[blockKey].kicker,
+      title: text(formData, "title") || current[blockKey].title,
+      description:
+        optionalText(formData, "description") ?? current[blockKey].description,
+      ctaLabel: optionalText(formData, "cta_label") ?? current[blockKey].ctaLabel,
+    },
+  };
+}
+
+export async function saveHomeSection(formData: FormData) {
+  const session = await requireAdminSession(["admin", "editor", "agency"]);
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("setting_key", "home.sections")
+    .maybeSingle();
+  const current = mergeHomeSections(data?.value);
+  const next = homeFromForm(formData, current);
+  const { error } = await supabase.from("site_settings").upsert(
+    {
+      setting_key: "home.sections",
+      value: next,
+      is_public: true,
+      updated_by: session.userId,
+    },
+    { onConflict: "setting_key" },
+  );
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/content");
+  revalidatePath("/");
 }
 
 export async function updateProfileRole(formData: FormData) {
@@ -656,6 +766,38 @@ async function ensureLeadId(
   return lead.id;
 }
 
+function isExclusionViolation(error: {
+  code?: string;
+  message?: string;
+} | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "23P01" ||
+    /appointments_no_overlap|exclusion/i.test(error.message ?? "")
+  );
+}
+
+function redirectLeadsConflict(
+  formData: FormData,
+  startsAt: string,
+  leadId: string | null | undefined,
+  message: string,
+): never {
+  const params = new URLSearchParams();
+  const redirectView = text(formData, "redirect_view");
+  if (
+    redirectView === "week" ||
+    redirectView === "month" ||
+    redirectView === "year"
+  ) {
+    params.set("view", redirectView);
+  }
+  params.set("date", istanbulYmd(startsAt));
+  if (leadId) params.set("lead", leadId);
+  params.set("error", message);
+  redirect(`/admin/leads?${params.toString()}`);
+}
+
 async function slotConflictMessage(
   startsAt: string,
   endsAt: string,
@@ -716,19 +858,7 @@ export async function createAppointment(formData: FormData) {
     endsAt ?? appointmentEndIso(startsAt),
   );
   if (conflict) {
-    const params = new URLSearchParams();
-    const redirectView = text(formData, "redirect_view");
-    if (
-      redirectView === "week" ||
-      redirectView === "month" ||
-      redirectView === "year"
-    ) {
-      params.set("view", redirectView);
-    }
-    params.set("date", istanbulYmd(startsAt));
-    if (leadId) params.set("lead", leadId);
-    params.set("error", conflict);
-    redirect(`/admin/leads?${params.toString()}`);
+    redirectLeadsConflict(formData, startsAt, leadId, conflict);
   }
   const appointmentType =
     text(formData, "appointment_type") || "consultation";
@@ -747,7 +877,17 @@ export async function createAppointment(formData: FormData) {
     ),
     created_by: session.userId,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isExclusionViolation(error)) {
+      redirectLeadsConflict(
+        formData,
+        startsAt,
+        leadId,
+        "Bu saat dolu. Başka bir saat seçin.",
+      );
+    }
+    throw new Error(error.message);
+  }
   await supabase
     .from("leads")
     .update({ stage: "appointment" })
@@ -781,7 +921,12 @@ export async function updateAppointmentStatus(formData: FormData) {
       cancelled_at: status === "cancelled" ? new Date().toISOString() : null,
     })
     .eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isExclusionViolation(error)) {
+      throw new Error("Bu saat dolu. Başka bir saat seçin.");
+    }
+    throw new Error(error.message);
+  }
   revalidatePath("/admin/calendar");
   revalidatePath("/admin/leads");
 }
@@ -826,7 +971,14 @@ export async function updateAppointment(formData: FormData) {
       cancelled_at: status === "cancelled" ? new Date().toISOString() : null,
     })
     .eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isExclusionViolation(error)) {
+      redirect(
+        `/admin/calendar/${id}?error=${encodeURIComponent("Bu saat dolu. Başka bir saat seçin.")}`,
+      );
+    }
+    throw new Error(error.message);
+  }
   revalidatePath("/admin/calendar");
   revalidatePath(`/admin/calendar/${id}`);
   revalidatePath(`/admin/leads/${leadId}`);
@@ -1024,7 +1176,7 @@ export async function saveBotFaq(formData: FormData) {
   const id = text(formData, "id");
   const keywords = text(formData, "keywords")
     .split(",")
-    .map((keyword) => keyword.trim().toLocaleLowerCase("tr-TR"))
+    .map((keyword) => keyword.trim().toLocaleLowerCase("en-US"))
     .filter(Boolean);
 
   const payload = {

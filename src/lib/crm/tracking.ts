@@ -152,6 +152,8 @@ export function buildTrackingPath(options?: {
   return `/r?${params.toString()}`;
 }
 
+const LANDING_SENT_KEY = "eyupbaykara_landing_sent";
+
 export function captureAttributionFromCurrentUrl(): void {
   if (typeof window === "undefined") return;
   const current = new URLSearchParams(window.location.search);
@@ -170,5 +172,58 @@ export function captureAttributionFromCurrentUrl(): void {
     );
   } catch {
     // Takip engellense de site ve WhatsApp bağlantısı çalışmaya devam eder.
+  }
+  void reportLanding(attribution);
+}
+
+async function reportLanding(attribution: Record<string, string>) {
+  if (typeof window === "undefined") return;
+  const fingerprint = [
+    attribution.gclid || "",
+    attribution.fbclid || "",
+    attribution.utm_source || "",
+    attribution.utm_campaign || "",
+    attribution.landing_page || "",
+  ].join("|");
+
+  try {
+    if (sessionStorage.getItem(LANDING_SENT_KEY) === fingerprint) return;
+    sessionStorage.setItem(LANDING_SENT_KEY, fingerprint);
+  } catch {
+    // sessionStorage kapalıysa yine de bir kez denenecek.
+  }
+
+  try {
+    const res = await fetch("/api/track/landing", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        site: attribution.site || DEFAULT_SITE,
+        page: attribution.landing_page,
+        campaign: attribution.campaign,
+        utm_source: attribution.utm_source,
+        utm_medium: attribution.utm_medium,
+        utm_campaign: attribution.utm_campaign,
+        utm_content: attribution.utm_content,
+        utm_term: attribution.utm_term,
+        gclid: attribution.gclid,
+        fbclid: attribution.fbclid,
+        landing_url: window.location.href,
+      }),
+      keepalive: true,
+    });
+    if (!res.ok) {
+      try {
+        sessionStorage.removeItem(LANDING_SENT_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    try {
+      sessionStorage.removeItem(LANDING_SENT_KEY);
+    } catch {
+      /* ignore */
+    }
   }
 }

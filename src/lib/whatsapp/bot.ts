@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { composeBotReply, matchBotFaqs } from "@/lib/whatsapp/bot-match";
+import { resolveUnmatchedReply } from "@/lib/whatsapp/bot-unmatched";
 import { sendWhatsAppText } from "@/lib/whatsapp/cloud-api";
 
 type BotSettings = {
@@ -13,14 +15,6 @@ type BotSettings = {
   after_hours_message: string;
   fallback_message: string;
 };
-
-function normalize(value: string): string {
-  return value
-    .toLocaleLowerCase("tr-TR")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function localParts(timezone: string) {
   const formatter = new Intl.DateTimeFormat("en-GB", {
@@ -75,48 +69,47 @@ export async function maybeReplyWithBot(options: {
 
   if (!settings?.enabled || !inboundText.trim()) return;
 
-  const normalized = normalize(inboundText);
   const { data: faqs } = await supabase
     .from("bot_faqs")
-    .select("answer, keywords")
+    .select("question, answer, keywords, sort_order")
     .eq("enabled", true)
     .order("sort_order");
 
-  const faq = faqs?.find((item) =>
-    (item.keywords as string[]).some((keyword) =>
-      normalized.includes(normalize(keyword)),
-    ),
+  let reply = composeBotReply(
+    matchBotFaqs(inboundText, faqs ?? [], 2),
   );
 
-  let reply = faq?.answer as string | undefined;
-
   if (!reply) {
-    const { data: recentAutomated } = await supabase
-      .from("messages")
-      .select("created_at")
-      .eq("conversation_id", conversationId)
-      .eq("automated", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (recentAutomated) {
-      const elapsed = Date.now() - new Date(recentAutomated.created_at).getTime();
-      if (elapsed < 8 * 60 * 60 * 1000) return;
-    }
-
-    if (!isBusinessHours(settings)) {
-      reply = settings.after_hours_message;
-    } else {
-      const { count } = await supabase
+    const [{ data: recentAutomated }, { count }] = await Promise.all([
+      supabase
+        .from("messages")
+        .select("body, created_at")
+        .eq("conversation_id", conversationId)
+        .eq("automated", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
         .from("messages")
         .select("*", { count: "exact", head: true })
         .eq("conversation_id", conversationId)
-        .eq("direction", "inbound");
-      reply = (count ?? 0) <= 1
-        ? settings.welcome_message
-        : settings.fallback_message;
-    }
+        .eq("direction", "inbound"),
+    ]);
+
+    const unmatched = resolveUnmatchedReply({
+      afterHours: !isBusinessHours(settings),
+      inboundCount: count ?? 0,
+      lastAutomatedBody: recentAutomated?.body ?? null,
+      lastAutomatedAt: recentAutomated
+        ? new Date(recentAutomated.created_at).getTime()
+        : null,
+      welcome: settings.welcome_message,
+      fallback: settings.fallback_message,
+      afterHoursMessage: settings.after_hours_message,
+    });
+
+    if (unmatched.kind === "silent" || !unmatched.reply) return;
+    reply = unmatched.reply;
   }
 
   if (!reply) return;

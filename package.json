@@ -9,7 +9,10 @@
     "dev": "next dev --port 3005",
     "build": "next build && node scripts/copy-standalone-assets.js",
     "start": "node scripts/prod-start.js",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:crm": "node scripts/test-crm.mjs",
+    "test:sources": "node scripts/test-sources.mjs",
+    "test:bot": "node scripts/test-bot.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

@@ -1,5 +1,19 @@
 import Link from "next/link";
+import { AdminSourcePie } from "@/components/admin/AdminSourcePie";
+import {
+  classifyAdPlatform,
+  classifySourceEvent,
+  EVENT_COLOR,
+  EVENT_LABEL,
+  PLATFORM_COLOR,
+  PLATFORM_LABEL,
+  type AdPlatform,
+  type SourceEvent,
+} from "@/lib/crm/source-kind";
 import { createClient } from "@/lib/supabase/server";
+
+const PLATFORMS = ["google_ads", "meta", "other", "organic"] as const;
+const EVENTS = ["landing", "whatsapp", "form"] as const;
 
 export default async function AdminHomePage() {
   const configured =
@@ -13,6 +27,17 @@ export default async function AdminHomePage() {
   let conversationCount: number | null = null;
   let contentCount: number | null = null;
   let userEmail: string | null = null;
+  const platformCounts: Record<AdPlatform, number> = {
+    google_ads: 0,
+    meta: 0,
+    other: 0,
+    organic: 0,
+  };
+  const eventCounts: Record<SourceEvent, number> = {
+    landing: 0,
+    whatsapp: 0,
+    form: 0,
+  };
 
   if (configured) {
     const supabase = await createClient();
@@ -32,6 +57,7 @@ export default async function AdminHomePage() {
       { count: appointments },
       { count: conversations },
       { count: contents },
+      { data: sourceRows },
     ] = await Promise.all([
       supabase.from("leads").select("*", { count: "exact", head: true }),
       supabase
@@ -51,6 +77,12 @@ export default async function AdminHomePage() {
       supabase
         .from("content_pages")
         .select("*", { count: "exact", head: true }),
+      supabase
+        .from("lead_source_report")
+        .select(
+          "channel, utm_source, utm_medium, utm_campaign, campaign, gclid, fbclid",
+        )
+        .limit(5000),
     ]);
 
     leadCount = total ?? 0;
@@ -59,6 +91,11 @@ export default async function AdminHomePage() {
     appointmentCount = appointments ?? 0;
     conversationCount = conversations ?? 0;
     contentCount = contents ?? 0;
+
+    for (const row of sourceRows ?? []) {
+      platformCounts[classifyAdPlatform(row)] += 1;
+      eventCounts[classifySourceEvent(row.channel)] += 1;
+    }
   }
 
   return (
@@ -110,6 +147,37 @@ export default async function AdminHomePage() {
         </div>
       )}
 
+      {configured ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <AdminSourcePie
+            title="Kaynaklar"
+            hint="Reklam / organik dağılım"
+            totalLabel="kayıt"
+            href="/admin/sources"
+            slices={PLATFORMS.map((id) => ({
+              id,
+              label: PLATFORM_LABEL[id],
+              value: platformCounts[id],
+              color: PLATFORM_COLOR[id],
+              href: `/admin/sources?platform=${id}`,
+            }))}
+          />
+          <AdminSourcePie
+            title="Ne yaptı?"
+            hint="Site, WhatsApp veya form"
+            totalLabel="kayıt"
+            href="/admin/sources"
+            slices={EVENTS.map((id) => ({
+              id,
+              label: EVENT_LABEL[id],
+              value: eventCounts[id],
+              color: EVENT_COLOR[id],
+              href: `/admin/sources?event=${id}`,
+            }))}
+          />
+        </div>
+      ) : null}
+
       <div className="grid gap-3 sm:grid-cols-2">
         <QuickLink
           href="/admin/patients"
@@ -129,7 +197,7 @@ export default async function AdminHomePage() {
         <QuickLink
           href="/admin/content"
           title="Site içerikleri"
-          desc="Metin, SEO ve görsel yönetimi"
+          desc="Section metinleri, medya ve iletişim ayarları"
         />
         <QuickLink
           href="/admin/sources"

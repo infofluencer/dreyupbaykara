@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPatientNote, updatePatient } from "@/app/admin/actions";
 import { DeletePatientNoteButton } from "@/components/admin/DeletePatientNoteButton";
+import { PatientSourceCard } from "@/components/admin/PatientSourceCard";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
   APPOINTMENT_STATUS_LABEL,
@@ -42,7 +43,9 @@ export default async function PatientDetailPage({
         .order("created_at", { ascending: false }),
       supabase
         .from("leads")
-        .select("id, stage")
+        .select(
+          "id, stage, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, lead_ref, created_at",
+        )
         .eq("contact_id", id)
         .order("created_at", { ascending: false }),
     ]);
@@ -50,19 +53,41 @@ export default async function PatientDetailPage({
   if (error || !patient) notFound();
 
   const leadIds = (leads ?? []).map((lead) => lead.id);
+  const leadRefs = (leads ?? [])
+    .map((lead) => lead.lead_ref)
+    .filter((ref): ref is string => Boolean(ref));
   const activeLead =
     (leads ?? []).find(
       (lead) => !["won", "lost", "spam"].includes(lead.stage),
     ) ?? leads?.[0];
 
-  const { data: appointments } = leadIds.length
-    ? await supabase
-        .from("appointments")
-        .select("id, title, starts_at, ends_at, status, appointment_type")
-        .in("lead_id", leadIds)
-        .neq("status", "cancelled")
-        .order("starts_at", { ascending: false })
-    : { data: [] };
+  const [{ data: appointments }, { data: sourceClicks }] = await Promise.all([
+    leadIds.length
+      ? supabase
+          .from("appointments")
+          .select("id, title, starts_at, ends_at, status, appointment_type")
+          .in("lead_id", leadIds)
+          .neq("status", "cancelled")
+          .order("starts_at", { ascending: false })
+      : Promise.resolve({ data: [] as never[] }),
+    leadIds.length || leadRefs.length
+      ? (() => {
+          const query = supabase
+            .from("lead_sources")
+            .select(
+              "lead_ref, site, page_path, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, created_at",
+            )
+            .order("created_at", { ascending: true });
+          if (leadIds.length && leadRefs.length) {
+            return query.or(
+              `matched_lead_id.in.(${leadIds.join(",")}),lead_ref.in.(${leadRefs.join(",")})`,
+            );
+          }
+          if (leadIds.length) return query.in("matched_lead_id", leadIds);
+          return query.in("lead_ref", leadRefs);
+        })()
+      : Promise.resolve({ data: [] as never[] }),
+  ]);
 
   const age = patientAge(patient.birth_date);
 
@@ -194,6 +219,10 @@ export default async function PatientDetailPage({
               Kimliği kaydet
             </button>
           </form>
+          <PatientSourceCard
+            leads={leads ?? []}
+            clicks={sourceClicks ?? []}
+          />
         </section>
 
         <section className="rounded-2xl border border-[#0b6b45]/20 bg-white p-5">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { blogPosts } from "@/data/blog";
 import { VectorPattern } from "@/components/VectorPattern";
+import { HOME_FALLBACK, type HomeCopyBlock } from "@/lib/cms/home";
 
 const PREVIEW = blogPosts.slice(0, 4);
 
@@ -16,7 +17,11 @@ function formatDate(iso: string) {
   });
 }
 
-export function HomeBlogSection() {
+export function HomeBlogSection({
+  copy = HOME_FALLBACK.blog,
+}: {
+  copy?: HomeCopyBlock;
+}) {
   return (
     <section
       id="blog"
@@ -34,17 +39,17 @@ export function HomeBlogSection() {
         >
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#0b6b45]/70">
-              Bilgi köşesi
+              {copy.kicker}
             </p>
             <h2 className="font-[family-name:var(--font-instrument-sans)] text-3xl font-semibold tracking-tight text-[#123524] sm:text-4xl">
-              Blog
+              {copy.title}
             </h2>
           </div>
           <Link
             href="/blog"
             className="inline-flex items-center gap-2 self-start text-sm font-semibold text-[#0b6b45] transition hover:text-[#085436] sm:self-auto"
           >
-            Tüm yazılar
+            {copy.ctaLabel || "Tüm yazılar"}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path
                 d="M5 12h14M13 6l6 6-6 6"

@@ -1,14 +1,17 @@
 "use client";
 
 import { motion, type MotionValue } from "framer-motion";
+import { HOME_FALLBACK, type HomeHero } from "@/lib/cms/home";
 
 interface HomeTreatmentCardsProps {
+  hero?: HomeHero;
   pointerEvents?: MotionValue<"auto" | "none">;
   /** Compact typography/spacing for mobile hero only */
   compact?: boolean;
 }
 
 export function HomeTreatmentCards({
+  hero = HOME_FALLBACK.hero,
   pointerEvents,
   compact = false,
 }: HomeTreatmentCardsProps) {
@@ -31,30 +34,32 @@ export function HomeTreatmentCards({
             decoding="async"
           />
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
-            Full Endoskopik Cerrahi
+            {hero.kicker}
           </p>
         </div>
 
         <h1 className="font-[family-name:var(--font-instrument-sans)] text-[1.55rem] font-semibold leading-[1.1] tracking-[-0.03em] text-text">
-          Bitmek bilmeyen{" "}
-          <span className="text-accent">fıtık ağrılarınız</span> mı var?
+          {hero.titleBefore}{" "}
+          <span className="text-accent">{hero.titleHighlight}</span>{" "}
+          {hero.titleAfter}
         </h1>
 
         <div className="mt-3 border-l-2 border-accent/40 pl-3">
           <p className="font-[family-name:var(--font-instrument-sans)] text-sm font-medium text-text">
-            Son çare değil — <span className="text-accent">tek çare</span>
+            {hero.line1}{" "}
+            <span className="text-accent">{hero.line1Highlight}</span>
           </p>
           <p className="mt-0.5 font-[family-name:var(--font-instrument-sans)] text-lg font-semibold tracking-tight text-text">
-            Full Endoskopik Tedavi
+            {hero.line2}
           </p>
         </div>
 
         <div className="mt-4">
           <a
-            href="/iletisim"
+            href={hero.ctaHref}
             className="pointer-events-auto inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(11,107,69,0.35)] transition hover:bg-accent-glow"
           >
-            Randevu Al
+            {hero.ctaLabel}
           </a>
         </div>
       </motion.div>
@@ -79,7 +84,7 @@ export function HomeTreatmentCards({
           decoding="async"
         />
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
-          Full Endoskopik Cerrahi
+          {hero.kicker}
         </p>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -92,32 +97,31 @@ export function HomeTreatmentCards({
       </div>
 
       <h1 className="font-[family-name:var(--font-instrument-sans)] text-[2rem] font-semibold leading-[1.08] tracking-[-0.03em] text-text sm:text-[2.65rem] lg:text-[3.15rem]">
-        Bitmek bilmeyen
+        {hero.titleBefore}
         <br />
-        <span className="text-accent">fıtık ağrılarınız</span>
+        <span className="text-accent">{hero.titleHighlight}</span>
         <br />
-        mı var?
+        {hero.titleAfter}
       </h1>
 
       <div className="mt-5 max-w-lg border-l-2 border-accent/40 pl-4 sm:mt-6 sm:pl-5">
         <p className="font-[family-name:var(--font-instrument-sans)] text-base font-medium leading-snug text-text sm:text-lg">
-          Son çare değil — <span className="text-accent">tek çare</span>
+          {hero.line1} <span className="text-accent">{hero.line1Highlight}</span>
         </p>
         <p className="mt-1 font-[family-name:var(--font-instrument-sans)] text-xl font-semibold tracking-tight text-text sm:text-2xl">
-          Full Endoskopik Tedavi
+          {hero.line2}
         </p>
         <p className="mt-2.5 text-sm leading-relaxed text-text-muted sm:text-[15px]">
-          4 milimetrelik bir delikten kamera ile girilip fıtıklaşan dokunun
-          alınmasıdır.
+          {hero.description}
         </p>
       </div>
 
       <div className="mt-7 flex max-w-[22rem] sm:mt-8 sm:max-w-[24rem]">
         <a
-          href="/iletisim"
+          href={hero.ctaHref}
           className="pointer-events-auto inline-flex min-w-[15rem] items-center justify-center rounded-lg bg-accent px-10 py-3.5 text-base font-semibold text-white shadow-[0_0_24px_rgba(11,107,69,0.35)] transition hover:bg-accent-glow"
         >
-          Randevu Al
+          {hero.ctaLabel}
         </a>
       </div>
     </motion.div>

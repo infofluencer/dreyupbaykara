@@ -7,7 +7,6 @@ import {
   CalendarDays,
   FileText,
   Gauge,
-  Image,
   Inbox,
   Megaphone,
   UserRound,
@@ -24,7 +23,6 @@ const NAV: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/admin/inbox", label: "WhatsApp", icon: Inbox },
   { href: "/admin/bot", label: "Bot", icon: Bot },
   { href: "/admin/content", label: "İçerik", icon: FileText },
-  { href: "/admin/media", label: "Medya", icon: Image },
   { href: "/admin/team", label: "Ekip", icon: Users },
 ];
 
@@ -59,7 +57,10 @@ export function AdminSidebar() {
                   pathname.startsWith("/admin/calendar")
                 : item.href === "/admin/patients"
                   ? pathname.startsWith("/admin/patients")
-                  : pathname.startsWith(item.href);
+                  : item.href === "/admin/content"
+                    ? pathname.startsWith("/admin/content") ||
+                      pathname.startsWith("/admin/media")
+                    : pathname.startsWith(item.href);
           const Icon = item.icon;
 
           return (

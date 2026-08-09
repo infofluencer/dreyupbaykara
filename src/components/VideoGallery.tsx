@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { HOME_FALLBACK, type HomeCopyBlock } from "@/lib/cms/home";
 
 type GalleryVideo = {
   id: string;
@@ -197,7 +198,11 @@ function InstagramLightbox({
 
 const LOOP_VIDEOS = [...VIDEOS, ...VIDEOS];
 
-export function VideoGallery() {
+export function VideoGallery({
+  copy = HOME_FALLBACK.instagram,
+}: {
+  copy?: HomeCopyBlock;
+}) {
   const [active, setActive] = useState<GalleryVideo | null>(null);
 
   return (
@@ -234,11 +239,11 @@ export function VideoGallery() {
               <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
             </svg>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent-glow">
-              Instagram
+              {copy.kicker}
             </p>
           </div>
           <h2 className="font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold tracking-tight text-text sm:text-3xl">
-            @doktoreyupbaykara
+            {copy.title}
           </h2>
         </motion.div>
 

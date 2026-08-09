@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { buildTrackingPath } from "@/lib/crm/tracking";
+import { HOME_FALLBACK, type HomeCopyBlock } from "@/lib/cms/home";
 
 type FormState = {
   name: string;
@@ -19,7 +20,11 @@ const INITIAL: FormState = {
   age: "",
 };
 
-export function LeadForm() {
+export function LeadForm({
+  copy = HOME_FALLBACK.leadForm,
+}: {
+  copy?: HomeCopyBlock;
+}) {
   const [form, setForm] = useState<FormState>(INITIAL);
 
   const set =
@@ -61,17 +66,16 @@ export function LeadForm() {
         >
           <div className="text-center">
             <p className="text-sm font-semibold tracking-wide text-[#0b6b45]">
-              Op. Dr. Eyüp Baykara
+              {copy.kicker}
             </p>
             <h2
               id="lead-form-title"
               className="mt-2 font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold tracking-tight text-[#123524] sm:text-[1.75rem]"
             >
-              Kalçadan Bacağa Vuran Ağrı
+              {copy.title}
             </h2>
             <p className="mt-3 text-sm leading-6 text-[#466254]">
-              Full Endoskopik Tam Kapalı Fıtık Ameliyatı ile aynı gün taburcu
-              olun. Formu doldurun, sizi arayalım.
+              {copy.description}
             </p>
           </div>
 

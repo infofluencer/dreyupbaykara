@@ -2,13 +2,14 @@
 
 import { motion, type MotionValue, type Variants } from "framer-motion";
 import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  HOME_FALLBACK,
+  homeImageUrl,
+  type HomeStat,
+  type HomeWhyUs,
+} from "@/lib/cms/home";
 
-const REVEAL_TEXT =
-  "15 yılı aşkın deneyim, 1000+ memnun hasta. Minimal invaziv ve full endoskopik yaklaşımla aynı gün ayağa kalkma, hızlı iyileşme.";
-
-const REVEAL_LABEL = "Neden bizi seçmelisiniz?";
-
-function RevealText() {
+function RevealText({ label, text }: { label: string; text: string }) {
   const ref = useRef<HTMLParagraphElement>(null);
   const [progress, setProgress] = useState(0);
 
@@ -28,16 +29,16 @@ function RevealText() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [onScroll]);
 
-  const colored = Math.floor(progress * REVEAL_TEXT.length);
+  const colored = Math.floor(progress * text.length);
 
   return (
     <div ref={ref}>
       <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#0b6b45]/60">
-        {REVEAL_LABEL}
+        {label}
       </p>
       <p className="font-[family-name:var(--font-instrument-sans)] text-2xl font-bold leading-snug sm:text-3xl">
-        <span style={{ color: "#0b6b45" }}>{REVEAL_TEXT.slice(0, colored)}</span>
-        <span style={{ color: "#12352410" }}>{REVEAL_TEXT.slice(colored)}</span>
+        <span style={{ color: "#0b6b45" }}>{text.slice(0, colored)}</span>
+        <span style={{ color: "#12352410" }}>{text.slice(colored)}</span>
       </p>
     </div>
   );
@@ -120,11 +121,6 @@ function SlotDigits({ value }: { value: number }) {
   );
 }
 
-const STATS = [
-  { icon: "heart",  value: 15,   suffix: "+", label: "Yıl deneyim"   },
-  { icon: "trophy", value: 1000, suffix: "+", label: "Memnun hasta"  },
-] as const;
-
 function StatIcon({ type }: { type: string }) {
   if (type === "heart") return (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -140,7 +136,7 @@ function StatIcon({ type }: { type: string }) {
   );
 }
 
-function StatCard({ icon, value, suffix, label }: typeof STATS[number]) {
+function StatCard({ icon, value, suffix, label }: HomeStat) {
   const ref = useRef<HTMLDivElement>(null);
   const [started, setStarted] = useState(false);
   const count = useCountUp(value, started, 1200);
@@ -171,6 +167,7 @@ function StatCard({ icon, value, suffix, label }: typeof STATS[number]) {
 }
 
 interface TreatmentSectionProps {
+  whyUs?: HomeWhyUs;
   revealOpacity?: MotionValue<number>;
   revealY?: MotionValue<number>;
 }
@@ -195,6 +192,7 @@ const itemVariants: Variants = {
 };
 
 export function TreatmentSection({
+  whyUs = HOME_FALLBACK.whyUs,
   revealOpacity,
   revealY,
 }: TreatmentSectionProps) {
@@ -226,8 +224,8 @@ export function TreatmentSection({
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/hero/hero_dr.webp"
-            alt="Op. Dr. Eyüp Baykara"
+            src={homeImageUrl(whyUs.image)}
+            alt=""
             className="absolute inset-0 h-full w-full object-cover object-[center_18%]"
             decoding="async"
           />
@@ -235,13 +233,13 @@ export function TreatmentSection({
 
         {/* Sağ — içerik */}
         <motion.div variants={itemVariants} className="flex flex-col justify-center">
-          <RevealText />
+          <RevealText label={whyUs.label} text={whyUs.text} />
 
           <motion.div
             variants={itemVariants}
             className="mx-auto mt-8 grid w-full max-w-md grid-cols-2 gap-4"
           >
-            {STATS.map((s) => (
+            {whyUs.stats.map((s) => (
               <StatCard key={s.label} {...s} />
             ))}
           </motion.div>

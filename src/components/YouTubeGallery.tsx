@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { VectorPattern } from "@/components/VectorPattern";
+import { HOME_FALLBACK, type HomeCopyBlock } from "@/lib/cms/home";
 
 const VIDEOS = [
   {
@@ -141,7 +142,13 @@ function VideoLightbox({
   );
 }
 
-export function YouTubeGallery({ showHeader = true }: { showHeader?: boolean }) {
+export function YouTubeGallery({
+  showHeader = true,
+  copy = HOME_FALLBACK.youtube,
+}: {
+  showHeader?: boolean;
+  copy?: HomeCopyBlock;
+}) {
   const [active, setActive] = useState<Video | null>(null);
 
   return (
@@ -165,10 +172,10 @@ export function YouTubeGallery({ showHeader = true }: { showHeader?: boolean }) 
           >
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#0b6b45]/70">
-                Video galeri
+                {copy.kicker}
               </p>
               <h2 className="font-[family-name:var(--font-instrument-sans)] text-3xl font-semibold tracking-tight text-[#123524] sm:text-4xl">
-                Hasta videoları
+                {copy.title}
               </h2>
             </div>
             <a

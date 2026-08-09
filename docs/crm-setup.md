@@ -14,6 +14,7 @@ Path: `/admin` · DB: Supabase · WhatsApp: Cloud API (sonraki sprint)
    - `supabase/migrations/20260808035000_seed_content.sql`
    - `supabase/migrations/20260808041000_calendar_enhancements.sql`
    - `supabase/migrations/20260808160000_patients.sql`
+   - `supabase/migrations/20260808180000_appointment_no_overlap.sql`
 4. Authentication → Users → Add user (email/password).
    Ardından Table Editor → `profiles` tablosunda kullanıcının `role`
    değerini `admin` yapın.
@@ -30,12 +31,11 @@ Path: `/admin` · DB: Supabase · WhatsApp: Cloud API (sonraki sprint)
 
 Yönetim ekranları:
 
-- `/admin/content`: sayfa, SEO ve güvenli içerik bölümleri
-- `/admin/content/settings`: telefon, e-posta ve klinik
-- `/admin/media`: Supabase Storage görsel yönetimi
+- `/admin/content`: ana sayfa section metinleri + medya + iletişim ayarları (`?tab=media` / `?tab=settings`)
+- Section iskeleti kodda sabittir; admin yalnızca metin / sayı / görsel yolunu değiştirir
 - Mevcut `public` görsellerini medya kütüphanesine almak için:
   `node scripts/import-site-media.mjs`
-  veya `/admin/media` içindeki “Var olan fotoğrafları aktar” butonu
+  veya İçerik → Medya → “Var olan fotoğrafları aktar”
 - `/admin/patients`: hasta kimliği, klinik notlar ve dosya
 - `/admin/leads`: takvim (randevu ekle / sil)
 - `/admin/calendar`: randevu detayı
@@ -44,15 +44,19 @@ Yönetim ekranları:
 
 ## UTM / kaynak takibi
 
-Site WhatsApp butonları `/r` üzerinden geçer.
+Google Ads (`gclid`, `utm_source=google`) ve Meta (`fbclid`, Facebook / Instagram UTM)
+iki yerde kaydedilir:
 
-Örnek: `/r?site=endoskopikbelameliyati&utm_source=google&utm_campaign=bel&gclid=...`
+1. **Sayfa inişi** — reklam URL’siyle siteye gelince `AttributionCapture` → `POST /api/track/landing` (`channel=landing`)
+2. **WhatsApp / form** — CTA `/r` üzerinden geçer; `lead_ref` üretilir, `wa.me` açılır
 
-1. `lead_sources` tablosuna kayıt + kısa `lead_ref` üretilir  
-2. WhatsApp açılır; mesajda `Ref: XXXXXX` bulunur  
-3. (Sonraki sprint) Webhook ilk mesajdaki Ref ile lead’e bağlar  
+Örnek Ads: `/?utm_source=google&utm_campaign=bel&gclid=...`  
+Örnek Meta: `/?utm_source=facebook&fbclid=...`  
+Örnek WA: `/r?site=endoskopikbelameliyati&utm_source=google&gclid=...`
 
-Test: `http://localhost:3005/r?utm_source=test&utm_campaign=demo`
+Admin: `/admin/sources` — Google Ads / Meta / Organik ve Sayfa inişi / WhatsApp / Form filtreleri.
+
+WhatsApp webhook açıksa ilk mesajdaki `Ref: XXXXXX` lead’e bağlanır.
 
 ## Sonraki adımlar
 

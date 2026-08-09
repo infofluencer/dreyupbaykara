@@ -1,11 +1,6 @@
 "use client";
 
-import type {
-  AnchorHTMLAttributes,
-  MouseEvent,
-  PointerEvent,
-  ReactNode,
-} from "react";
+import { useEffect, useRef, type AnchorHTMLAttributes, type ReactNode } from "react";
 import { buildTrackingPath, DEFAULT_SITE } from "@/lib/crm/tracking";
 
 type TrackedWhatsAppLinkProps = Omit<
@@ -33,22 +28,27 @@ export function TrackedWhatsAppLink({
   ...rest
 }: TrackedWhatsAppLinkProps) {
   const fallbackHref = `/r?site=${encodeURIComponent(site)}&channel=${encodeURIComponent(channel)}`;
-  const syncHref = (element: HTMLAnchorElement) => {
-    element.href = buildTrackingPath({ site, channel, campaign });
-  };
+  const anchorRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    if (anchorRef.current) {
+      anchorRef.current.href = buildTrackingPath({ site, channel, campaign });
+    }
+  }, [site, channel, campaign]);
 
   return (
     <a
       {...rest}
+      ref={anchorRef}
       href={fallbackHref}
       className={className}
       rel={rest.rel ?? "noopener noreferrer"}
-      onPointerDown={(event: PointerEvent<HTMLAnchorElement>) => {
-        syncHref(event.currentTarget);
+      onPointerDown={(event) => {
+        event.currentTarget.href = buildTrackingPath({ site, channel, campaign });
         onPointerDown?.(event);
       }}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        syncHref(event.currentTarget);
+      onClick={(event) => {
+        event.currentTarget.href = buildTrackingPath({ site, channel, campaign });
         onClick?.(event);
       }}
     >
