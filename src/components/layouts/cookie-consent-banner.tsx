@@ -137,44 +137,105 @@ export function CookieConsentBanner({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="pointer-events-auto absolute right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 overflow-hidden rounded-[1.5rem] border border-[#0b6b45]/15 bg-[#fdfaf5] shadow-[0_20px_60px_rgba(18,53,36,0.18)] sm:top-auto sm:right-6 sm:bottom-6 sm:left-auto sm:w-[24rem]"
+        className="pointer-events-auto absolute right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 overflow-hidden rounded-2xl border border-[#0b6b45]/15 bg-[#fdfaf5] shadow-[0_20px_60px_rgba(18,53,36,0.18)] sm:right-6 sm:bottom-6 sm:left-auto sm:max-w-3xl lg:max-w-4xl"
       >
-        <div className="px-5 py-5 sm:px-5 sm:py-5">
-          <p
-            id={titleId}
-            className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold tracking-tight text-[#123524]"
-          >
-            Çerez tercihleri
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[#466254]">
-            Sitemizde deneyiminizi iyileştirmek ve yasal yükümlülüklerimizi
-            yerine getirmek için çerez kullanıyoruz. Zorunlu çerezler her zaman
-            aktiftir. Analitik ve pazarlama çerezleri yalnızca onayınızla
-            çalışır. Ayrıntılar için{" "}
-            <Link
-              href="/cerezler"
-              className="font-semibold text-[#0b6b45] underline-offset-2 hover:underline"
-            >
-              çerez politikası
-            </Link>
-            .
-          </p>
+        <div className="px-4 py-4 sm:px-5 sm:py-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+            <div className="min-w-0 sm:flex-1">
+              <p
+                id={titleId}
+                className="font-[family-name:var(--font-instrument-sans)] text-base font-semibold tracking-tight text-[#123524] sm:text-lg"
+              >
+                Çerez tercihleri
+              </p>
+              <p className="mt-1 text-sm leading-5 text-[#466254] sm:leading-6">
+                Deneyimi iyileştirmek ve yasal yükümlülükler için çerez
+                kullanıyoruz. Zorunlu çerezler her zaman aktif; analitik ve
+                pazarlama yalnızca onayınızla çalışır.{" "}
+                <Link
+                  href="/cerezler"
+                  className="font-semibold text-[#0b6b45] underline-offset-2 hover:underline"
+                >
+                  Çerez politikası
+                </Link>
+              </p>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+              {expanded ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() =>
+                      saveConsent({
+                        ...draft,
+                        necessary: true,
+                        updatedAt: new Date().toISOString(),
+                      })
+                    }
+                    className="inline-flex items-center justify-center rounded-full bg-[#0b6b45] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#085436] disabled:opacity-60"
+                  >
+                    Seçimi kaydet
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => setDraft(deniedConsent())}
+                    className="inline-flex items-center justify-center rounded-full border border-[#0b6b45]/20 px-4 py-2.5 text-sm font-semibold text-[#123524] transition hover:border-[#0b6b45]/40 disabled:opacity-60"
+                  >
+                    Sıfırla
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => {
+                      setDraft(consent ?? deniedConsent());
+                      setExpanded(true);
+                    }}
+                    className="inline-flex items-center justify-center rounded-full border border-[#0b6b45]/20 px-4 py-2.5 text-sm font-semibold text-[#123524] transition hover:border-[#0b6b45]/40 disabled:opacity-60"
+                  >
+                    Tercihleri yönet
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => saveConsent(deniedConsent())}
+                    className="inline-flex items-center justify-center rounded-full border border-[#0b6b45]/20 px-4 py-2.5 text-sm font-semibold text-[#123524] transition hover:border-[#0b6b45]/40 disabled:opacity-60"
+                  >
+                    Tümünü reddet
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => saveConsent(acceptedConsent())}
+                    className="inline-flex items-center justify-center rounded-full bg-[#0b6b45] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#085436] disabled:opacity-60"
+                  >
+                    Tümünü kabul et
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
 
           {expanded ? (
-            <ul className="mt-5 space-y-3">
+            <ul className="mt-4 grid gap-2 sm:grid-cols-2">
               {CATEGORIES.map((category) => {
                 const enabled =
                   category.key === "necessary" ? true : draft[category.key];
                 return (
                   <li
                     key={category.key}
-                    className="flex items-start justify-between gap-4 rounded-2xl border border-[#0b6b45]/10 bg-white px-4 py-3.5"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-[#0b6b45]/10 bg-white px-3 py-2.5"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[#123524]">
                         {category.title}
                       </p>
-                      <p className="mt-1 text-xs leading-5 text-[#466254]/90">
+                      <p className="mt-0.5 text-xs leading-4 text-[#466254]/90">
                         {category.description}
                       </p>
                     </div>
@@ -188,7 +249,7 @@ export function CookieConsentBanner({
                         if (category.key === "necessary") return;
                         toggleCategory(category.key);
                       }}
-                      className={`relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition ${
+                      className={`relative h-7 w-12 shrink-0 rounded-full transition ${
                         enabled ? "bg-[#0b6b45]" : "bg-[#d7e3db]"
                       } ${category.locked ? "cursor-not-allowed opacity-80" : ""}`}
                     >
@@ -203,65 +264,6 @@ export function CookieConsentBanner({
               })}
             </ul>
           ) : null}
-
-          <div className="mt-5 flex flex-col gap-2">
-            {expanded ? (
-              <>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() =>
-                    saveConsent({
-                      ...draft,
-                      necessary: true,
-                      updatedAt: new Date().toISOString(),
-                    })
-                  }
-                  className="inline-flex items-center justify-center rounded-full bg-[#0b6b45] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#085436] disabled:opacity-60"
-                >
-                  Seçimi kaydet
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => setDraft(deniedConsent())}
-                  className="inline-flex items-center justify-center rounded-full border border-[#0b6b45]/20 px-5 py-2.5 text-sm font-semibold text-[#123524] transition hover:border-[#0b6b45]/40 disabled:opacity-60"
-                >
-                  Tercihleri sıfırla
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => {
-                    setDraft(consent ?? deniedConsent());
-                    setExpanded(true);
-                  }}
-                  className="inline-flex items-center justify-center rounded-full border border-[#0b6b45]/20 px-5 py-2.5 text-sm font-semibold text-[#123524] transition hover:border-[#0b6b45]/40 disabled:opacity-60"
-                >
-                  Tercihleri yönet
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => saveConsent(deniedConsent())}
-                  className="inline-flex items-center justify-center rounded-full border border-[#0b6b45]/20 px-5 py-2.5 text-sm font-semibold text-[#123524] transition hover:border-[#0b6b45]/40 disabled:opacity-60"
-                >
-                  Tümünü reddet
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => saveConsent(acceptedConsent())}
-                  className="inline-flex items-center justify-center rounded-full bg-[#0b6b45] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#085436] disabled:opacity-60"
-                >
-                  Tümünü kabul et
-                </button>
-              </>
-            )}
-          </div>
         </div>
       </section>
     </div>
