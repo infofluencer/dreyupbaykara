@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { blogPosts } from "@/data/blog";
+import { PAGE_SEO } from "@/data/seo";
 import { PageHero } from "@/components/PageHero";
 import { VectorPattern } from "@/components/VectorPattern";
 import {
@@ -11,11 +12,10 @@ import {
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await getPublishedPage("/blog");
+  const seo = PAGE_SEO.blog;
   return {
-    title: content?.seo_title || "Blog | Op. Dr. Eyüp Baykara",
-    description:
-      content?.seo_description ||
-      "Bel fıtığı, boyun fıtığı ve kanal darlığı hakkında bilgilendirici yazılar. Full endoskopik omurga cerrahisi.",
+    title: content?.seo_title || seo.title,
+    description: content?.seo_description || seo.description,
     alternates: { canonical: content?.canonical_url || "/blog" },
   };
 }
@@ -52,8 +52,7 @@ export default async function BlogPage() {
       <PageHero
         title={content?.title || "Sağlık Rehberi"}
         description={
-          content?.excerpt ||
-          "Omurga sağlığı, fıtık ve endoskopik cerrahi hakkında güncel yazılar."
+          content?.excerpt || PAGE_SEO.blog.snippet
         }
         breadcrumb={[
           { label: "Anasayfa", href: "/" },

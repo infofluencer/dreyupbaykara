@@ -19,7 +19,7 @@ export const TREATMENTS: Treatment[] = [
     title: "Full Endoskopik Tam Kapalı Bel Fıtığı Ameliyatı",
     shortTitle: "Bel Fıtığı",
     description:
-      "Kalçadan bacağa vuran ağrıya son verin, aynı gün taburcu olun.",
+      "Disk kaymasıyla oluşan bel fıtığında küçük kesi, az doku hasarı ve hızlı iyileşme.",
     href: "/tedaviler/bel-fitigi-ameliyati",
     accent: "#0b6b45",
     image: "/hero/belfitigi.webp",
@@ -29,7 +29,7 @@ export const TREATMENTS: Treatment[] = [
     title: "Full Endoskopik Tam Kapalı Boyun Fıtığı Ameliyatı",
     shortTitle: "Boyun Fıtığı",
     description:
-      "Kola yayılan boyun ağrısında milimetrik girişle hedefe yönelik tedavi.",
+      "Boyun ağrısı, kol uyuşması ve baş dönmesinde full endoskopik kapalı tedavi.",
     href: "/tedaviler/boyun-fitigi-ameliyati",
     accent: "#1a8f5c",
     image: "/hero/boyunfitigi.webp",
@@ -39,7 +39,7 @@ export const TREATMENTS: Treatment[] = [
     title: "Full Endoskopik Tam Kapalı Kanal Darlığı Ameliyatı",
     shortTitle: "Kanal Darlığı",
     description:
-      "Yürüme mesafesini kısaltan kanal darlığında platin olmadan rahatlama.",
+      "Kanal darlığında ağrı, uyuşma ve güç kaybına minimal invaziv çözüm.",
     href: "/tedaviler/kanal-darligi-ameliyati",
     accent: "#0b6b45",
     image: "/hero/kanaldarligi.webp",

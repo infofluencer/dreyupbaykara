@@ -4,16 +4,15 @@ import { Testimonials } from "@/components/Testimonials";
 import { VectorPattern } from "@/components/VectorPattern";
 import { YouTubeGallery } from "@/components/YouTubeGallery";
 import { CmsSections } from "@/components/cms/CmsSections";
+import { PAGE_SEO } from "@/data/seo";
 import { getPublishedPage } from "@/lib/cms/content";
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await getPublishedPage("/hasta-deneyimleri");
+  const seo = PAGE_SEO.hastaDeneyimleri;
   return {
-    title:
-      content?.seo_title || "Hasta Deneyimleri | Op. Dr. Eyüp Baykara",
-    description:
-      content?.seo_description ||
-      "Full endoskopik ameliyat sonrası hasta videoları, Google ve DoktorTakvimi yorumları — gerçek iyileşme hikâyeleri.",
+    title: content?.seo_title || seo.title,
+    description: content?.seo_description || seo.description,
     alternates: {
       canonical: content?.canonical_url || "/hasta-deneyimleri",
     },
@@ -27,8 +26,7 @@ export default async function HastaDeneyimleriPage() {
       <PageHero
         title={content?.title || "Hasta Deneyimleri"}
         description={
-          content?.excerpt ||
-          "Ameliyat sonrası videolar ve gerçek hasta yorumları — iyileşme hikâyelerini yakından görün."
+          content?.excerpt || PAGE_SEO.hastaDeneyimleri.snippet
         }
         breadcrumb={[
           { label: "Anasayfa", href: "/" },

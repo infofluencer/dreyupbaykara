@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import { CmsSections } from "@/components/cms/CmsSections";
 import { PageCta, PageShell } from "@/components/PageShell";
+import { PAGE_SEO } from "@/data/seo";
 import { getPublishedPage, mediaPublicUrl } from "@/lib/cms/content";
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await getPublishedPage("/hakkimizda");
+  const seo = PAGE_SEO.hakkimizda;
   return {
-    title: content?.seo_title || "Hakkımızda | Op. Dr. Eyüp Baykara",
-    description:
-      content?.seo_description ||
-      "Op. Dr. Eyüp Baykara — full endoskopik omurga cerrahisi uzmanı. Endospine İstanbul yaklaşımı.",
+    title: content?.seo_title || seo.title,
+    description: content?.seo_description || seo.description,
     alternates: { canonical: content?.canonical_url || "/hakkimizda" },
   };
 }
@@ -23,8 +23,7 @@ export default async function HakkimizdaPage() {
     <PageShell
       title={content?.title || "Op. Dr. Eyüp Baykara"}
       description={
-        content?.excerpt ||
-        "Beyin ve sinir cerrahisi uzmanı. Full endoskopik, minimal invaziv omurga cerrahisinde deneyimli."
+        content?.excerpt || PAGE_SEO.hakkimizda.snippet
       }
       image={image}
       imageAlt={content?.featured_image_alt || "Op. Dr. Eyüp Baykara"}

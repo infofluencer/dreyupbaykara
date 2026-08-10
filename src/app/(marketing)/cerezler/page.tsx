@@ -3,11 +3,11 @@ import Link from "next/link";
 import { PageHero } from "@/components/PageHero";
 import { VectorPattern } from "@/components/VectorPattern";
 import { CookiePreferencesButton } from "@/components/layouts/footer/cookie-preferences-button";
+import { PAGE_SEO } from "@/data/seo";
 
 export const metadata: Metadata = {
-  title: "Çerez Politikası | Op. Dr. Eyüp Baykara",
-  description:
-    "Op. Dr. Eyüp Baykara web sitesinde kullanılan çerezler, KVKK/GDPR uyumlu kategori bazlı onay ve tercihlerinizi nasıl yöneteceğiniz.",
+  title: PAGE_SEO.cerezler.title,
+  description: PAGE_SEO.cerezler.description,
   alternates: { canonical: "/cerezler" },
 };
 
@@ -35,7 +35,7 @@ export default function CerezlerPage() {
     <main className="min-h-screen bg-[#f7f1e9]">
       <PageHero
         title="Çerez politikası"
-        description="KVKK ve GDPR kapsamında çerezleri kategori bazlı yönetebilirsiniz. Zorunlu çerezler her zaman aktiftir; diğerleri yalnızca onayınızla çalışır."
+        description={PAGE_SEO.cerezler.snippet}
         cta={false}
         breadcrumb={[
           { label: "Anasayfa", href: "/" },

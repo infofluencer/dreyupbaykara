@@ -18,12 +18,12 @@ values
     '/',
     'home',
     'Op. Dr. Eyüp Baykara',
-    'Full endoskopik omurga cerrahisi ve hasta bilgilendirme.',
+    'Full endoskopik omurga cerrahisi: bel fıtığı, boyun fıtığı ve kanal darlığında hızlı iyileşme.',
     'published',
     'legacy/hero/hero_dr.webp',
     'Op. Dr. Eyüp Baykara',
     'Op. Dr. Eyüp Baykara | Beyin ve Sinir Cerrahisi Uzmanı',
-    'Full endoskopik tam kapalı bel fıtığı ameliyatı ve minimal invaziv beyin ve omurga cerrahisi.',
+    'Full endoskopik bel fıtığı, boyun fıtığı ve kanal darlığı ameliyatı. Minimal invaziv omurga cerrahisi — Op. Dr. Eyüp Baykara, Silivri / İstanbul.',
     now()
   ),
   (
@@ -35,7 +35,7 @@ values
     'legacy/hero/hero_dr.webp',
     'Op. Dr. Eyüp Baykara',
     'Hakkımızda | Op. Dr. Eyüp Baykara',
-    'Op. Dr. Eyüp Baykara — full endoskopik omurga cerrahisi uzmanı.',
+    'Op. Dr. Eyüp Baykara, beyin ve sinir cerrahisi uzmanı. Full endoskopik bel, boyun fıtığı ve kanal darlığı cerrahisinde deneyimli yaklaşım.',
     now()
   ),
   (
@@ -47,55 +47,55 @@ values
     null,
     null,
     'İletişim | Op. Dr. Eyüp Baykara',
-    'Randevu ve iletişim bilgileri.',
+    'Randevu ve iletişim: Özel Silivri Anadolu Hastanesi. Telefon 0530 783 72 24, WhatsApp veya e-posta ile ulaşın.',
     now()
   ),
   (
     '/hasta-deneyimleri',
     'experience',
     'Hasta Deneyimleri',
-    'Ameliyat sonrası videolar ve gerçek hasta yorumları.',
+    'Ameliyat sonrası videolar ve gerçek hasta yorumları — iyileşme hikâyelerini yakından görün.',
     'published',
     'legacy/hero/instagram/reel-DYpmtdTBQrc.jpg',
     'Hasta deneyimi videosu',
     'Hasta Deneyimleri | Op. Dr. Eyüp Baykara',
-    'Full endoskopik ameliyat sonrası hasta videoları ve yorumları.',
+    'Full endoskopik ameliyat sonrası hasta videoları ve gerçek yorumlar. Bel fıtığı, boyun fıtığı ve kanal darlığı iyileşme hikâyeleri.',
     now()
   ),
   (
     '/tedaviler/bel-fitigi-ameliyati',
     'treatment',
     'Full Endoskopik Tam Kapalı Bel Fıtığı Ameliyatı',
-    'Kalçadan bacağa vuran ağrıya yönelik minimal invaziv yaklaşım.',
+    'Disk kaymasıyla oluşan bel fıtığında küçük kesi, az doku hasarı ve hızlı iyileşme.',
     'published',
     'legacy/hero/belfitigi.webp',
     'Full endoskopik bel fıtığı ameliyatı',
-    'Bel Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara',
-    'Full endoskopik tam kapalı bel fıtığı ameliyatı.',
+    'Full Endoskopik Bel Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara',
+    'Bel fıtığında full endoskopik kapalı ameliyat: küçük kesi, az doku hasarı ve hızlı iyileşme. Sırt ağrısı, bacak uyuşması ve güç kaybına minimal invaziv çözüm.',
     now()
   ),
   (
     '/tedaviler/boyun-fitigi-ameliyati',
     'treatment',
     'Full Endoskopik Tam Kapalı Boyun Fıtığı Ameliyatı',
-    'Boyun ve kola yayılan şikâyetlere yönelik minimal invaziv yaklaşım.',
+    'Boyun ağrısı, kol uyuşması ve baş dönmesinde full endoskopik kapalı tedavi.',
     'published',
     'legacy/hero/boyunfitigi.webp',
     'Full endoskopik boyun fıtığı ameliyatı',
-    'Boyun Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara',
-    'Full endoskopik tam kapalı boyun fıtığı ameliyatı.',
+    'Full Endoskopik Boyun Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara',
+    'Boyun fıtığında full endoskopik kapalı ameliyat. Boyun ağrısı, kol uyuşması ve baş dönmesine minimal invaziv tedavi; hızlı iyileşme, küçük kesi.',
     now()
   ),
   (
     '/tedaviler/kanal-darligi-ameliyati',
     'treatment',
     'Full Endoskopik Tam Kapalı Kanal Darlığı Ameliyatı',
-    'Kanal darlığında sinir baskısını azaltmaya yönelik endoskopik yaklaşım.',
+    'Kanal darlığında ağrı, uyuşma ve güç kaybına minimal invaziv çözüm.',
     'published',
     'legacy/hero/kanaldarligi.webp',
     'Full endoskopik kanal darlığı ameliyatı',
-    'Kanal Darlığı Ameliyatı | Op. Dr. Eyüp Baykara',
-    'Full endoskopik kanal darlığı ameliyatı.',
+    'Full Endoskopik Kanal Darlığı Ameliyatı | Op. Dr. Eyüp Baykara',
+    'Full endoskopik tam kapalı kanal darlığı ameliyatı: ağrı, uyuşma ve güç kaybına minimal invaziv çözüm. Hızlı iyileşme, daha az komplikasyon riski.',
     now()
   ),
   (
@@ -107,7 +107,7 @@ values
     null,
     null,
     'Blog | Op. Dr. Eyüp Baykara',
-    'Bel fıtığı, boyun fıtığı ve kanal darlığı hakkında bilgilendirici yazılar.',
+    'Bel fıtığı, boyun fıtığı ve kanal darlığı hakkında bilgilendirici yazılar. Full endoskopik omurga cerrahisi rehberi.',
     now()
   )
 on conflict (slug) do nothing;

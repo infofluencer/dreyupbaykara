@@ -14,6 +14,7 @@ import {
   COOKIE_CONSENT_NAME,
   parseCookieConsent,
 } from "@/lib/cookie-consent";
+import { PAGE_SEO } from "@/data/seo";
 import "./globals.css";
 
 const instrumentSans = Instrument_Sans({
@@ -34,9 +35,8 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ||
       "https://endoskopikbelameliyati.com",
   ),
-  title: "Op. Dr. Eyüp Baykara | Beyin ve Sinir Cerrahisi Uzmanı",
-  description:
-    "Full endoskopik tam kapalı bel fıtığı ameliyatı ve minimal invaziv beyin & omurga cerrahisi. Op. Dr. Eyüp Baykara — Silivri, İstanbul.",
+  title: PAGE_SEO.home.title,
+  description: PAGE_SEO.home.description,
   icons: {
     icon: [{ url: "/hero/endospinelogo.ico", type: "image/x-icon" }],
     shortcut: "/hero/endospinelogo.ico",

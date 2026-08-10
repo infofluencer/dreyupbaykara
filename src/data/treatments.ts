@@ -161,7 +161,7 @@ export const treatments: Treatment[] = [
     navTitle: "Full Endoskopik Tam Kapalı Bel Fıtığı Ameliyatı",
     h1: "Full Endoskopik Tam Kapalı Bel Fıtığı Ameliyatı",
     heroSubtitle:
-      "Kalçadan bacağa vuran ağrıya son verin, aynı gün taburcu olun.",
+      "Disk kaymasıyla oluşan bel fıtığında küçük kesi, az doku hasarı ve hızlı iyileşme.",
     image: "/hero/belfitigi.webp",
     youtubeId: "VQBLCfwLiLo",
     shorts: [
@@ -230,9 +230,9 @@ export const treatments: Treatment[] = [
       },
     ],
     metaTitle:
-      "Full Endoskopik Tam Kapalı Bel Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara",
+      "Full Endoskopik Bel Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara",
     metaDescription:
-      "Kalçadan bacağa vuran bel fıtığı ağrısına full endoskopik tam kapalı ameliyatla son verin. Küçük kesi, az ağrı, aynı gün taburcu.",
+      "Bel fıtığında full endoskopik kapalı ameliyat: küçük kesi, az doku hasarı ve hızlı iyileşme. Sırt ağrısı, bacak uyuşması ve güç kaybına minimal invaziv çözüm.",
     bodyLocation: "Bel omurgası",
   },
   {
@@ -240,7 +240,7 @@ export const treatments: Treatment[] = [
     navTitle: "Full Endoskopik Tam Kapalı Boyun Fıtığı Ameliyatı",
     h1: "Full Endoskopik Tam Kapalı Boyun Fıtığı Ameliyatı",
     heroSubtitle:
-      "Kola yayılan boyun ağrısında milimetrik girişle hedefe yönelik tedavi.",
+      "Boyun ağrısı, kol uyuşması ve baş dönmesinde full endoskopik kapalı tedavi.",
     image: "/hero/boyunfitigi.webp",
     youtubeId: "X1CmSDhe03g",
     shorts: [
@@ -258,22 +258,22 @@ export const treatments: Treatment[] = [
       },
     ],
     intro: [
-      "Boyun fıtığı, servikal disklerin taşarak sinir köklerine baskı yapmasıyla ortaya çıkar. Kol ağrısı, uyuşma ve el becerisinde azalma sık görülür; doğru seçilmiş endoskopik cerrahi ile bu baskı kontrollü biçimde giderilebilir.",
+      "Boyun fıtığı, modern yaşamın getirdiği hareketsiz yaşam tarzı ve yanlış duruş alışkanlıkları nedeniyle sıklıkla karşılaşılan bir sağlık sorunudur. Boyun ağrısı, kol uyuşması, baş dönmesi gibi şikayetlere neden olan boyun fıtığı, günümüzde farklı tedavi yöntemleriyle tedavi edilebilmektedir. Bu yöntemlerden biri de full endoskopik kapalı boyun fıtığı ameliyatıdır.",
     ],
     whatIsIt: {
       title: "Boyun Fıtığı Nedir?",
       body: [
         "Boyun omurları arasındaki diskler zamanla veya ani yüklenme ile yırtılabilir. Taşan disk materyali sinire baskı yapınca boyundan omuza ve kola yayılan ağrı, uyuşma veya güç kaybı oluşur.",
-        "Konservatif tedaviler yeterli olmadığında veya nörolojik kayıp varsa cerrahi planlanır. Endoskopik yaklaşımda sinire baskı yapan parça kamera rehberliğinde hedeflenir; boyun hareketleri mümkün olduğunca korunur.",
+        "Konservatif tedaviler yeterli olmadığında veya nörolojik kayıp varsa cerrahi planlanır. Full endoskopik kapalı boyun fıtığı ameliyatında sinire baskı yapan parça kamera rehberliğinde hedeflenir; boyun hareketleri mümkün olduğunca korunur.",
       ],
     },
     symptoms: {
       title: "Belirtileri",
       items: [
-        { icon: "Activity", text: "Boyundan omuza ve kola yayılan ağrı" },
+        { icon: "Activity", text: "Boyun ağrısı ve omuza/kola yayılan ağrı" },
         { icon: "Zap", text: "Kolda veya elde uyuşma / karıncalanma" },
         { icon: "Hand", text: "El becerisinde azalma veya güçsüzlük" },
-        { icon: "Move", text: "Baş hareketleriyle artan boyun tutulması" },
+        { icon: "Move", text: "Baş dönmesi ve boyun tutulması" },
       ],
     },
     method: {
@@ -309,9 +309,9 @@ export const treatments: Treatment[] = [
       },
     ],
     metaTitle:
-      "Full Endoskopik Tam Kapalı Boyun Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara",
+      "Full Endoskopik Boyun Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara",
     metaDescription:
-      "Boyun fıtığında kola vuran ağrı ve uyuşma için full endoskopik tam kapalı ameliyat. Küçük kesi, hızlı iyileşme, minimal iz.",
+      "Boyun fıtığında full endoskopik kapalı ameliyat. Boyun ağrısı, kol uyuşması ve baş dönmesine minimal invaziv tedavi; hızlı iyileşme, küçük kesi.",
     bodyLocation: "Boyun omurgası",
   },
   {
@@ -319,7 +319,7 @@ export const treatments: Treatment[] = [
     navTitle: "Full Endoskopik Tam Kapalı Kanal Darlığı Ameliyatı",
     h1: "Full Endoskopik Tam Kapalı Kanal Darlığı Ameliyatı",
     heroSubtitle:
-      "Yürüme mesafesini kısaltan kanal darlığında platin olmadan rahatlama.",
+      "Kanal darlığında ağrı, uyuşma ve güç kaybına minimal invaziv çözüm.",
     image: "/hero/kanaldarligi.webp",
     youtubeId: "5lDawOOxgeM",
     shorts: [
@@ -337,13 +337,13 @@ export const treatments: Treatment[] = [
       },
     ],
     intro: [
-      "Omurilik kanal darlığı, yaşla birlikte kemik ve bağ dokularının sinirlerin geçtiği alanı daraltmasıyla oluşur. Bel-bacak ağrısı ve yürüme mesafesinde kısalma sık görülür; endoskopik dekompresyon ile bu baskı hafifletilebilir.",
+      "Full endoskopik tam kapalı kanal darlığı ameliyatı, omurga kanalının daralması nedeniyle yaşanan ağrı, uyuşma ve güç kaybı gibi şikayetlerin giderilmesi için kullanılan, minimal invaziv bir cerrahi yöntemdir. Bu yöntem, geleneksel açık cerrahiye göre daha az invaziv olması, daha hızlı iyileşme süreci ve daha az komplikasyon riski taşıması gibi avantajlar sunar.",
     ],
     whatIsIt: {
       title: "Omurilik Kanal Darlığı Nedir?",
       body: [
-        "Omurga kanalı, omurilik ve sinir köklerinin geçtiği koridordur. Kireçlenme, bağ hipertrofisi veya disk değişiklikleri bu koridoru daraltınca sinirler sıkışır.",
-        "İleri yaşta daha sık görülür. Açık cerrahiye alternatif olarak full endoskopik yöntem, vücuda daha az yük bindirerek daraltan dokuları mikro aletlerle temizlemeyi amaçlar.",
+        "Omurga kanalı, omurilik ve sinir köklerinin geçtiği koridordur. Kireçlenme, bağ hipertrofisi veya disk değişiklikleri bu koridoru daraltınca sinirler sıkışır; ağrı, uyuşma ve güç kaybı oluşabilir.",
+        "İleri yaşta daha sık görülür. Full endoskopik tam kapalı yöntem, açık cerrahiye göre daha az invazivdir; daraltan dokular mikro aletlerle temizlenir, iyileşme hızlanır ve komplikasyon riski azalır.",
       ],
     },
     symptoms: {
@@ -351,7 +351,7 @@ export const treatments: Treatment[] = [
       items: [
         { icon: "Activity", text: "Yürürken artan bel ve bacak ağrısı" },
         { icon: "Footprints", text: "Kısa mesafede dinlenme ihtiyacı" },
-        { icon: "Zap", text: "Bacaklarda uyuşma veya güçsüzlük hissi" },
+        { icon: "Zap", text: "Bacaklarda uyuşma veya güç kaybı" },
         { icon: "Move", text: "Öne eğilince geçici rahatlama" },
       ],
     },
@@ -359,7 +359,7 @@ export const treatments: Treatment[] = [
       title: "Full Endoskopik Tam Kapalı Yöntem",
       body: [
         "Milimetrik bir girişten endoskop ile daralmış bölge görüntülenir. Sinir sıkışmasına yol açan kemik ve bağ yapıları kontrollü biçimde temizlenerek kanal genişletilir.",
-        "Klasik açık cerrahiye kıyasla travma daha azdır; birçok hastada yürüme mesafesi ve günlük konfor belirgin şekilde artar. İleri yaş hastalarda da daha düşük yük nedeniyle tercih edilebilir.",
+        "Klasik açık cerrahiye kıyasla travma daha azdır; birçok hastada yürüme mesafesi ve günlük konfor belirgin şekilde artar. Daha hızlı iyileşme ve daha düşük komplikasyon riski hedeflenir.",
       ],
     },
     advantages: [
@@ -412,9 +412,9 @@ export const treatments: Treatment[] = [
       },
     ],
     metaTitle:
-      "Full Endoskopik Tam Kapalı Kanal Darlığı Ameliyatı | Op. Dr. Eyüp Baykara",
+      "Full Endoskopik Kanal Darlığı Ameliyatı | Op. Dr. Eyüp Baykara",
     metaDescription:
-      "Omurilik kanal darlığında full endoskopik tam kapalı cerrahi. Daha az travma, hızlı iyileşme, yürüme mesafesinde artış hedefi.",
+      "Full endoskopik tam kapalı kanal darlığı ameliyatı: ağrı, uyuşma ve güç kaybına minimal invaziv çözüm. Hızlı iyileşme, daha az komplikasyon riski.",
     bodyLocation: "Omurga kanalı",
   },
 ];
