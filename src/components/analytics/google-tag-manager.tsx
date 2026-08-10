@@ -1,14 +1,10 @@
-"use client";
-
 import Script from "next/script";
-import { usePathname } from "next/navigation";
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
 
+/** GTM her zaman yüklenir; içindeki tag’ler Consent Mode sinyallerine uyar. */
 export function GoogleTagManager() {
-  const pathname = usePathname();
-
-  if (!GTM_ID || pathname.startsWith("/admin")) return null;
+  if (!GTM_ID) return null;
 
   return (
     <Script id="gtm" strategy="afterInteractive">

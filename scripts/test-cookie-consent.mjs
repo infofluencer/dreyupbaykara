@@ -45,9 +45,8 @@ const baseUrl = (
 ).replace(/\/$/, "");
 
 const ISO = "2026-08-10T11:00:00.000Z";
-/** Consent olmadan yüklenmemeli (GTM hariç — Consent Mode default denied). */
+/** Consent olmadan yüklenmemeli (GTM/gtag.js Consent Mode ile her zaman olabilir). */
 const CONSENTED_TRACKER_HOSTS = [
-  "www.googletagmanager.com/gtag/js",
   "clarity.ms/tag",
   "connect.facebook.net",
   "analytics.tiktok.com",
@@ -491,10 +490,16 @@ await step("5) SSR — Consent Mode + sayfalar", async () => {
   } else fail("footer tercih butonu");
 
   const homeTrackers = hasTrackerHost(home.text);
+  if (home.text.includes("G-0MBEKH09LX") || home.text.includes("gtag/js")) {
+    ok("gtag.js HTML'de (Google kurulum testi)");
+  } else if (process.env.NEXT_PUBLIC_GA_ID) {
+    fail("gtag.js HTML'de (Google kurulum testi)");
+  }
+
   if (homeTrackers.length === 0) {
-    ok("cookie yokken GA/Clarity/Meta/TikTok URL yok");
+    ok("cookie yokken Clarity/Meta/TikTok URL yok");
   } else {
-    fail("cookie yokken GA/Clarity/Meta/TikTok URL yok", homeTrackers.join(", "));
+    fail("cookie yokken Clarity/Meta/TikTok URL yok", homeTrackers.join(", "));
   }
 
   const analyticsHtml = await request("/", {

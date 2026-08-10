@@ -4,7 +4,6 @@ import { Instrument_Sans, Poppins } from "next/font/google";
 import {
   GoogleAnalytics,
   GoogleConsentModeScript,
-  GoogleTagManager,
   MetaPixel,
   MicrosoftClarity,
   TikTokPixel,
@@ -69,7 +68,6 @@ export default async function RootLayout({
     >
       <body className="min-h-full bg-bg text-text" suppressHydrationWarning>
         <GoogleConsentModeScript consent={initialConsent} />
-        <GoogleTagManager />
         <GoogleAnalytics initialConsent={initialConsent} />
         <MicrosoftClarity initialConsent={initialConsent} />
         <MetaPixel initialConsent={initialConsent} />
