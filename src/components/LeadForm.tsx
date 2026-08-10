@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
+import { pushDataLayerEvent } from "@/components/analytics/data-layer";
+import { trackMetaEvent } from "@/components/analytics/track-meta";
 import { buildTrackingPath } from "@/lib/crm/tracking";
 import { HOME_FALLBACK, type HomeCopyBlock } from "@/lib/cms/home";
 
@@ -50,6 +52,11 @@ export function LeadForm({
       },
     });
 
+    trackMetaEvent("Lead", {
+      content_name: "randevu_formu",
+      content_category: "lead_form",
+    });
+    pushDataLayerEvent("generate_lead", { content_name: "randevu_formu" });
     window.location.href = href;
   };
 

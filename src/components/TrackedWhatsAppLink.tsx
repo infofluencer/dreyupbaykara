@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, type AnchorHTMLAttributes, type ReactNode } from "react";
+import { pushDataLayerEvent } from "@/components/analytics/data-layer";
+import { trackMetaEvent } from "@/components/analytics/track-meta";
 import { buildTrackingPath, DEFAULT_SITE } from "@/lib/crm/tracking";
 
 type TrackedWhatsAppLinkProps = Omit<
@@ -49,6 +51,8 @@ export function TrackedWhatsAppLink({
       }}
       onClick={(event) => {
         event.currentTarget.href = buildTrackingPath({ site, channel, campaign });
+        trackMetaEvent("Contact", { content_name: `whatsapp_${channel}` });
+        pushDataLayerEvent("whatsapp_click", { channel });
         onClick?.(event);
       }}
     >

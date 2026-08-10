@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TrackedWhatsAppLink } from "@/components/TrackedWhatsAppLink";
+import { CookiePreferencesButton } from "@/components/layouts/footer/cookie-preferences-button";
 import { VectorPattern } from "@/components/VectorPattern";
 
 const TREATMENTS = [
@@ -183,6 +184,12 @@ export function Footer() {
             <p className="text-xs text-white/40">
               © {year} Op. Dr. Eyüp Baykara. Tüm hakları saklıdır.
             </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/45">
+              <Link href="/cerezler" className="transition hover:text-white">
+                Çerez politikası
+              </Link>
+              <CookiePreferencesButton className="text-left transition hover:text-white" />
+            </div>
           </div>
         </div>
       </div>

@@ -1,5 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Instrument_Sans, Poppins } from "next/font/google";
+import {
+  GoogleAnalytics,
+  GoogleConsentModeScript,
+  GoogleTagManager,
+  MetaPixel,
+  MicrosoftClarity,
+  TikTokPixel,
+} from "@/components/analytics";
+import { ClientOnly } from "@/components/layouts/client-only";
+import { CookieConsentBanner } from "@/components/layouts/cookie-consent-banner";
+import {
+  COOKIE_CONSENT_NAME,
+  parseCookieConsent,
+} from "@/lib/cookie-consent";
 import "./globals.css";
 
 const instrumentSans = Instrument_Sans({
@@ -36,11 +51,16 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const initialConsent = parseCookieConsent(
+    cookieStore.get(COOKIE_CONSENT_NAME)?.value,
+  );
+
   return (
     <html
       lang="tr"
@@ -48,7 +68,16 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full bg-bg text-text" suppressHydrationWarning>
+        <GoogleConsentModeScript consent={initialConsent} />
+        <GoogleTagManager />
+        <GoogleAnalytics initialConsent={initialConsent} />
+        <MicrosoftClarity initialConsent={initialConsent} />
+        <MetaPixel initialConsent={initialConsent} />
+        <TikTokPixel initialConsent={initialConsent} />
         {children}
+        <ClientOnly>
+          <CookieConsentBanner initialConsent={initialConsent} />
+        </ClientOnly>
       </body>
     </html>
   );

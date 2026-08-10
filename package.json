@@ -12,7 +12,8 @@
     "lint": "eslint",
     "test:crm": "node scripts/test-crm.mjs",
     "test:sources": "node scripts/test-sources.mjs",
-    "test:bot": "node scripts/test-bot.mjs"
+    "test:bot": "node scripts/test-bot.mjs",
+    "test:consent": "node scripts/test-cookie-consent.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
