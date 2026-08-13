@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import { CmsSections } from "@/components/cms/CmsSections";
 import { PageShell } from "@/components/PageShell";
 import { TrackedWhatsAppLink } from "@/components/TrackedWhatsAppLink";
+import { PAGE_SEO } from "@/data/seo";
 import { getPublishedPage, getPublicSettings } from "@/lib/cms/content";
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await getPublishedPage("/iletisim");
+  const seo = PAGE_SEO.iletisim;
   return {
-    title: content?.seo_title || "İletişim | Op. Dr. Eyüp Baykara",
-    description:
-      content?.seo_description ||
-      "Randevu ve iletişim: Özel Silivri Anadolu Hastanesi. Telefon 0530 783 72 24.",
+    title: content?.seo_title || seo.title,
+    description: content?.seo_description || seo.description,
     alternates: { canonical: content?.canonical_url || "/iletisim" },
   };
 }
@@ -50,8 +50,7 @@ export default async function IletisimPage() {
     <PageShell
       title={content?.title || "Bize Ulaşın"}
       description={
-        content?.excerpt ||
-        "Randevu ve sorularınız için telefon, WhatsApp veya e-posta ile bize ulaşabilirsiniz."
+        content?.excerpt || PAGE_SEO.iletisim.snippet
       }
       breadcrumb={[
         { label: "Anasayfa", href: "/" },

@@ -7,7 +7,7 @@ import { treatments } from "@/data/treatments";
 const ARCHIVE_ITEMS = treatments.map((item) => ({
   id: item.slug,
   title: item.h1,
-  description: item.intro[0],
+  description: item.heroSubtitle,
   image: item.image,
   href: `/tedaviler/${item.slug}`,
 }));
