@@ -3,7 +3,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
   appointmentEndIso,
@@ -39,6 +39,13 @@ function optionalText(formData: FormData, key: string): string | null {
 
 function checked(formData: FormData, key: string): boolean {
   return formData.get(key) === "on" || formData.get(key) === "true";
+}
+
+function appointmentStartsAt(formData: FormData): string | null {
+  const date = text(formData, "starts_date");
+  const time = text(formData, "starts_time");
+  if (date && time) return istanbulIso(`${date}T${time}`);
+  return istanbulIso(text(formData, "starts_at"));
 }
 
 function istanbulIso(value: string | null): string | null {
@@ -836,77 +843,81 @@ async function slotConflictMessage(
   )}${contact?.name ? ` · ${contact.name}` : ""}. Başka bir saat seçin.`;
 }
 
-export async function createAppointment(formData: FormData) {
-  const session = await requireAdminSession(["admin", "doctor", "assistant"]);
-  const supabase = await createClient();
-  const leadId = await ensureLeadId(formData, session.userId);
-  const startsAt = istanbulIso(text(formData, "starts_at"));
-  if (!startsAt) {
-    throw new Error("Başlangıç zamanı zorunludur.");
-  }
-  const durationMinutes = Number(text(formData, "duration_minutes") || 0);
-  let endsAt = istanbulIso(optionalText(formData, "ends_at"));
-  if (startsAt && durationMinutes > 0) {
-    endsAt = new Date(
-      new Date(startsAt).getTime() + durationMinutes * 60 * 1000,
-    ).toISOString();
-  } else if (!endsAt && startsAt) {
-    endsAt = new Date(new Date(startsAt).getTime() + 30 * 60 * 1000).toISOString();
-  }
-  const conflict = await slotConflictMessage(
-    startsAt,
-    endsAt ?? appointmentEndIso(startsAt),
-  );
-  if (conflict) {
-    redirectLeadsConflict(formData, startsAt, leadId, conflict);
-  }
-  const appointmentType =
-    text(formData, "appointment_type") || "consultation";
-  const { error } = await supabase.from("appointments").insert({
-    lead_id: leadId,
-    title: text(formData, "title") || titleFromType(appointmentType),
-    starts_at: startsAt,
-    ends_at: endsAt,
-    notes: optionalText(formData, "notes"),
-    status: text(formData, "status") || "scheduled",
-    appointment_type: appointmentType,
-    location: optionalText(formData, "location"),
-    all_day: checked(formData, "all_day"),
-    reminder_minutes_before: Number(
-      text(formData, "reminder_minutes_before") || 1440,
-    ),
-    created_by: session.userId,
-  });
-  if (error) {
-    if (isExclusionViolation(error)) {
-      redirectLeadsConflict(
-        formData,
-        startsAt,
-        leadId,
-        "Bu saat dolu. Başka bir saat seçin.",
-      );
+export async function createAppointment(formData: FormData): Promise<{
+  ok: boolean;
+  error?: string;
+  date?: string;
+}> {
+  try {
+    const session = await requireAdminSession(["admin", "doctor", "assistant"]);
+    const supabase = await createClient();
+    const leadId = await ensureLeadId(formData, session.userId);
+    const startsAt = appointmentStartsAt(formData);
+    if (!startsAt) {
+      return { ok: false, error: "Başlangıç zamanı zorunludur." };
     }
-    throw new Error(error.message);
+    const durationMinutes = Number(text(formData, "duration_minutes") || 0);
+    let endsAt = istanbulIso(optionalText(formData, "ends_at"));
+    if (startsAt && durationMinutes > 0) {
+      endsAt = new Date(
+        new Date(startsAt).getTime() + durationMinutes * 60 * 1000,
+      ).toISOString();
+    } else if (!endsAt && startsAt) {
+      endsAt = new Date(
+        new Date(startsAt).getTime() + 30 * 60 * 1000,
+      ).toISOString();
+    }
+    const conflict = await slotConflictMessage(
+      startsAt,
+      endsAt ?? appointmentEndIso(startsAt),
+    );
+    if (conflict) {
+      return { ok: false, error: conflict, date: istanbulYmd(startsAt) };
+    }
+    const appointmentType =
+      text(formData, "appointment_type") || "consultation";
+    const { error } = await supabase.from("appointments").insert({
+      lead_id: leadId,
+      title: text(formData, "title") || titleFromType(appointmentType),
+      starts_at: startsAt,
+      ends_at: endsAt,
+      notes: optionalText(formData, "notes"),
+      status: text(formData, "status") || "scheduled",
+      appointment_type: appointmentType,
+      location: optionalText(formData, "location"),
+      all_day: checked(formData, "all_day"),
+      reminder_minutes_before: Number(
+        text(formData, "reminder_minutes_before") || 1440,
+      ),
+      created_by: session.userId,
+    });
+    if (error) {
+      if (isExclusionViolation(error)) {
+        return {
+          ok: false,
+          error: "Bu saat dolu. Başka bir saat seçin.",
+          date: istanbulYmd(startsAt),
+        };
+      }
+      return { ok: false, error: error.message };
+    }
+    await supabase
+      .from("leads")
+      .update({ stage: "appointment" })
+      .eq("id", leadId)
+      .in("stage", ["new", "contacted", "qualified"]);
+    revalidatePath(`/admin/leads/${leadId}`);
+    revalidatePath("/admin/leads");
+    revalidatePath("/admin/calendar");
+    return { ok: true, date: istanbulYmd(startsAt) };
+  } catch (error) {
+    unstable_rethrow(error);
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Randevu eklenemedi.",
+    };
   }
-  await supabase
-    .from("leads")
-    .update({ stage: "appointment" })
-    .eq("id", leadId)
-    .in("stage", ["new", "contacted", "qualified"]);
-  revalidatePath(`/admin/leads/${leadId}`);
-  revalidatePath("/admin/leads");
-  revalidatePath("/admin/calendar");
-  const redirectView = text(formData, "redirect_view");
-  const params = new URLSearchParams();
-  if (
-    redirectView === "week" ||
-    redirectView === "month" ||
-    redirectView === "year"
-  ) {
-    params.set("view", redirectView);
-  }
-  params.set("date", istanbulYmd(startsAt));
-  redirect(`/admin/leads?${params.toString()}`);
 }
 
 export async function updateAppointmentStatus(formData: FormData) {
@@ -936,7 +947,7 @@ export async function updateAppointment(formData: FormData) {
   const supabase = await createClient();
   const id = text(formData, "id");
   const leadId = text(formData, "lead_id");
-  const startsAt = istanbulIso(text(formData, "starts_at"));
+  const startsAt = appointmentStartsAt(formData);
   const status = text(formData, "status") || "scheduled";
   if (!id || !leadId || !startsAt) {
     throw new Error("Randevu, hasta ve başlangıç zamanı zorunludur.");

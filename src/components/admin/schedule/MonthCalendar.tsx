@@ -14,6 +14,7 @@ const WEEKDAYS = [
   "Cumartesi",
   "Pazar",
 ];
+const WEEKDAYS_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
 export function MonthCalendar({
   year,
@@ -57,34 +58,33 @@ export function MonthCalendar({
 
   return (
     <div className="space-y-5">
-      <div className="overflow-x-auto">
-        <div className="min-w-[52rem]">
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-[#466254]">
-            {WEEKDAYS.map((label) => (
-              <div key={label} className="py-2">
-                {label}
+      <div className="md:overflow-x-auto">
+        <div className="md:min-w-[52rem]">
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-[#466254] md:gap-2 md:text-xs">
+            {WEEKDAYS.map((label, index) => (
+              <div key={label} className="py-1">
+                <span className="md:hidden">{WEEKDAYS_SHORT[index]}</span>
+                <span className="hidden md:inline">{label}</span>
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-1 md:gap-2">
             {cells.map((ymd, index) => {
               if (!ymd) {
-                return <div key={`empty-${index}`} className="min-h-32" />;
+                return (
+                  <div
+                    key={`empty-${index}`}
+                    className="min-h-12 rounded-xl bg-[#f7f9f8] md:aspect-square md:rounded-2xl"
+                  />
+                );
               }
               const items = byDay.get(ymd) ?? [];
               const selected = ymd === date;
               const today = ymd === todayYmd;
               return (
-                <Link
+                <div
                   key={ymd}
-                  href={planHref({
-                    view: "day",
-                    date: ymd,
-                    lead: selectedLeadId,
-                    stage,
-                    q: search,
-                  })}
-                  className={`min-h-32 rounded-xl border p-2 text-left ${
+                  className={`relative flex min-h-12 flex-col overflow-hidden rounded-xl border p-1 md:aspect-square md:rounded-2xl md:p-2 ${
                     selected
                       ? "border-[#0b6b45] bg-[#e7f5ed]"
                       : today
@@ -92,35 +92,57 @@ export function MonthCalendar({
                         : "border-[#123524]/10 bg-white hover:bg-[#f7f9f8]"
                   }`}
                 >
-                  <div className="flex items-baseline justify-between gap-1">
-                    <p className="text-sm font-semibold">{Number(ymd.slice(8))}</p>
+                  <Link
+                    href={planHref({
+                      view: "day",
+                      date: ymd,
+                      lead: selectedLeadId,
+                      stage,
+                      q: search,
+                    })}
+                    className="absolute inset-0 z-0"
+                    aria-label={`${Number(ymd.slice(8))} gününü incele`}
+                  />
+                  <div className="relative z-10 flex items-baseline justify-center gap-1 pointer-events-none md:justify-between">
+                    <p className="text-sm font-semibold tabular-nums">
+                      {Number(ymd.slice(8))}
+                    </p>
                     {today ? (
-                      <span className="text-[10px] font-semibold text-[#0b6b45]">
+                      <span className="hidden text-[10px] font-semibold text-[#0b6b45] md:inline">
                         bugün
+                      </span>
+                    ) : items.length ? (
+                      <span className="hidden text-[10px] font-semibold text-[#466254] md:inline">
+                        {items.length}
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-1 space-y-1">
+                  {items.length ? (
+                    <div className="mt-0.5 flex justify-center gap-0.5 md:hidden">
+                      {items.slice(0, 3).map((appointment) => (
+                        <span
+                          key={appointment.id}
+                          className="h-1.5 w-1.5 rounded-full bg-[#0b6b45]"
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="relative z-10 mt-1 hidden min-h-0 flex-1 space-y-1 overflow-y-auto pointer-events-none md:block">
                     {items.map((appointment) => {
                       const info = appointmentInfo(appointment);
                       return (
-                        <p
+                        <Link
                           key={appointment.id}
-                          className="rounded-lg bg-white/80 px-1.5 py-1 text-[11px] leading-snug text-[#123524]"
+                          href={`/admin/calendar/${appointment.id}`}
+                          className="pointer-events-auto block rounded-lg bg-white/80 px-1.5 py-1 text-[11px] leading-snug text-[#123524] hover:bg-white"
                         >
                           <span className="font-semibold">{info.timeRange}</span>
-                          <br />
-                          {info.name}
-                          {info.phone ? (
-                            <span className="block text-[10px] text-[#466254]">
-                              {info.phone}
-                            </span>
-                          ) : null}
-                        </p>
+                          <span className="block truncate">{info.name}</span>
+                        </Link>
                       );
                     })}
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -140,7 +162,7 @@ export function MonthCalendar({
               return (
                 <div
                   key={appointment.id}
-                  className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-[#f4f6f5] px-4 py-3"
+                    className="flex min-h-[4.75rem] flex-wrap items-start justify-between gap-3 rounded-xl bg-[#f4f6f5] px-4 py-3"
                 >
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-[#466254]">

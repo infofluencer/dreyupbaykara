@@ -6,7 +6,7 @@ import { deleteAppointment } from "@/app/admin/actions";
 export function DeleteAppointmentButton({
   id,
   label = "Sil",
-  className = "text-xs font-semibold text-red-700 hover:underline",
+  className = "inline-flex min-h-8 items-center text-xs font-semibold text-red-700",
 }: {
   id: string;
   label?: string;

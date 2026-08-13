@@ -29,7 +29,7 @@ export function TypeAndDurationFields({
         ].sort((a, b) => a.minutes - b.minutes);
 
   return (
-    <>
+    <div className="grid grid-cols-2 gap-3 sm:contents">
       <label className="text-sm font-medium">
         Tür
         <select
@@ -40,7 +40,7 @@ export function TypeAndDurationFields({
             setType(next);
             if (!durationTouched) setDuration(defaultDurationForType(next));
           }}
-          className="mt-1.5 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2.5"
+          className="mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-3 text-base"
         >
           <option value="consultation">İlk muayene</option>
           <option value="control">Kontrol</option>
@@ -58,7 +58,7 @@ export function TypeAndDurationFields({
             setDurationTouched(true);
             setDuration(Number(event.target.value));
           }}
-          className="mt-1.5 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2.5"
+          className="mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-3 text-base"
         >
           {options.map((item) => (
             <option key={item.minutes} value={item.minutes}>
@@ -67,6 +67,6 @@ export function TypeAndDurationFields({
           ))}
         </select>
       </label>
-    </>
+    </div>
   );
 }

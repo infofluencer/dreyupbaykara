@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppointmentQuickForm } from "@/components/admin/schedule/AppointmentQuickForm";
+import { CalendarInspectDate } from "@/components/admin/schedule/CalendarInspectDate";
 import { DayAppointments } from "@/components/admin/schedule/DayAppointments";
 import { planHref, type PlanView } from "@/components/admin/schedule/href";
 import { LeadQueue } from "@/components/admin/schedule/LeadQueue";
@@ -15,7 +16,6 @@ import { firstRelation } from "@/lib/crm/labels";
 import { getIstanbulTodayYmd } from "@/lib/date/now";
 import {
   addDaysYmd,
-  datetimeLocalValue,
   formatDateLongTr,
   formatMonthYearTr,
   startOfWeekMonday,
@@ -144,17 +144,18 @@ export default async function AdminLeadsPage({
           : formatDateLongTr(`${date}T12:00:00+03:00`);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-4">
+      <div className="space-y-3">
         <div>
-          <h1 className="font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold">
+          <h1 className="font-[family-name:var(--font-instrument-sans)] text-xl font-semibold sm:text-2xl">
             Takvim
           </h1>
-          <p className="mt-2 text-sm text-[#466254]">
-            Hasta seçin, saat yazın, randevu ekleyin veya silin.
+          <p className="mt-1 hidden text-sm text-[#466254] sm:block">
+            Üstten tarih seçip günü inceleyin. Randevu tarihi ve saati formdan
+            girilir; yeşil kutu yalnızca dolu saati gösterir.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <Link
             href={planHref({
               view,
@@ -162,13 +163,16 @@ export default async function AdminLeadsPage({
               lead: selectedLeadId,
               q: search,
             })}
-            className="rounded-full border border-[#123524]/15 px-4 py-2 text-sm"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#123524]/15 bg-white text-lg font-semibold sm:h-10 sm:w-10 sm:rounded-full"
+            aria-label="Önceki"
           >
             ←
           </Link>
-          <span className="min-w-44 text-center text-sm font-semibold capitalize">
-            {heading}
-          </span>
+          <CalendarInspectDate
+            date={date}
+            lead={selectedLeadId}
+            search={search}
+          />
           <Link
             href={planHref({
               view,
@@ -176,10 +180,16 @@ export default async function AdminLeadsPage({
               lead: selectedLeadId,
               q: search,
             })}
-            className="rounded-full border border-[#123524]/15 px-4 py-2 text-sm"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#123524]/15 bg-white text-lg font-semibold sm:h-10 sm:w-10 sm:rounded-full"
+            aria-label="Sonraki"
           >
             →
           </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold capitalize text-[#123524]">
+            {heading}
+          </span>
           <Link
             href={planHref({
               view,
@@ -187,14 +197,14 @@ export default async function AdminLeadsPage({
               lead: selectedLeadId,
               q: search,
             })}
-            className="rounded-full border border-[#0b6b45]/25 px-4 py-2 text-sm font-semibold text-[#0b6b45]"
+            className="inline-flex h-10 shrink-0 items-center rounded-full border border-[#0b6b45]/25 bg-white px-4 text-sm font-semibold text-[#0b6b45]"
           >
             Bugün
           </Link>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-4 gap-1 rounded-2xl bg-white p-1 ring-1 ring-[#123524]/10">
         {(
           [
             ["day", "Gün"],
@@ -211,10 +221,10 @@ export default async function AdminLeadsPage({
               lead: selectedLeadId,
               q: search,
             })}
-            className={`rounded-full px-4 py-2 text-sm font-semibold ${
+            className={`flex min-h-11 items-center justify-center rounded-xl px-2 text-sm font-semibold ${
               view === key
                 ? "bg-[#123524] text-white"
-                : "bg-white text-[#466254] ring-1 ring-[#123524]/10"
+                : "text-[#466254]"
             }`}
           >
             {label}
@@ -236,12 +246,14 @@ export default async function AdminLeadsPage({
       <AppointmentQuickForm
         leads={visibleLeads}
         selectedLeadId={selectedLeadId}
-        startsAt={datetimeLocalValue(date, slot.hour, slot.minute)}
+        date={date}
+        time={activeSlot ?? `${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`}
         view={view}
         error={query.error}
       />
 
-      <div className="grid gap-5 xl:grid-cols-[20rem_minmax(0,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[20rem_minmax(0,1fr)]">
+        <div className="order-2 xl:order-1">
         <LeadQueue
           leads={visibleLeads}
           selectedLeadId={selectedLeadId}
@@ -250,7 +262,8 @@ export default async function AdminLeadsPage({
           stage={stage}
           search={search}
         />
-        <section className="rounded-2xl border border-[#123524]/10 bg-white p-4">
+        </div>
+        <section className="order-1 rounded-2xl border border-[#123524]/10 bg-white p-3 sm:p-4 xl:order-2">
           {view === "week" ? (
             <WeekList
               weekStart={weekStart}
@@ -288,19 +301,16 @@ export default async function AdminLeadsPage({
                   ? `Bugün · ${formatDateLongTr(`${date}T12:00:00+03:00`)}`
                   : formatDateLongTr(`${date}T12:00:00+03:00`)}
               </h2>
-              <p className="mt-1 text-xs text-[#466254]">
-                08:00–20:00, 30 dk dilimler. Ameliyat gibi uzun süreler birden
-                fazla dilimi kaplar; o saatler dolu görünür.
+              <p className="mt-1 hidden text-xs text-[#466254] sm:block">
+                08:00–20:00 kare dilimler. Yeşil kutu dolu saattir. Başka bir
+                günü görmek için üstten tarih seçin veya ay görünümünden güne
+                tıklayın.
               </p>
               <DayAppointments
                 date={date}
                 todayYmd={todayYmd}
                 appointments={items}
-                selectedLeadId={selectedLeadId}
-                stage={stage}
-                search={search}
-                activeSlot={activeSlot}
-                emptyText="Bu tarihte randevu yok. Boş saate tıklayın veya yukarıdaki formu kullanın."
+                emptyText="Bu tarihte randevu yok. Tarihi ve saati yukarıdaki formdan girin."
               />
             </>
           )}

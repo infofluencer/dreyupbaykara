@@ -151,7 +151,7 @@ export default async function ConversationPage({
       ) : serviceWindowOpen ? (
         <form
           action={sendConversationMessage}
-          className="flex gap-3 rounded-2xl border border-[#123524]/10 bg-white p-4"
+          className="flex flex-col gap-3 rounded-2xl border border-[#123524]/10 bg-white p-4 sm:flex-row"
         >
           <input type="hidden" name="conversation_id" value={conversation.id} />
           <input type="hidden" name="phone" value={contact?.phone} />
@@ -160,9 +160,9 @@ export default async function ConversationPage({
             required
             rows={2}
             placeholder="Mesaj yazın…"
-            className="min-h-12 flex-1 resize-none rounded-xl border border-[#123524]/15 px-3 py-2.5 text-sm outline-none focus:border-[#0b6b45]"
+            className="min-h-20 flex-1 resize-none rounded-xl border border-[#123524]/15 px-3 py-3 text-base outline-none focus:border-[#0b6b45]"
           />
-          <button className="self-end rounded-full bg-[#0b6b45] px-5 py-2.5 text-sm font-semibold text-white">
+          <button className="min-h-12 rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white sm:self-end">
             Gönder
           </button>
         </form>

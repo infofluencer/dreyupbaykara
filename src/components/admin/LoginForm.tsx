@@ -46,7 +46,7 @@ export function LoginForm() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1.5 w-full rounded-xl border border-[#123524]/12 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[#0b6b45]/45"
+          className="mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/12 bg-white px-3.5 py-3 text-base outline-none focus:border-[#0b6b45]/45"
         />
       </label>
       <label className="block">
@@ -57,7 +57,7 @@ export function LoginForm() {
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1.5 w-full rounded-xl border border-[#123524]/12 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[#0b6b45]/45"
+          className="mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/12 bg-white px-3.5 py-3 text-base outline-none focus:border-[#0b6b45]/45"
         />
       </label>
 
@@ -70,7 +70,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="inline-flex w-full items-center justify-center rounded-full bg-[#0b6b45] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#085436] disabled:opacity-60"
+        className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[#0b6b45] px-5 text-base font-semibold text-white transition hover:bg-[#085436] disabled:opacity-60"
       >
         {loading ? "Giriş yapılıyor…" : "Giriş yap"}
       </button>

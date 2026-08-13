@@ -101,7 +101,7 @@ export default async function AdminHomePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="font-[family-name:var(--font-instrument-sans)] text-xl font-semibold tracking-tight sm:text-3xl">
           Özet
         </h1>
         <p className="mt-2 text-sm text-[#466254]">
@@ -211,9 +211,9 @@ export default async function AdminHomePage() {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#123524]/08 bg-white px-5 py-4">
+    <div className="rounded-2xl border border-[#123524]/08 bg-white px-4 py-3.5 sm:px-5 sm:py-4">
       <p className="text-sm text-[#466254]">{label}</p>
-      <p className="mt-2 font-[family-name:var(--font-instrument-sans)] text-3xl font-semibold">
+      <p className="mt-1 font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold sm:mt-2 sm:text-3xl">
         {value}
       </p>
     </div>
@@ -232,7 +232,7 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="rounded-2xl border border-[#123524]/08 bg-white px-5 py-4 transition hover:border-[#0b6b45]/30"
+      className="flex min-h-16 flex-col justify-center rounded-2xl border border-[#123524]/08 bg-white px-4 py-4 transition active:border-[#0b6b45]/30 sm:px-5"
     >
       <p className="font-semibold text-[#123524]">{title}</p>
       <p className="mt-1 text-sm text-[#466254]">{desc}</p>

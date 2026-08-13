@@ -3,8 +3,8 @@ import { LoginForm } from "@/components/admin/LoginForm";
 
 export default function AdminLoginPage() {
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center">
-      <div className="rounded-2xl border border-[#123524]/08 bg-white p-8 shadow-sm">
+    <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-center px-4 py-8">
+      <div className="rounded-2xl border border-[#123524]/08 bg-white p-5 shadow-sm sm:p-8">
         <p className="text-sm font-semibold tracking-wide text-[#0b6b45]">
           Admin
         </p>

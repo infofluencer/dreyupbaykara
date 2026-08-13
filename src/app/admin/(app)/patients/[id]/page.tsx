@@ -21,7 +21,7 @@ import { formatDateLongTr, formatTimeTr } from "@/lib/date/tr";
 import { createClient } from "@/lib/supabase/server";
 
 const input =
-  "mt-1.5 w-full rounded-xl border border-[#123524]/15 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[#0b6b45]";
+  "mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/15 bg-white px-3.5 py-3 text-base outline-none focus:border-[#0b6b45]";
 
 export default async function PatientDetailPage({
   params,

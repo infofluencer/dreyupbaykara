@@ -104,6 +104,11 @@ export function startOfWeekMonday(ymd: string): string {
   return addDaysYmd(ymd, -mondayOffset);
 }
 
+export function istanbulTimeInput(value: Date | string): string {
+  const { hour, minute } = istanbulHourMinute(value);
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 export function datetimeLocalValue(
   ymd: string,
   hour: number,

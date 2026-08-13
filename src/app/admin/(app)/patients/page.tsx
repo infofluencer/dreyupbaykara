@@ -37,31 +37,31 @@ export default async function PatientsPage({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold">
+          <h1 className="font-[family-name:var(--font-instrument-sans)] text-xl font-semibold sm:text-2xl">
             Hastalar
           </h1>
-          <p className="mt-2 text-sm text-[#466254]">
+          <p className="mt-1 text-sm text-[#466254]">
             Hasta kimliği, klinik notlar ve takvim randevuları burada.
           </p>
         </div>
         <Link
           href="/admin/patients/new"
-          className="rounded-full bg-[#0b6b45] px-4 py-2 text-sm font-semibold text-white"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white sm:min-h-10"
         >
           Yeni hasta
         </Link>
       </div>
 
-      <form className="flex flex-wrap gap-2">
+      <form className="flex flex-col gap-2 sm:flex-row">
         <input
           name="q"
           defaultValue={search}
           placeholder="Ad, telefon, TC veya hasta no"
-          className="min-w-64 flex-1 rounded-xl border border-[#123524]/15 px-3 py-2.5 text-sm"
+          className="min-h-12 min-w-0 flex-1 rounded-xl border border-[#123524]/15 px-3 py-3 text-base"
         />
-        <button className="rounded-full border border-[#123524]/15 px-4 py-2 text-sm font-semibold">
+        <button className="min-h-12 rounded-full border border-[#123524]/15 px-4 text-sm font-semibold sm:px-5">
           Ara
         </button>
       </form>
@@ -92,7 +92,7 @@ export default async function PatientsPage({
                 <Link
                   key={patient.id}
                   href={`/admin/patients/${patient.id}`}
-                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 hover:bg-[#f7f9f8]"
+                  className="flex min-h-16 items-start justify-between gap-3 px-4 py-4 active:bg-[#f7f9f8] sm:items-center sm:px-5"
                 >
                   <div>
                     <p className="font-semibold">
@@ -107,7 +107,7 @@ export default async function PatientsPage({
                       {patient.city ? ` · ${patient.city}` : ""}
                     </p>
                   </div>
-                  <span className="text-xs font-semibold text-[#0b6b45]">
+                  <span className="shrink-0 pt-1 text-xs font-semibold text-[#0b6b45] sm:pt-0">
                     Kimliği aç →
                   </span>
                 </Link>

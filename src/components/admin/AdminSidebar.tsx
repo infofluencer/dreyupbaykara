@@ -30,10 +30,10 @@ export function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 flex w-[4.75rem] flex-col bg-[#123524] text-white shadow-[12px_0_36px_rgba(18,53,36,0.12)] lg:w-64">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-[#123524] text-white shadow-[12px_0_36px_rgba(18,53,36,0.12)] lg:flex">
       <Link
         href="/admin"
-        className="flex h-[4.5rem] items-center justify-center border-b border-white/10 px-2 lg:h-24 lg:px-5"
+        className="flex h-24 items-center justify-center border-b border-white/10 px-5"
         aria-label="Yönetim paneli ana sayfası"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -42,12 +42,12 @@ export function AdminSidebar() {
           alt="Endoskopik Bel Ameliyatı"
           width={942}
           height={382}
-          className="h-8 w-auto max-w-full object-contain lg:h-14"
+          className="h-14 w-auto max-w-full object-contain"
           decoding="async"
         />
       </Link>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4 lg:px-3">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {NAV.map((item) => {
           const active =
             item.href === "/admin"
@@ -68,7 +68,7 @@ export function AdminSidebar() {
               key={item.href}
               href={item.href}
               title={item.label}
-              className={`group flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-medium transition lg:justify-start ${
+              className={`group flex min-h-11 items-center rounded-xl px-3 text-sm font-medium transition ${
                 active
                   ? "bg-white text-[#123524] shadow-sm"
                   : "text-white/68 hover:bg-white/10 hover:text-white"
@@ -82,14 +82,14 @@ export function AdminSidebar() {
                 }`}
                 aria-hidden
               />
-              <span className="ml-3 hidden lg:block">{item.label}</span>
+              <span className="ml-3">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-white/10 p-2 lg:p-3">
-        <AdminSignOut tone="dark" compact />
+      <div className="border-t border-white/10 p-3">
+        <AdminSignOut tone="dark" />
       </div>
     </aside>
   );

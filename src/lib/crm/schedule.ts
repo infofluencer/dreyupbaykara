@@ -1,3 +1,27 @@
+export const CLINIC_START_HOUR = 8;
+export const CLINIC_END_HOUR = 20;
+
+export type ClinicSlot = {
+  hour: number;
+  minute: number;
+  label: string;
+};
+
+export function clinicSlots(): ClinicSlot[] {
+  const slots: ClinicSlot[] = [];
+  for (let hour = CLINIC_START_HOUR; hour <= CLINIC_END_HOUR; hour++) {
+    for (const minute of [0, 30] as const) {
+      if (hour === CLINIC_END_HOUR && minute === 30) continue;
+      slots.push({
+        hour,
+        minute,
+        label: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+      });
+    }
+  }
+  return slots;
+}
+
 export function appointmentEndIso(
   startsAt: string,
   endsAt?: string | null,

@@ -31,7 +31,7 @@ export default async function AdminInboxPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold tracking-tight">
+      <h1 className="font-[family-name:var(--font-instrument-sans)] text-xl font-semibold tracking-tight sm:text-2xl">
         WhatsApp gelen kutusu
       </h1>
       {error ? (
@@ -56,7 +56,7 @@ export default async function AdminInboxPage({
               <Link
                 key={conversation.id}
                 href={`/admin/inbox/${conversation.id}`}
-                className="flex items-center justify-between gap-4 border-b border-[#123524]/8 px-5 py-4 last:border-0 hover:bg-[#f7f9f8]"
+                className="flex min-h-16 items-start justify-between gap-3 border-b border-[#123524]/8 px-4 py-4 last:border-0 active:bg-[#f7f9f8] sm:items-center sm:px-5"
               >
                 <div>
                   <p className="font-semibold">
@@ -68,7 +68,7 @@ export default async function AdminInboxPage({
                       .join(" · ") || "WhatsApp"}
                   </p>
                 </div>
-                <p className="text-xs text-[#466254]">
+                <p className="shrink-0 text-right text-xs text-[#466254]">
                   {conversation.last_message_at
                     ? new Date(conversation.last_message_at).toLocaleString(
                         "tr-TR",

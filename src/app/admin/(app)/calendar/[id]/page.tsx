@@ -5,7 +5,7 @@ import { DeleteAppointmentButton } from "@/components/admin/DeleteAppointmentBut
 import { TypeAndDurationFields } from "@/components/admin/schedule/TypeAndDurationFields";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { durationMinutes, formatDurationTr } from "@/lib/crm/duration";
-import { appointmentEndIso } from "@/lib/crm/schedule";
+import { appointmentEndIso, clinicSlots } from "@/lib/crm/schedule";
 import {
   APPOINTMENT_STATUS_LABEL,
   APPOINTMENT_TYPE_LABEL,
@@ -14,27 +14,15 @@ import { getIstanbulNow } from "@/lib/date/now";
 import {
   formatDateLongTr,
   formatTimeTr,
+  istanbulTimeInput,
   istanbulYmd,
 } from "@/lib/date/tr";
 import { createClient } from "@/lib/supabase/server";
 
 const input =
-  "mt-1.5 w-full rounded-xl border border-[#123524]/15 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[#0b6b45]";
+  "mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/15 bg-white px-3.5 py-3 text-base outline-none focus:border-[#0b6b45]";
 
-function localInputValue(value: string | null): string {
-  if (!value) return "";
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Istanbul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(value));
-  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
-}
+const TIME_SLOTS = clinicSlots();
 
 export default async function AppointmentDetailPage({
   params,
@@ -62,6 +50,11 @@ export default async function AppointmentDetailPage({
     ? lead.contacts[0]
     : lead?.contacts;
   const start = appointment.starts_at;
+  const startDate = istanbulYmd(start);
+  const startTime = istanbulTimeInput(start);
+  const timeOptions = TIME_SLOTS.some((slot) => slot.label === startTime)
+    ? TIME_SLOTS
+    : [{ hour: 0, minute: 0, label: startTime }, ...TIME_SLOTS];
   const end = appointmentEndIso(start, appointment.ends_at);
   const minutes = durationMinutes(start, appointment.ends_at);
   const cancelled = appointment.status === "cancelled";
@@ -140,18 +133,37 @@ export default async function AppointmentDetailPage({
           </p>
         ) : null}
 
-        <Field
-          label="Başlangıç"
-          hint="Randevunun başladığı an. Süre boyunca takvim dolu görünür."
-        >
-          <input
-            name="starts_at"
-            type="datetime-local"
-            required
-            defaultValue={localInputValue(appointment.starts_at)}
-            className={input}
-          />
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Tarih"
+            hint="Randevu günü. Takvim kutularından gün seçilmez."
+          >
+            <input
+              name="starts_date"
+              type="date"
+              required
+              defaultValue={startDate}
+              className={input}
+            />
+          </Field>
+          <Field
+            label="Saat"
+            hint="Başlangıç saati. Süre boyunca takvim dolu görünür."
+          >
+            <select
+              name="starts_time"
+              required
+              defaultValue={startTime}
+              className={input}
+            >
+              {timeOptions.map((slot) => (
+                <option key={slot.label} value={slot.label}>
+                  {slot.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <TypeAndDurationFields
             defaultType={appointment.appointment_type || "consultation"}
@@ -187,13 +199,13 @@ export default async function AppointmentDetailPage({
         </Field>
 
         <div className="flex flex-wrap gap-3">
-          <button className="rounded-full bg-[#0b6b45] px-6 py-2.5 text-sm font-semibold text-white">
+          <button className="min-h-12 rounded-full bg-[#0b6b45] px-6 text-base font-semibold text-white sm:text-sm">
             Kaydet
           </button>
           {contact?.id ? (
             <Link
               href={`/admin/patients/${contact.id}`}
-              className="rounded-full border border-[#123524]/15 px-5 py-2.5 text-sm font-semibold"
+              className="inline-flex min-h-12 items-center rounded-full border border-[#123524]/15 px-5 text-sm font-semibold"
             >
               Hasta kimliği
             </Link>

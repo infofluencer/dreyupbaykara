@@ -25,7 +25,7 @@ export function AdminSignOut({
       type="button"
       onClick={onSignOut}
       title="Çıkış"
-      className={`flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-sm font-medium transition lg:justify-start ${
+      className={`flex min-h-11 items-center justify-center rounded-xl px-3 py-2.5 text-sm font-medium transition lg:justify-start ${
         tone === "dark"
           ? "text-white/65 hover:bg-white/10 hover:text-white"
           : "border border-[#123524]/12 text-[#466254] hover:border-[#123524]/25 hover:text-[#123524]"

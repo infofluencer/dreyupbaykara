@@ -166,3 +166,16 @@ html {
   color: #123524;
   font-style: italic;
 }
+
+.admin-shell {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (max-width: 1023px) {
+  .admin-shell input,
+  .admin-shell select,
+  .admin-shell textarea {
+    font-size: 16px;
+  }
+}
