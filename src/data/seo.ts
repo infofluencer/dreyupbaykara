@@ -41,6 +41,13 @@ export const PAGE_SEO = {
     snippet:
       "Omurga sağlığı, fıtık ve endoskopik cerrahi hakkında güncel yazılar.",
   },
+  hizmetler: {
+    title: "Hizmetlerimiz | Op. Dr. Eyüp Baykara",
+    description:
+      "Full endoskopik bel fıtığı, boyun fıtığı ve kanal darlığı ameliyatı. Minimal invaziv omurga cerrahisi hizmetleri — Op. Dr. Eyüp Baykara, Silivri / İstanbul.",
+    snippet:
+      "Bel fıtığı, boyun fıtığı ve kanal darlığında full endoskopik tedavi seçenekleri.",
+  },
   cerezler: {
     title: "Çerez Politikası | Op. Dr. Eyüp Baykara",
     description:

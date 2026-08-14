@@ -5,7 +5,7 @@ import { CmsSections } from "@/components/cms/CmsSections";
 import { PageHero } from "@/components/PageHero";
 import { VectorPattern } from "@/components/VectorPattern";
 import { PAGE_SEO } from "@/data/seo";
-import { HIZMET_LISTING } from "@/data/hizmetler";
+import { treatments } from "@/data/treatments";
 import { getPublishedPage } from "@/lib/cms/content";
 
 const SITE_ORIGIN = (
@@ -59,10 +59,10 @@ export default async function HizmetlerPage() {
           ) : null}
 
           <div className="grid gap-5 sm:grid-cols-2">
-            {HIZMET_LISTING.map((item) => (
+            {treatments.map((item) => (
               <Link
-                key={item.href}
-                href={item.href}
+                key={item.slug}
+                href={`/tedaviler/${item.slug}`}
                 className="group relative min-h-[22rem] overflow-hidden rounded-[1.75rem]"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -78,10 +78,10 @@ export default async function HizmetlerPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#123524] via-[#123524]/35 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
                   <h2 className="font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                    {item.title}
+                    {item.navTitle}
                   </h2>
                   <p className="mt-2 max-w-md text-sm leading-6 text-white/80">
-                    {item.description}
+                    {item.heroSubtitle}
                   </p>
                   <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-white">
                     İncele
