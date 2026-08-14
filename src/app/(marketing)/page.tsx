@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import HomePage from "@/components/home/Home";
+import { SPINE_GLB } from "@/components/home/spine-asset";
 import { PAGE_SEO } from "@/data/seo";
 import { getPublishedPage, mediaPublicUrl } from "@/lib/cms/content";
 import { getHomeSections } from "@/lib/cms/home-server";
@@ -33,6 +34,18 @@ export default async function Home() {
   return (
     <main className="bg-bg">
       <link rel="preload" href={doctorImg} as="image" fetchPriority="high" />
+      <link
+        rel="preload"
+        href={SPINE_GLB}
+        as="fetch"
+        crossOrigin="anonymous"
+        media="(min-width: 1024px)"
+      />
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){if(!window.matchMedia("(min-width:1024px)").matches)return;fetch("${SPINE_GLB}",{credentials:"omit",cache:"force-cache"}).catch(function(){})})();`,
+        }}
+      />
       <HomePage sections={sections} />
     </main>
   );

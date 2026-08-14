@@ -1,15 +1,18 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion, useTransform } from "framer-motion";
 import { HomeDoctorCard } from "./HomeDoctorCard";
 import { HomeTreatmentCards } from "./HomeTreatmentCards";
 import { useHomeProgress } from "./useHomeProgress";
 import { HOME_FALLBACK, type HomeSections } from "@/lib/cms/home";
+import "./spine-preload";
 
 const SpineScene = dynamic(() => import("./SpineScene"), { ssr: false });
 const HomeBelowFold = dynamic(() => import("./HomeBelowFold"));
+
+const DESKTOP_MQ = "(min-width: 1024px)";
 
 /** Desktop: kırmızı fıtık/kamera detayı biraz daha geç başlasın */
 const DESKTOP_DETAIL_START = 0.18;
@@ -37,8 +40,8 @@ export default function Home({
 
   const flashOpacity = useTransform(scrollYProgress, [0.82, 1], [0, 1]);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
+  useLayoutEffect(() => {
+    const mq = window.matchMedia(DESKTOP_MQ);
     const sync = () => setIsDesktop(mq.matches);
     sync();
     mq.addEventListener("change", sync);

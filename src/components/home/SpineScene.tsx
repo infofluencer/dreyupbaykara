@@ -63,6 +63,13 @@ function WaitForMeshopt({ children }: { children: ReactNode }) {
   return children;
 }
 
+function ModelReady({ onReady }: { onReady: () => void }) {
+  useEffect(() => {
+    onReady();
+  }, [onReady]);
+  return null;
+}
+
 function usePreferLowPower() {
   const [lowPower] = useState(() =>
     typeof window !== "undefined"
@@ -164,13 +171,16 @@ export default function SpineScene({
   const wrapRef = useRef<HTMLDivElement>(null);
   const herniaWorldPosRef = useRef(new Vector3());
   const herniaReadyRef = useRef(false);
+  const [visible, setVisible] = useState(false);
   const lowPower = usePreferLowPower();
   const active = useSceneActive(wrapRef);
 
   return (
     <div
       ref={wrapRef}
-      className="relative isolate h-full w-full select-none"
+      className={`relative isolate h-full w-full select-none transition-opacity duration-500 ease-out ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
       aria-label="3D omurga modeli"
     >
       <SpineErrorBoundary>
@@ -222,6 +232,7 @@ export default function SpineScene({
                 herniaWorldPosRef={herniaWorldPosRef}
                 herniaReadyRef={herniaReadyRef}
               />
+              <ModelReady onReady={() => setVisible(true)} />
             </WaitForMeshopt>
           </Suspense>
           <Rig
