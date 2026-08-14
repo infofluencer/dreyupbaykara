@@ -13,13 +13,10 @@ const HomeBelowFold = dynamic(() => import("./HomeBelowFold"));
 
 /** Desktop: kırmızı fıtık/kamera detayı biraz daha geç başlasın */
 const DESKTOP_DETAIL_START = 0.18;
-/** Mobil: kamera/fıtık detayı daha geç başlasın (öncesi default duruş) */
-const MOBILE_DETAIL_START = 0.62;
 
-function mapSceneProgress(raw: number, isDesktop: boolean): number {
-  const detailStart = isDesktop ? DESKTOP_DETAIL_START : MOBILE_DETAIL_START;
-  if (raw <= detailStart) return 0;
-  return Math.min(1, (raw - detailStart) / (1 - detailStart));
+function mapSceneProgress(raw: number): number {
+  if (raw <= DESKTOP_DETAIL_START) return 0;
+  return Math.min(1, (raw - DESKTOP_DETAIL_START) / (1 - DESKTOP_DETAIL_START));
 }
 
 export default function Home({
@@ -28,10 +25,8 @@ export default function Home({
   sections?: HomeSections;
 }) {
   const wrapperRef = useRef<HTMLElement>(null);
-  /** null = henüz ölçülmedi — opacity'yi 0'a kilitleme */
-  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
   const { progressRef, scrollYProgress } = useHomeProgress(wrapperRef);
-  /** 3D sahneye giden progress — mobilde detay gecikmeli */
   const sceneProgressRef = useRef(0);
 
   const textOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0]);
@@ -41,12 +36,6 @@ export default function Home({
   );
 
   const flashOpacity = useTransform(scrollYProgress, [0.82, 1], [0, 1]);
-  // Canvas opacity 0 iOS/Safari'de WebGL'i öldürür — örtü ile gizle.
-  const mobileCoverOpacity = useTransform(
-    scrollYProgress,
-    [0.32, 0.44],
-    [1, 0],
-  );
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
@@ -57,15 +46,15 @@ export default function Home({
   }, []);
 
   useEffect(() => {
-    if (isDesktop === null) return;
+    if (!isDesktop) {
+      sceneProgressRef.current = 0;
+      return;
+    }
     let raf = 0;
     let running = true;
     const tick = () => {
       if (!running) return;
-      sceneProgressRef.current = mapSceneProgress(
-        progressRef.current,
-        isDesktop,
-      );
+      sceneProgressRef.current = mapSceneProgress(progressRef.current);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -80,7 +69,7 @@ export default function Home({
       <section
         id="home"
         ref={wrapperRef}
-        className="relative h-[280vh] bg-bg max-lg:h-[340vh]"
+        className="relative h-dvh bg-bg lg:h-[280vh]"
         aria-label="Ana sayfa bölümü"
       >
         <div className="sticky top-0 h-dvh w-full overflow-hidden bg-bg">
@@ -94,15 +83,10 @@ export default function Home({
             </div>
           </div>
 
-          <div className="pointer-events-none absolute inset-0 z-[8]">
-            <SpineScene progressRef={sceneProgressRef} />
-          </div>
-          {isDesktop === false ? (
-            <motion.div
-              className="pointer-events-none absolute inset-0 z-[9] bg-bg lg:hidden"
-              style={{ opacity: mobileCoverOpacity }}
-              aria-hidden="true"
-            />
+          {isDesktop ? (
+            <div className="pointer-events-none absolute inset-0 z-[8]">
+              <SpineScene progressRef={sceneProgressRef} />
+            </div>
           ) : null}
 
           <HomeDoctorCard
@@ -125,10 +109,6 @@ export default function Home({
 
           <motion.div
             suppressHydrationWarning
-            style={{
-              opacity: textOpacity,
-              y: textY,
-            }}
             className="pointer-events-none absolute inset-0 z-10 flex flex-col px-3 pb-3 pt-[6.75rem] lg:hidden"
           >
             <div className="flex min-h-0 flex-1 flex-col gap-2.5 rounded-[1.5rem] bg-[#fdfaf5] p-3 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
@@ -148,7 +128,7 @@ export default function Home({
               background:
                 "radial-gradient(circle at center, rgba(11,107,69,0.16), #fdfaf5 72%)",
             }}
-            className="pointer-events-none absolute inset-0 z-[4]"
+            className="pointer-events-none absolute inset-0 z-[4] hidden lg:block"
             aria-hidden="true"
           />
         </div>
