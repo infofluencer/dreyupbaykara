@@ -71,6 +71,11 @@ export function DayAppointments({
                           <p className="text-[10px] leading-snug text-[#466254]">
                             {info.duration} · {info.status}
                           </p>
+                          {info.notes ? (
+                            <p className="line-clamp-2 text-[10px] leading-snug text-[#24543e]">
+                              {info.notes}
+                            </p>
+                          ) : null}
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                             <Link
                               href={`/admin/calendar/${appointment.id}`}

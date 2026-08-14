@@ -5,6 +5,8 @@ import { Center, useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Box3, Color, DoubleSide, MathUtils, Vector3 } from "three";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import type { GLTFLoader } from "three-stdlib";
+import { SPINE_GLB } from "./spine-asset";
 import type {
   Group,
   Material,
@@ -13,7 +15,6 @@ import type {
   Object3D,
 } from "three";
 
-const SPINE_GLB = "/hero/spine-hernia.glb?v=13";
 const HERNIA_DISC_NAME = "HerniaDisc_L4L5";
 
 const MODEL_SCALE = 3.25;
@@ -23,9 +24,15 @@ const MODEL_Y = -0.65;
 const MODEL_ROT_Y = Math.PI * 0.58;
 const MODEL_ROT_X = 0.03;
 
-useGLTF.preload(SPINE_GLB, undefined, undefined, (loader) => {
+function configureGltfLoader(loader: GLTFLoader) {
   loader.setMeshoptDecoder(MeshoptDecoder);
-});
+}
+
+if (MeshoptDecoder.supported) {
+  void MeshoptDecoder.ready.then(() => {
+    useGLTF.preload(SPINE_GLB, false, false, configureGltfLoader);
+  });
+}
 
 function isMesh(obj: Object3D): obj is Mesh {
   return (obj as Mesh).isMesh;
@@ -78,9 +85,7 @@ export default function SpineModel({
   const discBaseColor = useRef(new Color("#c9b7a3"));
   const herniaColor = useMemo(() => new Color("#ff2d20"), []);
 
-  const { scene } = useGLTF(SPINE_GLB, undefined, undefined, (loader) => {
-    loader.setMeshoptDecoder(MeshoptDecoder);
-  });
+  const { scene } = useGLTF(SPINE_GLB, false, false, configureGltfLoader);
 
   const prepared = useMemo(() => scene.clone(true), [scene]);
 
@@ -167,8 +172,11 @@ export default function SpineModel({
     if (!disc || !mat) return;
 
     const p = MathUtils.clamp(progressRef.current, 0, 1);
-    // Scroll → fıtık kaybolur
     const hernia = 1 - p;
+    const show = hernia > 0.02;
+    disc.visible = show;
+    if (!show) return;
+
     const pulse = 0.35 + Math.sin(clock.elapsedTime * 2.8) * 0.1;
 
     disc.position.set(
@@ -177,20 +185,19 @@ export default function SpineModel({
       basePos.current.z - hernia * 0.006,
     );
 
-    const sx = baseScale.current.x;
-    const sy = baseScale.current.y;
-    const sz = baseScale.current.z;
-    const s = MathUtils.lerp(0.01, 1, hernia);
-    disc.scale.set(sx * s, sy * s, sz * s * MathUtils.lerp(1, 1.15, hernia));
+    const bulge = MathUtils.lerp(1, 1.15, hernia);
+    disc.scale.set(
+      baseScale.current.x,
+      baseScale.current.y,
+      baseScale.current.z * bulge,
+    );
 
     mat.color.copy(discBaseColor.current).lerp(herniaColor, hernia);
     mat.emissive.copy(herniaColor);
     mat.emissiveIntensity = hernia * pulse;
-    mat.opacity = MathUtils.lerp(0, 1, hernia);
+    mat.opacity = hernia;
     mat.transparent = true;
     mat.depthWrite = hernia > 0.35;
-    mat.needsUpdate = true;
-    disc.visible = hernia > 0.02;
 
     disc.getWorldPosition(herniaWorldPosRef.current);
     herniaReadyRef.current = true;
@@ -198,7 +205,7 @@ export default function SpineModel({
 
   return (
     <group ref={group}>
-      <Center>
+      <Center cacheKey={SPINE_GLB}>
         <primitive object={prepared} scale={modelScale} />
       </Center>
     </group>

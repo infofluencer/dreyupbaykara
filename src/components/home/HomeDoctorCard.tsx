@@ -27,14 +27,14 @@ function DoctorCardInner({
 }) {
   if (mobile) {
     return (
-      <div className="pointer-events-auto relative flex h-[14rem] overflow-hidden rounded-[1.35rem] bg-[#e8f3ef] shadow-[0_16px_40px_rgba(15,39,68,0.1)]">
+      <div className="pointer-events-auto relative flex h-full min-h-0 overflow-hidden rounded-[1.35rem] bg-[#e8f3ef] shadow-[0_16px_40px_rgba(15,39,68,0.1)]">
         <VectorPattern
           tone="light"
           opacity={0.06}
           size={220}
           className="rounded-[inherit]"
         />
-        <div className="relative z-10 flex w-[56%] flex-col justify-between p-4">
+        <div className="relative z-10 flex w-[56%] flex-col justify-between p-3.5">
           <div>
             <h2 className="font-[family-name:var(--font-instrument-sans)] text-[1.2rem] font-semibold leading-[1.15] tracking-tight text-[#1e3352]">
               {hero.doctorName1}
@@ -45,32 +45,54 @@ function DoctorCardInner({
               {hero.doctorBio}
             </p>
           </div>
-          <a
-            href="https://www.google.com/maps/search/?api=1&query=Op.+Dr.+Ey%C3%BCp+Baykara"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-white px-2.5 py-2 shadow-sm"
-          >
-            <span className="font-[family-name:var(--font-instrument-sans)] text-base font-bold text-[#1e3352]">
-              {hero.rating}
-            </span>
-            <div className="flex gap-0.5" aria-hidden="true">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <svg
-                  key={i}
-                  width="10"
-                  height="10"
-                  viewBox="0 0 24 24"
-                  fill="#f59e0b"
-                >
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-              ))}
+          <div className="mt-3 grid grid-cols-2 gap-1.5">
+            <a
+              href="https://www.google.com/maps/search/?api=1&query=Op.+Dr.+Ey%C3%BCp+Baykara"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="col-span-2 rounded-lg bg-white px-2.5 py-2 shadow-sm"
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="font-[family-name:var(--font-instrument-sans)] text-base font-bold text-[#1e3352]">
+                  {hero.rating}
+                </span>
+                <div className="flex gap-0.5" aria-hidden="true">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <svg
+                      key={i}
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="#f59e0b"
+                    >
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-0.5 text-[10px] font-semibold text-[#5b6b7c]">
+                Google · {hero.reviewCount}
+              </p>
+            </a>
+            <div className="rounded-lg bg-white px-2.5 py-2 shadow-sm">
+              <p className="font-[family-name:var(--font-instrument-sans)] text-base font-bold text-[#1e3352]">
+                {hero.doctorYears}
+              </p>
+              <p className="mt-0.5 text-[10px] leading-tight text-[#5b6b7c]">
+                Yıl cerrahi
+                <br />
+                deneyim
+              </p>
             </div>
-            <span className="text-[10px] font-semibold text-[#5b6b7c]">
-              {hero.reviewCount}
-            </span>
-          </a>
+            <div className="rounded-lg bg-white px-2.5 py-2 shadow-sm">
+              <p className="font-[family-name:var(--font-instrument-sans)] text-base font-bold text-[#1e3352]">
+                ✓
+              </p>
+              <p className="mt-0.5 text-[10px] leading-tight text-[#5b6b7c]">
+                {hero.doctorPerk}
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="absolute inset-y-0 right-0 w-[44%]">
@@ -209,7 +231,7 @@ export function HomeDoctorCard({
   if (mobile) {
     return (
       <motion.aside
-        className="pointer-events-none w-full"
+        className="pointer-events-none min-h-0 w-full flex-1"
         aria-label={`${hero.doctorName1} ${hero.doctorName2}`}
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}

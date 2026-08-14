@@ -18,13 +18,13 @@ export function HomeTreatmentCards({
   if (compact) {
     return (
       <motion.div
-        className="w-full"
+        className="flex w-full shrink-0 flex-col"
         style={pointerEvents ? { pointerEvents } : undefined}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="mb-3 flex items-center gap-2.5">
+        <div className="mb-2 flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/kaduseus-green.png"
@@ -44,13 +44,16 @@ export function HomeTreatmentCards({
           {hero.titleAfter}
         </h1>
 
-        <div className="mt-3 border-l-2 border-accent/40 pl-3">
+        <div className="mt-2 border-l-2 border-accent/40 pl-3">
           <p className="font-[family-name:var(--font-instrument-sans)] text-sm font-medium text-text">
             {hero.line1}{" "}
             <span className="text-accent">{hero.line1Highlight}</span>
           </p>
           <p className="mt-0.5 font-[family-name:var(--font-instrument-sans)] text-lg font-semibold tracking-tight text-text">
             {hero.line2}
+          </p>
+          <p className="mt-2.5 text-sm leading-relaxed text-text-muted">
+            {hero.description}
           </p>
         </div>
 

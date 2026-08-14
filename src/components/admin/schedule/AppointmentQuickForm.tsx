@@ -189,6 +189,15 @@ export function AppointmentQuickForm({
         </label>
         </div>
         <TypeAndDurationFields />
+        <label className="text-sm font-medium sm:col-span-2 lg:col-span-4">
+          Not
+          <textarea
+            name="notes"
+            rows={3}
+            placeholder="Örn. MR getirecek, refakatçi ile gelecek"
+            className="mt-1.5 min-h-[5.5rem] w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-3 text-base"
+          />
+        </label>
         <button
           disabled={status === "loading"}
           className="min-h-12 rounded-full bg-[#0b6b45] px-5 text-base font-semibold text-white disabled:opacity-60 sm:col-span-2 sm:text-sm lg:col-span-4"

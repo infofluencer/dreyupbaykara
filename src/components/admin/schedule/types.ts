@@ -23,6 +23,7 @@ export type ScheduleAppointment = {
   status: string;
   location?: string | null;
   appointment_type?: string | null;
+  notes?: string | null;
   leads?:
     | {
         id?: string;

@@ -98,7 +98,7 @@ export default async function AdminLeadsPage({
       supabase
         .from("appointments")
         .select(
-          "id, lead_id, title, starts_at, ends_at, status, appointment_type, location, leads(id, contact_id, contacts(id, name, phone))",
+          "id, lead_id, title, starts_at, ends_at, status, appointment_type, location, notes, leads(id, contact_id, contacts(id, name, phone))",
         )
         .gte("starts_at", new Date(rangeStart).toISOString())
         .lt("starts_at", new Date(rangeEnd).toISOString())

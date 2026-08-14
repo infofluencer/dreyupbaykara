@@ -16,11 +16,10 @@ import { HomeBlogSection } from "@/components/HomeBlogSection";
 import { VectorPattern } from "@/components/VectorPattern";
 import { useHomeProgress } from "./useHomeProgress";
 import { HOME_FALLBACK, type HomeSections } from "@/lib/cms/home";
+import { SPINE_GLB } from "./spine-asset";
 
 const SpineScene = dynamic(() => import("./SpineScene"), { ssr: false });
 
-/** Mobil: hero solduktan sonra iskelet mount */
-const MOBILE_SPINE_LOAD = 0.32;
 /** Desktop: kırmızı fıtık/kamera detayı biraz daha geç başlasın */
 const DESKTOP_DETAIL_START = 0.18;
 /** Mobil: kamera/fıtık detayı daha geç başlasın (öncesi default duruş) */
@@ -52,10 +51,11 @@ export default function Home({
   );
 
   const flashOpacity = useTransform(scrollYProgress, [0.82, 1], [0, 1]);
-  const mobileSpineOpacity = useTransform(
+  // Canvas opacity 0 iOS/Safari'de WebGL'i öldürür — örtü ile gizle.
+  const mobileCoverOpacity = useTransform(
     scrollYProgress,
     [0.32, 0.44],
-    [0, 1],
+    [1, 0],
   );
 
   useEffect(() => {
@@ -73,14 +73,10 @@ export default function Home({
     let running = true;
     const tick = () => {
       if (!running) return;
-      const rawProgress = progressRef.current;
-      sceneProgressRef.current = mapSceneProgress(rawProgress, isDesktop);
-
-      // Mobilde mount sadece "change" event'ine kalmasın; mevcut progress de hesaba katılsın.
-      if (!isDesktop && !showSpineScene && rawProgress >= MOBILE_SPINE_LOAD) {
-        setShowSpineScene(true);
-      }
-
+      sceneProgressRef.current = mapSceneProgress(
+        progressRef.current,
+        isDesktop,
+      );
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -88,11 +84,20 @@ export default function Home({
       running = false;
       cancelAnimationFrame(raf);
     };
-  }, [isDesktop, progressRef, showSpineScene]);
+  }, [isDesktop, progressRef]);
 
-  // Desktop: idle sonrası model. Mobil: hero solduktan sonra.
+  // GLB + sahne chunk'ını hero sırasında ısıt; canvas opacity 0'da mount olsun.
   useEffect(() => {
-    if (isDesktop !== true) return;
+    if (isDesktop === null) return;
+
+    void import("./SpineScene");
+
+    const preload = document.createElement("link");
+    preload.rel = "preload";
+    preload.as = "fetch";
+    preload.href = SPINE_GLB;
+    preload.crossOrigin = "anonymous";
+    document.head.appendChild(preload);
 
     let cancelled = false;
     let idleId = 0;
@@ -110,14 +115,19 @@ export default function Home({
       cancelIdleCallback?: (id: number) => void;
     };
 
+    // Desktop: LCP ile yarışmasın. Mobil: fade-in'e yetişsin.
+    const idleTimeout = isDesktop ? 1200 : 500;
+    const fallbackMs = isDesktop ? 450 : 180;
+
     if (typeof win.requestIdleCallback === "function") {
-      idleId = win.requestIdleCallback(enable, { timeout: 1200 });
+      idleId = win.requestIdleCallback(enable, { timeout: idleTimeout });
     } else {
-      timeoutId = window.setTimeout(enable, 450);
+      timeoutId = window.setTimeout(enable, fallbackMs);
     }
 
     return () => {
       cancelled = true;
+      preload.remove();
       if (idleId && typeof win.cancelIdleCallback === "function") {
         win.cancelIdleCallback(idleId);
       }
@@ -144,17 +154,19 @@ export default function Home({
             </div>
           </div>
 
-          {/* Tek full-bleed canvas — mobilde opacity ile gelir; desktop her zaman görünür */}
-          <motion.div
-            className="pointer-events-none absolute inset-0 z-[8]"
-            style={{
-              opacity: isDesktop === false ? mobileSpineOpacity : 1,
-            }}
-          >
+          {/* Canvas her zaman opacity 1 — WebGL katmanı ölmesin */}
+          <div className="pointer-events-none absolute inset-0 z-[8]">
             {showSpineScene ? (
               <SpineScene progressRef={sceneProgressRef} />
             ) : null}
-          </motion.div>
+          </div>
+          {isDesktop === false ? (
+            <motion.div
+              className="pointer-events-none absolute inset-0 z-[9] bg-bg lg:hidden"
+              style={{ opacity: mobileCoverOpacity }}
+              aria-hidden="true"
+            />
+          ) : null}
 
           {/* ── Desktop doctor card (right rail) ── */}
           <HomeDoctorCard
@@ -183,17 +195,15 @@ export default function Home({
               opacity: textOpacity,
               y: textY,
             }}
-            className="pointer-events-none absolute inset-x-0 top-0 z-10 px-3 pb-3 pt-[6.75rem] lg:hidden"
+            className="pointer-events-none absolute inset-0 z-10 flex flex-col px-3 pb-3 pt-[6.75rem] lg:hidden"
           >
-            <div className="flex h-[calc(100dvh-5.25rem)] flex-col rounded-[1.5rem] bg-[#fdfaf5] p-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+            <div className="flex min-h-0 flex-1 flex-col gap-2.5 rounded-[1.5rem] bg-[#fdfaf5] p-3 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
               <HomeDoctorCard hero={sections.hero} mobile />
-              <div className="mt-auto pt-4">
-                <HomeTreatmentCards
-                  hero={sections.hero}
-                  pointerEvents={textPE}
-                  compact
-                />
-              </div>
+              <HomeTreatmentCards
+                hero={sections.hero}
+                pointerEvents={textPE}
+                compact
+              />
             </div>
           </motion.div>
 

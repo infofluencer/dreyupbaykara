@@ -175,6 +175,9 @@ export function MonthCalendar({
                       {info.duration} · {info.type} · {info.status}
                       {info.phone ? ` · ${info.phone}` : ""}
                     </p>
+                    {info.notes ? (
+                      <p className="mt-1 text-xs text-[#24543e]">{info.notes}</p>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-3">
                     <Link

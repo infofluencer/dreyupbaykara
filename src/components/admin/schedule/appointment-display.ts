@@ -32,5 +32,6 @@ export function appointmentInfo(appointment: ScheduleAppointment) {
     status: APPOINTMENT_STATUS_LABEL[appointment.status] ?? appointment.status,
     type:
       APPOINTMENT_TYPE_LABEL[appointment.appointment_type ?? ""] ?? "Muayene",
+    notes: appointment.notes?.trim() || "",
   };
 }
