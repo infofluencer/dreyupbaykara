@@ -20,9 +20,7 @@ export function HomeTreatmentCards({
       <motion.div
         className="flex w-full shrink-0 flex-col"
         style={pointerEvents ? { pointerEvents } : undefined}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+        initial={false}
       >
         <div className="mb-2 flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -73,9 +71,7 @@ export function HomeTreatmentCards({
     <motion.div
       className="w-full max-w-xl sm:max-w-[40rem] lg:max-w-[44rem]"
       style={pointerEvents ? { pointerEvents } : undefined}
-      initial={{ opacity: 0, y: 28 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.85, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+      initial={false}
     >
       <div className="mb-5 flex items-center gap-3 sm:gap-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}

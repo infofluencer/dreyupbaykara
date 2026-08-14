@@ -9,6 +9,8 @@ import {
   COOKIE_PREFERENCES_OPEN_EVENT,
   acceptedConsent,
   deniedConsent,
+  parseCookieConsent,
+  readBrowserCookie,
   serializeCookieConsent,
   updateGoogleConsentMode,
   writeBrowserCookie,
@@ -57,12 +59,25 @@ export function CookieConsentBanner({
 }) {
   const pathname = usePathname();
   const titleId = useId();
-  const [consent, setConsent] = useState(initialConsent);
-  const [visible, setVisible] = useState(!initialConsent);
+  const [consent, setConsent] = useState<CookieConsentPreferences | null>(
+    () =>
+      parseCookieConsent(readBrowserCookie(COOKIE_CONSENT_NAME)) ??
+      initialConsent,
+  );
+  const [visible, setVisible] = useState(
+    () =>
+      !(
+        parseCookieConsent(readBrowserCookie(COOKIE_CONSENT_NAME)) ??
+        initialConsent
+      ),
+  );
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<CookieConsentPreferences>(
-    initialConsent ?? deniedConsent(),
+    () =>
+      parseCookieConsent(readBrowserCookie(COOKIE_CONSENT_NAME)) ??
+      initialConsent ??
+      deniedConsent(),
   );
 
   useEffect(() => {

@@ -38,10 +38,10 @@ class SpineErrorBoundary extends Component<
   }
 
   componentDidCatch() {
-    if (this.state.generation >= 1) return;
+    if (this.state.generation >= 3) return;
     this.retryTimer = window.setTimeout(() => {
       this.setState((s) => ({ failed: false, generation: s.generation + 1 }));
-    }, 600);
+    }, 400 * (this.state.generation + 1));
   }
 
   componentWillUnmount() {
@@ -59,11 +59,7 @@ class SpineErrorBoundary extends Component<
 }
 
 function WaitForMeshopt({ children }: { children: ReactNode }) {
-  const ready =
-    MeshoptDecoder.supported && MeshoptDecoder.ready
-      ? MeshoptDecoder.ready
-      : Promise.reject(new Error("MeshoptDecoder unavailable"));
-  use(ready);
+  use(MeshoptDecoder.ready ?? Promise.resolve());
   return children;
 }
 
@@ -76,25 +72,30 @@ function usePreferLowPower() {
   return lowPower;
 }
 
-function useSceneActive() {
+function useSceneActive(target: React.RefObject<HTMLElement | null>) {
   const [active, setActive] = useState(true);
 
   useEffect(() => {
-    const home = document.getElementById("home");
+    const el = target.current;
     let inView = true;
     let pageVisible = document.visibilityState === "visible";
     const sync = () => setActive(inView && pageVisible);
 
-    const io = home
+    const io = el
       ? new IntersectionObserver(
           ([entry]) => {
-            inView = entry.isIntersecting;
+            const rect = entry.boundingClientRect;
+            inView =
+              entry.isIntersecting ||
+              (rect.height > 8 &&
+                rect.bottom > 0 &&
+                rect.top < window.innerHeight);
             sync();
           },
-          { threshold: 0.02 },
+          { threshold: 0 },
         )
       : null;
-    if (home && io) io.observe(home);
+    if (el && io) io.observe(el);
 
     const onVis = () => {
       pageVisible = document.visibilityState === "visible";
@@ -106,7 +107,7 @@ function useSceneActive() {
       io?.disconnect();
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, []);
+  }, [target]);
 
   return active;
 }
@@ -160,19 +161,21 @@ export default function SpineScene({
 }: {
   progressRef: React.MutableRefObject<number>;
 }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
   const herniaWorldPosRef = useRef(new Vector3());
   const herniaReadyRef = useRef(false);
   const lowPower = usePreferLowPower();
-  const active = useSceneActive();
+  const active = useSceneActive(wrapRef);
 
   return (
     <div
+      ref={wrapRef}
       className="relative isolate h-full w-full select-none"
       aria-label="3D omurga modeli"
     >
       <SpineErrorBoundary>
         <Canvas
-          className="h-full w-full"
+          className="absolute inset-0 h-full w-full"
           style={{ width: "100%", height: "100%" }}
           camera={{
             position: [CAMERA_X_START, LOOK_Y_START, Z_START],
@@ -181,8 +184,10 @@ export default function SpineScene({
             far: 100,
           }}
           dpr={lowPower ? 1 : [1, 1.5]}
-          frameloop={active ? "always" : "never"}
+          frameloop={active ? "always" : "demand"}
+          resize={{ scroll: false, debounce: 0 }}
           onCreated={({ gl }) => {
+            gl.setClearColor(0x000000, 0);
             gl.domElement.addEventListener(
               "webglcontextlost",
               (event) => event.preventDefault(),
@@ -193,7 +198,7 @@ export default function SpineScene({
             antialias: !lowPower,
             alpha: true,
             stencil: false,
-            powerPreference: lowPower ? "default" : "high-performance",
+            powerPreference: "default",
             failIfMajorPerformanceCaveat: false,
             preserveDrawingBuffer: false,
           }}

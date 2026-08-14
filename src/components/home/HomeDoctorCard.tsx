@@ -101,7 +101,10 @@ function DoctorCardInner({
             src={homeImageUrl(hero.doctorImage)}
             alt={`${hero.doctorName1} ${hero.doctorName2}`}
             className="h-full w-full object-cover object-[center_18%]"
+            width={720}
+            height={952}
             decoding="async"
+            fetchPriority="high"
           />
           <div
             className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[#e8f3ef] to-transparent"
@@ -212,7 +215,10 @@ function DoctorCardInner({
           src={homeImageUrl(hero.doctorImage)}
           alt={`${hero.doctorName1} ${hero.doctorName2}`}
           className="h-full w-full object-cover object-[center_18%]"
-          decoding="async"
+          width={960}
+          height={1270}
+          decoding="sync"
+          fetchPriority="high"
         />
         <div
           className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-[#e8f3ef] to-transparent"
@@ -233,9 +239,7 @@ export function HomeDoctorCard({
       <motion.aside
         className="pointer-events-none min-h-0 w-full flex-1"
         aria-label={`${hero.doctorName1} ${hero.doctorName2}`}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        initial={false}
       >
         <DoctorCardInner hero={hero} mobile />
       </motion.aside>
@@ -247,9 +251,7 @@ export function HomeDoctorCard({
       style={style}
       className="pointer-events-none absolute inset-y-0 right-0 z-[12] hidden w-[min(46%,34rem)] items-center justify-end pr-3 lg:flex lg:pr-8 xl:pr-10"
       aria-label={`${hero.doctorName1} ${hero.doctorName2}`}
-      initial={{ opacity: 0, x: 36, scale: 0.985 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      transition={{ duration: 0.9, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      initial={false}
     >
       <DoctorCardInner hero={hero} />
     </motion.aside>

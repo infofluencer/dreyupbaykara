@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
 import { Instrument_Sans, Poppins } from "next/font/google";
 import {
   GoogleAnalytics,
@@ -10,10 +9,6 @@ import {
 } from "@/components/analytics";
 import { ClientOnly } from "@/components/layouts/client-only";
 import { CookieConsentBanner } from "@/components/layouts/cookie-consent-banner";
-import {
-  COOKIE_CONSENT_NAME,
-  parseCookieConsent,
-} from "@/lib/cookie-consent";
 import { PAGE_SEO } from "@/data/seo";
 import "./globals.css";
 
@@ -51,16 +46,11 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = await cookies();
-  const initialConsent = parseCookieConsent(
-    cookieStore.get(COOKIE_CONSENT_NAME)?.value,
-  );
-
   return (
     <html
       lang="tr"
@@ -68,14 +58,14 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full bg-bg text-text" suppressHydrationWarning>
-        <GoogleConsentModeScript consent={initialConsent} />
-        <GoogleAnalytics initialConsent={initialConsent} />
-        <MicrosoftClarity initialConsent={initialConsent} />
-        <MetaPixel initialConsent={initialConsent} />
-        <TikTokPixel initialConsent={initialConsent} />
+        <GoogleConsentModeScript />
+        <GoogleAnalytics initialConsent={null} />
+        <MicrosoftClarity initialConsent={null} />
+        <MetaPixel initialConsent={null} />
+        <TikTokPixel initialConsent={null} />
         {children}
         <ClientOnly>
-          <CookieConsentBanner initialConsent={initialConsent} />
+          <CookieConsentBanner initialConsent={null} />
         </ClientOnly>
       </body>
     </html>

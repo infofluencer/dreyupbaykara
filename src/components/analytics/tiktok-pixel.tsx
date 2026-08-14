@@ -33,7 +33,7 @@ export function TikTokPixel({
   }
 
   return (
-    <Script id="tiktok-pixel" strategy="afterInteractive">
+    <Script id="tiktok-pixel" strategy="lazyOnload">
       {`!function (w, d, t) {
   w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
   ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"];

@@ -502,6 +502,12 @@ await step("5) SSR — Consent Mode + sayfalar", async () => {
     fail("cookie yokken Clarity/Meta/TikTok URL yok", homeTrackers.join(", "));
   }
 
+  if (home.text.includes("consent','update")) {
+    ok("Consent Mode cookie update script HTML'de");
+  } else {
+    fail("Consent Mode cookie update script HTML'de");
+  }
+
   const analyticsHtml = await request("/", {
     headers: {
       cookie: cookieHeader(
@@ -517,13 +523,13 @@ await step("5) SSR — Consent Mode + sayfalar", async () => {
   });
   const analyticsState = extractConsentDefault(analyticsHtml.text);
   if (
-    analyticsState?.analytics_storage === "granted" &&
+    analyticsState?.analytics_storage === "denied" &&
     analyticsState?.ad_storage === "denied"
   ) {
-    ok("SSR analytics cookie → analytics granted, ads denied");
+    ok("cookie HTML'e işlenmez — default denied kalır, update tarayıcıda");
   } else {
     fail(
-      "SSR analytics cookie → analytics granted, ads denied",
+      "cookie HTML'e işlenmez — default denied kalır, update tarayıcıda",
       JSON.stringify(analyticsState),
     );
   }
@@ -541,16 +547,11 @@ await step("5) SSR — Consent Mode + sayfalar", async () => {
     headers: { cookie: cookieHeader(encodedMarketing) },
   });
   const marketingState = extractConsentDefault(marketingHtml.text);
-  if (
-    marketingState?.ad_storage === "granted" &&
-    marketingState?.ad_user_data === "granted" &&
-    marketingState?.analytics_storage === "denied" &&
-    marketingState?.functionality_storage === "granted"
-  ) {
-    ok("SSR encoded marketing cookie → ads+functional granted");
+  if (marketingState?.ad_storage === "denied") {
+    ok("encoded marketing cookie SSR default'u değiştirmez");
   } else {
     fail(
-      "SSR encoded marketing cookie → ads+functional granted",
+      "encoded marketing cookie SSR default'u değiştirmez",
       JSON.stringify(marketingState),
     );
   }
@@ -560,8 +561,8 @@ await step("5) SSR — Consent Mode + sayfalar", async () => {
     headers: { cookie: cookieHeader(double) },
   });
   const doubleState = extractConsentDefault(doubleHtml.text);
-  if (doubleState?.ad_storage === "granted") ok("SSR çift encode cookie parse");
-  else fail("SSR çift encode cookie parse", JSON.stringify(doubleState));
+  if (doubleState?.ad_storage === "denied") ok("çift encode cookie SSR'ı değiştirmez");
+  else fail("çift encode cookie SSR'ı değiştirmez", JSON.stringify(doubleState));
 
   const badHtml = await request("/", {
     headers: { cookie: `${COOKIE_CONSENT_NAME}=<<<<<` },

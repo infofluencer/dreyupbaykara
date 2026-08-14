@@ -3,6 +3,9 @@ import HomePage from "@/components/home/Home";
 import { PAGE_SEO } from "@/data/seo";
 import { getPublishedPage, mediaPublicUrl } from "@/lib/cms/content";
 import { getHomeSections } from "@/lib/cms/home-server";
+import { homeImageUrl } from "@/lib/cms/home";
+
+export const revalidate = 120;
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await getPublishedPage("/");
@@ -25,8 +28,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function Home() {
   const sections = await getHomeSections();
+  const doctorImg = homeImageUrl(sections.hero.doctorImage);
+
   return (
     <main className="bg-bg">
+      <link rel="preload" href={doctorImg} as="image" fetchPriority="high" />
       <HomePage sections={sections} />
     </main>
   );

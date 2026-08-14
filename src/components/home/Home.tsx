@@ -5,20 +5,11 @@ import { useEffect, useState, useRef } from "react";
 import { motion, useTransform } from "framer-motion";
 import { HomeDoctorCard } from "./HomeDoctorCard";
 import { HomeTreatmentCards } from "./HomeTreatmentCards";
-import { TreatmentSection } from "./TreatmentSection";
-import { TreatmentArchive } from "@/components/TreatmentArchive";
-import { Testimonials } from "@/components/Testimonials";
-import { StatsBannerLayer } from "@/components/StatsBannerLayer";
-import { VideoGallery } from "@/components/VideoGallery";
-import { LeadForm } from "@/components/LeadForm";
-import { YouTubeGallery } from "@/components/YouTubeGallery";
-import { HomeBlogSection } from "@/components/HomeBlogSection";
-import { VectorPattern } from "@/components/VectorPattern";
 import { useHomeProgress } from "./useHomeProgress";
 import { HOME_FALLBACK, type HomeSections } from "@/lib/cms/home";
-import { SPINE_GLB } from "./spine-asset";
 
 const SpineScene = dynamic(() => import("./SpineScene"), { ssr: false });
+const HomeBelowFold = dynamic(() => import("./HomeBelowFold"));
 
 /** Desktop: kırmızı fıtık/kamera detayı biraz daha geç başlasın */
 const DESKTOP_DETAIL_START = 0.18;
@@ -37,7 +28,6 @@ export default function Home({
   sections?: HomeSections;
 }) {
   const wrapperRef = useRef<HTMLElement>(null);
-  const [showSpineScene, setShowSpineScene] = useState(false);
   /** null = henüz ölçülmedi — opacity'yi 0'a kilitleme */
   const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
   const { progressRef, scrollYProgress } = useHomeProgress(wrapperRef);
@@ -66,7 +56,6 @@ export default function Home({
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  // Raw scroll → scene progress (mobilde default hold + gecikmeli detay)
   useEffect(() => {
     if (isDesktop === null) return;
     let raf = 0;
@@ -85,55 +74,6 @@ export default function Home({
       cancelAnimationFrame(raf);
     };
   }, [isDesktop, progressRef]);
-
-  // GLB + sahne chunk'ını hero sırasında ısıt; canvas opacity 0'da mount olsun.
-  useEffect(() => {
-    if (isDesktop === null) return;
-
-    void import("./SpineScene");
-
-    const preload = document.createElement("link");
-    preload.rel = "preload";
-    preload.as = "fetch";
-    preload.href = SPINE_GLB;
-    preload.crossOrigin = "anonymous";
-    document.head.appendChild(preload);
-
-    let cancelled = false;
-    let idleId = 0;
-    let timeoutId = 0;
-
-    const enable = () => {
-      if (!cancelled) setShowSpineScene(true);
-    };
-
-    const win = window as Window & {
-      requestIdleCallback?: (
-        cb: () => void,
-        opts?: { timeout: number },
-      ) => number;
-      cancelIdleCallback?: (id: number) => void;
-    };
-
-    // Desktop: LCP ile yarışmasın. Mobil: fade-in'e yetişsin.
-    const idleTimeout = isDesktop ? 1200 : 500;
-    const fallbackMs = isDesktop ? 450 : 180;
-
-    if (typeof win.requestIdleCallback === "function") {
-      idleId = win.requestIdleCallback(enable, { timeout: idleTimeout });
-    } else {
-      timeoutId = window.setTimeout(enable, fallbackMs);
-    }
-
-    return () => {
-      cancelled = true;
-      preload.remove();
-      if (idleId && typeof win.cancelIdleCallback === "function") {
-        win.cancelIdleCallback(idleId);
-      }
-      if (timeoutId) window.clearTimeout(timeoutId);
-    };
-  }, [isDesktop]);
 
   return (
     <>
@@ -154,11 +94,8 @@ export default function Home({
             </div>
           </div>
 
-          {/* Canvas her zaman opacity 1 — WebGL katmanı ölmesin */}
           <div className="pointer-events-none absolute inset-0 z-[8]">
-            {showSpineScene ? (
-              <SpineScene progressRef={sceneProgressRef} />
-            ) : null}
+            <SpineScene progressRef={sceneProgressRef} />
           </div>
           {isDesktop === false ? (
             <motion.div
@@ -168,13 +105,11 @@ export default function Home({
             />
           ) : null}
 
-          {/* ── Desktop doctor card (right rail) ── */}
           <HomeDoctorCard
             hero={sections.hero}
             style={{ opacity: textOpacity, y: textY }}
           />
 
-          {/* ── Desktop copy (left) ── */}
           <motion.div
             suppressHydrationWarning
             style={{
@@ -188,7 +123,6 @@ export default function Home({
             </div>
           </motion.div>
 
-          {/* ── Mobile copy + doctor card ── */}
           <motion.div
             suppressHydrationWarning
             style={{
@@ -220,35 +154,7 @@ export default function Home({
         </div>
       </section>
 
-      {/* Doktor + Instagram — tek zemin, tek pattern */}
-      <div className="relative z-10 bg-[#f7f1e9]">
-        <VectorPattern tone="light" opacity={0.045} size={400} />
-        <div className="relative">
-          <TreatmentSection whyUs={sections.whyUs} />
-          <LeadForm copy={sections.leadForm} />
-          <VideoGallery copy={sections.instagram} />
-        </div>
-      </div>
-
-      <StatsBannerLayer banner={sections.banner}>
-        {/* Tedavi + yorumlar — tek krem zemin, tek pattern (sert geçiş olmasın) */}
-        <div className="relative z-20 rounded-b-[2rem] bg-[#f7f1e9] md:rounded-b-[2.5rem]">
-          <VectorPattern
-            tone="light"
-            opacity={0.045}
-            size={400}
-            className="rounded-b-[2rem] md:rounded-b-[2.5rem]"
-          />
-          <div className="relative">
-            <TreatmentArchive />
-            <Testimonials copy={sections.testimonials} />
-          </div>
-        </div>
-        {/* Fotoğrafın tam ekran sticky penceresi */}
-        <div className="pointer-events-none h-dvh w-full shrink-0" aria-hidden />
-        <YouTubeGallery copy={sections.youtube} />
-        <HomeBlogSection copy={sections.blog} />
-      </StatsBannerLayer>
+      <HomeBelowFold sections={sections} />
     </>
   );
 }
