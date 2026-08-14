@@ -1,12 +1,19 @@
 "use client";
 
 import { motion, type MotionValue } from "framer-motion";
+import Image from "next/image";
 import { VectorPattern } from "@/components/VectorPattern";
 import {
   HOME_FALLBACK,
   homeImageUrl,
   type HomeHero,
 } from "@/lib/cms/home";
+
+/**
+ * Mobil ve masaüstü kartları aynı anda DOM'da; `sizes` ikisinde de aynı olmalı,
+ * aksi halde tarayıcı gizli olan varyant için ikinci bir dosya indiriyor.
+ */
+const DOCTOR_IMAGE_SIZES = "(min-width: 1024px) 288px, 45vw";
 
 interface HomeDoctorCardProps {
   hero?: HomeHero;
@@ -96,15 +103,13 @@ function DoctorCardInner({
         </div>
 
         <div className="absolute inset-y-0 right-0 w-[44%]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={homeImageUrl(hero.doctorImage)}
             alt={`${hero.doctorName1} ${hero.doctorName2}`}
-            className="h-full w-full object-cover object-[center_18%]"
-            width={720}
-            height={952}
-            decoding="async"
-            fetchPriority="high"
+            className="object-cover object-[center_18%]"
+            fill
+            sizes={DOCTOR_IMAGE_SIZES}
+            preload
           />
           <div
             className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[#e8f3ef] to-transparent"
@@ -210,15 +215,13 @@ function DoctorCardInner({
       </div>
 
       <div className="absolute inset-y-0 right-0 w-[56%]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={homeImageUrl(hero.doctorImage)}
           alt={`${hero.doctorName1} ${hero.doctorName2}`}
-          className="h-full w-full object-cover object-[center_18%]"
-          width={960}
-          height={1270}
-          decoding="sync"
-          fetchPriority="high"
+          className="object-cover object-[center_18%]"
+          fill
+          sizes={DOCTOR_IMAGE_SIZES}
+          preload
         />
         <div
           className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-[#e8f3ef] to-transparent"

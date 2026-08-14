@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -89,13 +90,13 @@ export function TreatmentDetailView({ treatment }: { treatment: Treatment }) {
 
           <div className="order-1 min-w-0 overflow-hidden rounded-[2rem] bg-[#17372a] p-3 lg:order-2">
             <div className="relative aspect-video w-full overflow-hidden rounded-[1.45rem]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={treatment.image}
                 alt={treatment.h1}
-                width={1672}
-                height={941}
-                className="h-full w-full max-w-full object-contain object-center"
+                fill
+                sizes="(min-width: 1024px) 50vw, 94vw"
+                className="max-w-full object-contain object-center"
+                preload
               />
             </div>
           </div>
@@ -142,12 +143,12 @@ export function TreatmentDetailView({ treatment }: { treatment: Treatment }) {
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
             <div className="relative overflow-hidden rounded-[2rem] bg-[#dce9d5]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src="/banner_dr.jpg"
                 alt="Op. Dr. Eyüp Baykara ameliyathanede"
                 width={1200}
                 height={1400}
+                sizes="(min-width: 1024px) 42vw, 92vw"
                 className="aspect-[4/5] h-full w-full object-cover object-[68%_center]"
               />
               <div className="absolute bottom-5 left-5 right-5 rounded-2xl bg-white/90 p-5 backdrop-blur">
@@ -370,13 +371,12 @@ export function TreatmentDetailView({ treatment }: { treatment: Treatment }) {
                 href={`/tedaviler/${item.slug}`}
                 className="group relative min-h-96 overflow-hidden rounded-[1.75rem]"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={item.image}
                   alt=""
-                  width={900}
-                  height={700}
-                  className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                  fill
+                  sizes="(min-width: 768px) 45vw, 92vw"
+                  className="object-cover transition duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#17372a] via-[#17372a]/15 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-5 p-7 text-white">

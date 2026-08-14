@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -104,14 +105,14 @@ export function SectionPagination() {
       <div className="pointer-events-auto border-b border-black/5 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-[4.25rem] sm:px-6 lg:px-10">
           <Link href="/" className="shrink-0" aria-label="Anasayfa">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src="/hero/endospinelogo.png"
               alt="Endoskopik Bel Ameliyatı"
               width={942}
               height={382}
+              sizes="148px"
               className="h-10 w-auto object-contain sm:h-12"
-              decoding="async"
+              preload
             />
           </Link>
 

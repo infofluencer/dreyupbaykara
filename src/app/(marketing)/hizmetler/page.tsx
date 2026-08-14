@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { CmsSections } from "@/components/cms/CmsSections";
@@ -65,15 +66,12 @@ export default async function HizmetlerPage() {
                 href={`/tedaviler/${item.slug}`}
                 className="group relative min-h-[22rem] overflow-hidden rounded-[1.75rem]"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={item.image}
                   alt=""
-                  width={900}
-                  height={700}
-                  className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                  loading="lazy"
-                  decoding="async"
+                  fill
+                  sizes="(min-width: 640px) 45vw, 92vw"
+                  className="object-cover transition duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#123524] via-[#123524]/35 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">

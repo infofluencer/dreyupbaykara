@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { TrackedWhatsAppLink } from "@/components/TrackedWhatsAppLink";
 import { CookiePreferencesButton } from "@/components/layouts/footer/cookie-preferences-button";
@@ -169,14 +170,13 @@ export function Footer() {
             className="mb-8 flex justify-center sm:mb-10"
             aria-label="Endospine İstanbul"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src="/hero/endospinelogo.png"
               alt="Endospine İstanbul"
               width={942}
               height={382}
+              sizes="384px"
               className="h-16 w-auto brightness-0 invert sm:h-20 md:h-24 lg:h-28"
-              decoding="async"
             />
           </Link>
 

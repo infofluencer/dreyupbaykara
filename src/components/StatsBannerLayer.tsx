@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { HOME_FALLBACK, homeImageUrl, type HomeBanner } from "@/lib/cms/home";
 
@@ -21,15 +22,14 @@ export function StatsBannerLayer({
         className="col-start-1 row-start-1 sticky top-0 z-0 h-dvh w-full self-start overflow-hidden bg-[#123524]"
         aria-label="Op. Dr. Eyüp Baykara"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={homeImageUrl(banner.image)}
           alt={banner.alt}
-          width={2768}
-          height={1848}
-          className="h-full w-full object-cover object-[48%_center]"
-          decoding="async"
-          loading="lazy"
+          fill
+          sizes="100vw"
+          // Dekoratif tam ekran fotoğraf — düşük kalite gözle ayırt edilmiyor.
+          quality={65}
+          className="object-cover object-[48%_center]"
         />
       </section>
 

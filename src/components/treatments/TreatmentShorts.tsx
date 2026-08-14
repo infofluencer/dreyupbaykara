@@ -28,10 +28,11 @@ export function TreatmentShorts({ shorts }: { shorts: TreatmentShort[] }) {
               <img
                 src={`https://i.ytimg.com/vi/${short.id}/hqdefault.jpg`}
                 alt=""
-                width={720}
-                height={1280}
+                width={480}
+                height={360}
                 className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                 loading="lazy"
+                decoding="async"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-black/10" />
               <div className="absolute inset-0 flex items-center justify-center">

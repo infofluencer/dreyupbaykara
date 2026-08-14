@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { mediaPublicUrl, type PublicContentSection } from "@/lib/cms/content";
 
 function strings(value: unknown): string[] {
@@ -35,10 +36,12 @@ export function CmsSections({
         if (section.section_type === "image" && imageUrl) {
           return (
             <figure key={section.id}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={imageUrl}
                 alt={imageAlt}
+                width={1600}
+                height={1000}
+                sizes="(min-width: 768px) 768px, 92vw"
                 className="max-h-[42rem] w-full rounded-[1.5rem] object-cover"
               />
               {section.title ? (

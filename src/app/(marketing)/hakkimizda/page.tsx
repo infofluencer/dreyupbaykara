@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { CmsSections } from "@/components/cms/CmsSections";
 import { PageCta, PageShell } from "@/components/PageShell";
 import { PAGE_SEO } from "@/data/seo";
@@ -60,12 +61,12 @@ export default async function HakkimizdaPage() {
         </div>
 
         <div className="overflow-hidden rounded-[1.5rem] border border-[#0b6b45]/10 bg-white shadow-[0_12px_36px_rgba(18,53,36,0.06)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={image}
             alt={content?.featured_image_alt || "Op. Dr. Eyüp Baykara"}
             width={900}
             height={1100}
+            sizes="(min-width: 1024px) 40vw, 92vw"
             className="aspect-[4/5] w-full object-cover object-[center_18%]"
           />
         </div>

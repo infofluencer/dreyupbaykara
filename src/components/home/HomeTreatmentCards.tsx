@@ -1,7 +1,11 @@
 "use client";
 
 import { motion, type MotionValue } from "framer-motion";
+import Image from "next/image";
 import { HOME_FALLBACK, type HomeHero } from "@/lib/cms/home";
+
+/** Üç kopya da aynı `sizes` ile: kaynak 1024px, ekranda en fazla 48px. */
+const CADUCEUS_SIZES = "48px";
 
 interface HomeTreatmentCardsProps {
   hero?: HomeHero;
@@ -23,13 +27,14 @@ export function HomeTreatmentCards({
         initial={false}
       >
         <div className="mb-2 flex items-center gap-2.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/kaduseus-green.png"
             alt=""
             aria-hidden="true"
+            width={96}
+            height={96}
+            sizes={CADUCEUS_SIZES}
             className="h-7 w-7 shrink-0 object-contain"
-            decoding="async"
           />
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
             {hero.kicker}
@@ -74,24 +79,26 @@ export function HomeTreatmentCards({
       initial={false}
     >
       <div className="mb-5 flex items-center gap-3 sm:gap-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src="/kaduseus-green.png"
           alt=""
           aria-hidden="true"
+          width={96}
+          height={96}
+          sizes={CADUCEUS_SIZES}
           className="h-10 w-10 shrink-0 object-contain drop-shadow-sm sm:h-12 sm:w-12"
-          decoding="async"
         />
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
           {hero.kicker}
         </p>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src="/kaduseus-green.png"
           alt=""
           aria-hidden="true"
+          width={96}
+          height={96}
+          sizes={CADUCEUS_SIZES}
           className="h-10 w-10 shrink-0 object-contain drop-shadow-sm sm:h-12 sm:w-12"
-          decoding="async"
         />
       </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { HOME_FALLBACK, type HomeCopyBlock } from "@/lib/cms/home";
@@ -289,13 +290,12 @@ export function VideoGallery({
               aria-label={`${v.title} videosunu izle`}
             >
               <div className="relative overflow-hidden" style={{ aspectRatio: "9/13" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={v.thumb}
                   alt={v.title}
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
-                  loading="lazy"
-                  decoding="async"
+                  fill
+                  sizes="(min-width: 1024px) 328px, (min-width: 640px) 304px, 72vw"
+                  className="object-cover transition duration-500 group-hover:scale-[1.04]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                 <div className="absolute inset-0 flex items-center justify-center opacity-75 transition duration-300 group-hover:opacity-100">

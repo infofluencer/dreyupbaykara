@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { blogPosts } from "@/data/blog";
@@ -77,14 +78,13 @@ export function HomeBlogSection({
               className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-[#0b6b45]/10 bg-white shadow-[0_12px_36px_rgba(18,53,36,0.05)]"
             >
               <Link href={`/blog/${post.slug}`} className="block overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={post.image}
                   alt=""
                   width={640}
                   height={400}
+                  sizes="(min-width: 1024px) 22vw, (min-width: 640px) 45vw, 92vw"
                   className="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-                  loading="lazy"
                 />
               </Link>
               <div className="flex flex-1 flex-col px-4 py-4 sm:px-5 sm:py-5">

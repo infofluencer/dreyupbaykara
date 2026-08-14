@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -36,14 +37,13 @@ export function AdminSidebar() {
         className="flex h-24 items-center justify-center border-b border-white/10 px-5"
         aria-label="Yönetim paneli ana sayfası"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src="/hero/endospinelogo.png"
           alt="Endoskopik Bel Ameliyatı"
           width={942}
           height={382}
+          sizes="216px"
           className="h-14 w-auto max-w-full object-contain"
-          decoding="async"
         />
       </Link>
 

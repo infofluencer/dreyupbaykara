@@ -25,6 +25,14 @@ const poppins = Poppins({
   display: "swap",
 });
 
+const supabaseOrigin = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
+  } catch {
+    return null;
+  }
+})();
+
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ||
@@ -57,6 +65,16 @@ export default function RootLayout({
       className={`${instrumentSans.variable} ${poppins.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Bağlantı kurulumu ilk isteği beklemesin: TLS el sıkışması peşin yapılır. */}
+        <link rel="preconnect" href="https://i.ytimg.com" crossOrigin="" />
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://endospineistanbul.com" />
+        <link rel="dns-prefetch" href="https://www.youtube.com" />
+        {supabaseOrigin ? (
+          <link rel="preconnect" href={supabaseOrigin} crossOrigin="" />
+        ) : null}
+      </head>
       <body className="min-h-full bg-bg text-text" suppressHydrationWarning>
         <GoogleConsentModeScript />
         <GoogleAnalytics initialConsent={null} />

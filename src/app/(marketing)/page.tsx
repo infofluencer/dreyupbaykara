@@ -4,7 +4,6 @@ import { SPINE_GLB } from "@/components/home/spine-asset";
 import { PAGE_SEO } from "@/data/seo";
 import { getPublishedPage, mediaPublicUrl } from "@/lib/cms/content";
 import { getHomeSections } from "@/lib/cms/home-server";
-import { homeImageUrl } from "@/lib/cms/home";
 
 export const revalidate = 120;
 
@@ -29,22 +28,19 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function Home() {
   const sections = await getHomeSections();
-  const doctorImg = homeImageUrl(sections.hero.doctorImage);
 
   return (
     <main className="bg-bg">
-      <link rel="preload" href={doctorImg} as="image" fetchPriority="high" />
+      {/*
+        `crossOrigin` şart: three.js FileLoader isteği cors + same-origin
+        kimlik modunda gidiyor, eşleşmezse tarayıcı modeli ikinci kez indiriyor.
+      */}
       <link
         rel="preload"
         href={SPINE_GLB}
         as="fetch"
         crossOrigin="anonymous"
         media="(min-width: 1024px)"
-      />
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(function(){if(!window.matchMedia("(min-width:1024px)").matches)return;fetch("${SPINE_GLB}",{credentials:"omit",cache:"force-cache"}).catch(function(){})})();`,
-        }}
       />
       <HomePage sections={sections} />
     </main>

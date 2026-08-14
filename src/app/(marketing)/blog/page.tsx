@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { blogPosts } from "@/data/blog";
 import { PAGE_SEO } from "@/data/seo";
@@ -70,14 +71,13 @@ export default async function BlogPage() {
                 className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-[#0b6b45]/10 bg-white shadow-[0_12px_36px_rgba(18,53,36,0.05)]"
               >
                 <Link href={`/blog/${post.slug}`} className="block overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={post.image}
                     alt=""
                     width={800}
                     height={500}
+                    sizes="(min-width: 1280px) 22vw, (min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw"
                     className="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-                    loading="lazy"
                   />
                 </Link>
                 <div className="flex flex-1 flex-col px-5 py-5 sm:px-6 sm:py-6">

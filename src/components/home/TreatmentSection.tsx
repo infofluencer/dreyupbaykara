@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, type MotionValue, type Variants } from "framer-motion";
+import Image from "next/image";
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   HOME_FALLBACK,
@@ -214,20 +215,21 @@ export function TreatmentSection({
             className="absolute right-5 top-5 z-10 rounded-2xl border border-[#0b6b45]/20 bg-white p-3"
             aria-hidden="true"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src="/kaduseus-green.png"
               alt=""
+              width={96}
+              height={96}
+              sizes="48px"
               className="h-12 w-12 object-contain opacity-80"
-              decoding="async"
             />
           </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={homeImageUrl(whyUs.image)}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover object-[center_18%]"
-            decoding="async"
+            fill
+            sizes="(min-width: 1024px) 42vw, 100vw"
+            className="object-cover object-[center_18%]"
           />
         </motion.div>
 

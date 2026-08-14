@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { treatments } from "@/data/treatments";
@@ -39,15 +40,12 @@ export function TreatmentArchive() {
               style={{ zIndex: i + 1 }}
             >
               <div className="relative w-full shrink-0 overflow-hidden rounded-[1.5rem] bg-[#123524] aspect-[3/2] lg:aspect-auto lg:min-h-[22rem] lg:w-[52%]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={item.image}
                   alt=""
-                  width={1000}
-                  height={667}
-                  className="absolute inset-0 h-full w-full object-contain"
-                  loading="lazy"
-                  decoding="async"
+                  fill
+                  sizes="(min-width: 1024px) 52vw, 92vw"
+                  className="object-contain"
                 />
               </div>
 

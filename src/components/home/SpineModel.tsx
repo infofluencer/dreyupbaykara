@@ -28,14 +28,6 @@ function configureGltfLoader(loader: GLTFLoader) {
   loader.setMeshoptDecoder(MeshoptDecoder);
 }
 
-if (typeof window !== "undefined") {
-  void fetch(SPINE_GLB, {
-    mode: "cors",
-    credentials: "omit",
-    cache: "force-cache",
-  }).catch(() => {});
-}
-
 if (MeshoptDecoder.supported) {
   void MeshoptDecoder.ready.then(() => {
     useGLTF.preload(SPINE_GLB, false, false, configureGltfLoader);

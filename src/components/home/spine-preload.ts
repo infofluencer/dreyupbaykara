@@ -1,5 +1,3 @@
-import { SPINE_GLB } from "./spine-asset";
-
 const DESKTOP_MQ = "(min-width: 1024px)";
 
 export function isDesktopViewport(): boolean {
@@ -9,15 +7,15 @@ export function isDesktopViewport(): boolean {
   );
 }
 
-/** React hydrate beklemeden 3D chunk + GLB indirmesini başlat. */
+/**
+ * React hydrate beklemeden 3D chunk indirmesini başlat.
+ * GLB'yi burada `fetch` etmiyoruz: dosyayı `<link rel="preload">` başlatıyor,
+ * indirmeyi three.js'in kendi yükleyicisi devralıyor. Ek bir `fetch` farklı
+ * kimlik moduyla gittiği için aynı 2.3MB'ı paralel olarak tekrar indiriyordu.
+ */
 export function warmDesktopSpine(): void {
   if (!isDesktopViewport()) return;
   void import("./SpineScene");
-  void fetch(SPINE_GLB, {
-    mode: "cors",
-    credentials: "omit",
-    cache: "force-cache",
-  }).catch(() => {});
 }
 
 warmDesktopSpine();

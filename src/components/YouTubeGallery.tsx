@@ -228,10 +228,17 @@ export function YouTubeGallery({
               aria-label={`${video.title} — izle`}
             >
               <div className="relative aspect-video overflow-hidden bg-[#123524]/5">
+                {/*
+                  YouTube CDN'inden geldiği için kendi optimizasyonumuzdan
+                  geçirmiyoruz; `mqdefault` hem 16:9 kutuya tam oturuyor hem de
+                  `hqdefault`ın yarısı kadar (~10KB vs ~21KB).
+                */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+                  src={`https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`}
                   alt={video.title}
+                  width={320}
+                  height={180}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
                   loading="lazy"
                   decoding="async"
