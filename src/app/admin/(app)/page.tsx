@@ -10,6 +10,7 @@ import {
   type AdPlatform,
   type SourceEvent,
 } from "@/lib/crm/source-kind";
+import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
 import { createClient } from "@/lib/supabase/server";
 
 const PLATFORMS = ["google_ads", "meta", "other", "organic"] as const;
@@ -19,14 +20,18 @@ export default async function AdminHomePage() {
   const configured =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const apiEnabled = isWhatsAppEnabled();
 
   let leadCount: number | null = null;
   let newLeadCount: number | null = null;
   let patientCount: number | null = null;
   let appointmentCount: number | null = null;
-  let conversationCount: number | null = null;
   let contentCount: number | null = null;
   let userEmail: string | null = null;
+  let waOpen = 0;
+  let waUnread = 0;
+  let waTodayInbound = 0;
+  let waAwaiting = 0;
   const platformCounts: Record<AdPlatform, number> = {
     google_ads: 0,
     meta: 0,
@@ -55,7 +60,6 @@ export default async function AdminHomePage() {
       { count: fresh },
       { count: patients },
       { count: appointments },
-      { count: conversations },
       { count: contents },
       { data: sourceRows },
     ] = await Promise.all([
@@ -72,9 +76,6 @@ export default async function AdminHomePage() {
         .lt("starts_at", tomorrow.toISOString())
         .neq("status", "cancelled"),
       supabase
-        .from("conversations")
-        .select("*", { count: "exact", head: true }),
-      supabase
         .from("content_pages")
         .select("*", { count: "exact", head: true }),
       supabase
@@ -85,12 +86,37 @@ export default async function AdminHomePage() {
         .limit(5000),
     ]);
 
+    const waStats = await Promise.all([
+      supabase
+        .from("conversations")
+        .select("status, unread_count, last_message_direction")
+        .limit(2000),
+      supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("direction", "inbound")
+        .gte("created_at", today.toISOString())
+        .lt("created_at", tomorrow.toISOString()),
+    ]);
+    const [{ data: waRows }, { count: todayInbound }] = waStats;
+
     leadCount = total ?? 0;
     newLeadCount = fresh ?? 0;
     patientCount = patients ?? 0;
     appointmentCount = appointments ?? 0;
-    conversationCount = conversations ?? 0;
     contentCount = contents ?? 0;
+    waTodayInbound = todayInbound ?? 0;
+
+    for (const row of waRows ?? []) {
+      if (row.status === "open") waOpen += 1;
+      waUnread += Number(row.unread_count ?? 0);
+      if (
+        row.status === "open" &&
+        row.last_message_direction === "inbound"
+      ) {
+        waAwaiting += 1;
+      }
+    }
 
     for (const row of sourceRows ?? []) {
       platformCounts[classifyAdPlatform(row)] += 1;
@@ -131,20 +157,39 @@ export default async function AdminHomePage() {
           </ol>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <StatCard label="Hasta" value={String(patientCount ?? 0)} />
-          <StatCard label="Toplam talep" value={String(leadCount ?? 0)} />
-          <StatCard label="Yeni talep" value={String(newLeadCount ?? 0)} />
-          <StatCard
-            label="Bugünkü randevu"
-            value={String(appointmentCount ?? 0)}
-          />
-          <StatCard
-            label="Konuşma"
-            value={String(conversationCount ?? 0)}
-          />
-          <StatCard label="İçerik" value={String(contentCount ?? 0)} />
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <StatCard label="Hasta" value={String(patientCount ?? 0)} />
+            <StatCard label="Toplam talep" value={String(leadCount ?? 0)} />
+            <StatCard label="Yeni talep" value={String(newLeadCount ?? 0)} />
+            <StatCard
+              label="Bugünkü randevu"
+              value={String(appointmentCount ?? 0)}
+            />
+            <StatCard label="İçerik" value={String(contentCount ?? 0)} />
+          </div>
+
+          <Link
+            href="/admin/messages"
+            className="relative block rounded-2xl border border-[#123524]/08 bg-white px-5 py-5 transition active:border-[#0b6b45]/30"
+          >
+            {!apiEnabled ? (
+              <span className="absolute right-4 top-4 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold text-amber-900">
+                API bağlı değil
+              </span>
+            ) : null}
+            <p className="text-sm font-semibold text-[#0b6b45]">WhatsApp</p>
+            <p className="mt-1 text-sm text-[#466254]">
+              Gelen kutusu özeti — tıklayınca mesajlara gidin
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <MiniStat label="Açık konuşma" value={waOpen} />
+              <MiniStat label="Okunmamış" value={waUnread} />
+              <MiniStat label="Bugün gelen" value={waTodayInbound} />
+              <MiniStat label="Yanıt bekleyen" value={waAwaiting} />
+            </div>
+          </Link>
+        </>
       )}
 
       {configured ? (
@@ -190,9 +235,9 @@ export default async function AdminHomePage() {
           desc="Randevu ekle / sil, gün-ay-yıl planı"
         />
         <QuickLink
-          href="/admin/inbox"
-          title="WhatsApp gelen kutusu"
-          desc="Mesajları görüntüle ve cevapla"
+          href="/admin/messages"
+          title="WhatsApp mesajları"
+          desc="Konuşmaları görüntüle ve cevapla"
         />
         <QuickLink
           href="/admin/content"
@@ -214,6 +259,17 @@ function StatCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl border border-[#123524]/08 bg-white px-4 py-3.5 sm:px-5 sm:py-4">
       <p className="text-sm text-[#466254]">{label}</p>
       <p className="mt-1 font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold sm:mt-2 sm:text-3xl">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <p className="text-xs text-[#466254]">{label}</p>
+      <p className="mt-0.5 font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold text-[#123524]">
         {value}
       </p>
     </div>

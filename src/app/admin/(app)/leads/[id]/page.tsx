@@ -100,7 +100,7 @@ export default async function LeadDetailPage({
               </Link>
             ) : null}
             <Link
-              href={`/admin/inbox?lead=${lead.id}`}
+              href={`/admin/messages?lead=${lead.id}`}
               className="rounded-full border border-[#0b6b45]/25 px-4 py-2 text-sm font-semibold text-[#0b6b45]"
             >
               Konuşmayı aç

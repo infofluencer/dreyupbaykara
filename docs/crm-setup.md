@@ -15,6 +15,7 @@ Path: `/admin` · DB: Supabase · WhatsApp: Cloud API (sonraki sprint)
    - `supabase/migrations/20260808041000_calendar_enhancements.sql`
    - `supabase/migrations/20260808160000_patients.sql`
    - `supabase/migrations/20260808180000_appointment_no_overlap.sql`
+   - `supabase/migrations/20260817120000_whatsapp_inbox_tracking.sql`
 4. Authentication → Users → Add user (email/password).
    Ardından Table Editor → `profiles` tablosunda kullanıcının `role`
    değerini `admin` yapın.
@@ -39,7 +40,7 @@ Yönetim ekranları:
 - `/admin/patients`: hasta kimliği, klinik notlar ve dosya
 - `/admin/leads`: takvim (randevu ekle / sil)
 - `/admin/calendar`: randevu detayı
-- `/admin/inbox`: WhatsApp konuşmaları
+- `/admin/messages`: WhatsApp konuşmaları (iki panelli inbox)
 - `/admin/bot`: mesai dışı ve SSS otomatik cevapları
 
 ## UTM / kaynak takibi
@@ -67,6 +68,7 @@ WhatsApp webhook açıksa ilk mesajdaki `Ref: XXXXXX` lead’e bağlanır.
 `.env.local` ve üretim ortamına şunları ekleyin:
 
 ```env
+WHATSAPP_ENABLED=false
 WHATSAPP_PHONE_NUMBER_ID=
 WHATSAPP_ACCESS_TOKEN=
 WHATSAPP_VERIFY_TOKEN=
@@ -75,6 +77,15 @@ WHATSAPP_GRAPH_API_VERSION=
 WHATSAPP_APPOINTMENT_TEMPLATE=
 CRON_SECRET=
 ```
+
+`WHATSAPP_ENABLED=false` iken webhook işlenmez; panelden gönderilen mesajlar
+yalnızca veritabanına yazılır (UI testi). `true` yapmadan Cloud API POST
+tamamlanmamalıdır.
+
+Inbox UI: `/admin/messages` (eski `/admin/inbox` yönlendirilir).
+
+Şema ekleri: `supabase/migrations/20260817120000_whatsapp_inbox_tracking.sql`
+(conversations status / unread / preview; doktor RLS: yalnızca atanan).
 
 Meta webhook:
 
@@ -87,8 +98,8 @@ Abonelik alanları: `messages` ve Coexistence kullanılıyorsa
 `WHATSAPP_VERIFY_TOKEN` ile aynı olmalıdır. POST webhook istekleri
 `X-Hub-Signature-256` ve App Secret ile doğrulanır.
 
-Cloud API bilgileri girilmeden inbox geçmiş veriyi gösterir fakat mesaj
-gönderemez; webhook da gelen mesaj alamaz.
+Cloud API bilgileri girilmeden inbox geçmiş veriyi gösterir; gönderim DB’ye
+kaydolur ama Meta’ya gitmez.
 
 ### Randevu hatırlatması
 

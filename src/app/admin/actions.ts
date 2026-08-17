@@ -18,15 +18,23 @@ import {
 import { mergeHomeSections, type HomeSections } from "@/lib/cms/home";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import {
-  sendWhatsAppTemplate,
-  sendWhatsAppText,
-} from "@/lib/whatsapp/cloud-api";
+import { sendMessage, sendTemplateMessage } from "@/lib/whatsapp/send-message";
+import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
 import {
   isConversationLockFresh,
-  isWhatsAppServiceWindowOpen,
+  isWithin24hWindow,
 } from "@/lib/whatsapp/service-window";
 import type { LeadStage } from "@/types/crm";
+
+function revalidateMessages(conversationId?: string) {
+  revalidatePath("/admin/messages");
+  revalidatePath("/admin/inbox");
+  revalidatePath("/admin");
+  if (conversationId) {
+    revalidatePath(`/admin/messages?c=${conversationId}`);
+    revalidatePath(`/admin/inbox/${conversationId}`);
+  }
+}
 
 function text(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -1019,7 +1027,7 @@ export async function sendConversationMessage(formData: FormData) {
 
   const { data: conversation } = await supabase
     .from("conversations")
-    .select("locked_by, locked_at")
+    .select("locked_by, locked_at, wa_phone")
     .eq("id", conversationId)
     .single();
   if (
@@ -1029,39 +1037,113 @@ export async function sendConversationMessage(formData: FormData) {
   ) {
     throw new Error("Bu konuşma başka bir kullanıcı tarafından işleniyor.");
   }
-  const { data: lastInbound } = await supabase
-    .from("messages")
-    .select("created_at")
-    .eq("conversation_id", conversationId)
-    .eq("direction", "inbound")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!isWhatsAppServiceWindowOpen(lastInbound?.created_at)) {
-    throw new Error(
-      "24 saatlik müşteri hizmeti penceresi kapalı; şablon mesaj gerekir.",
-    );
+
+  const enabled = isWhatsAppEnabled();
+  if (enabled) {
+    const windowOpen = await isWithin24hWindow(supabase, conversationId);
+    if (!windowOpen) {
+      throw new Error(
+        "24 saatlik müşteri hizmeti penceresi kapalı; şablon mesaj gerekir.",
+      );
+    }
   }
 
-  const response = await sendWhatsAppText(phone, body);
-  const { error } = await supabase.from("messages").insert({
-    conversation_id: conversationId,
-    wa_message_id: response.messageId,
-    direction: "outbound",
-    body,
-    status: "sent",
-    sent_by: session.userId,
-    automated: false,
-  });
-  if (error) throw new Error(error.message);
+  const to = phone || conversation?.wa_phone || "";
+
+  if (enabled) {
+    const { data: pendingRow, error: pendingError } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        direction: "outbound",
+        body,
+        status: "pending",
+        sent_by: session.userId,
+        automated: false,
+      })
+      .select("id")
+      .single();
+    if (pendingError || !pendingRow) {
+      throw new Error(pendingError?.message ?? "Mesaj kaydedilemedi.");
+    }
+
+    await sendMessage(to, body, {
+      to,
+      conversationId,
+      dbMessageId: pendingRow.id,
+      supabase,
+    });
+  } else {
+    const response = await sendMessage(to, body);
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      wa_message_id: response.messageId,
+      direction: "outbound",
+      body,
+      status: "sent",
+      sent_by: session.userId,
+      automated: false,
+    });
+    if (error) throw new Error(error.message);
+  }
 
   await supabase
     .from("conversations")
-    .update({ last_message_at: new Date().toISOString() })
+    .update({
+      last_message_at: new Date().toISOString(),
+      last_message_preview: body.slice(0, 160),
+      last_message_direction: "outbound",
+      unread_count: 0,
+      status: "open",
+    })
     .eq("id", conversationId);
 
-  revalidatePath("/admin/inbox");
-  revalidatePath(`/admin/inbox/${conversationId}`);
+  revalidateMessages(conversationId);
+}
+
+export async function updateConversationStatus(formData: FormData) {
+  await requireAdminSession(["admin", "doctor", "assistant"]);
+  const supabase = await createClient();
+  const conversationId = text(formData, "conversation_id");
+  const status = text(formData, "status");
+  if (!["open", "pending", "closed"].includes(status)) {
+    throw new Error("Geçersiz durum.");
+  }
+  const { error } = await supabase
+    .from("conversations")
+    .update({ status })
+    .eq("id", conversationId);
+  if (error) throw new Error(error.message);
+  revalidateMessages(conversationId);
+}
+
+export async function assignConversationMember(formData: FormData) {
+  await requireAdminSession(["admin", "assistant"]);
+  const supabase = await createClient();
+  const conversationId = text(formData, "conversation_id");
+  const assignedTo = optionalText(formData, "assigned_to");
+  const { error } = await supabase
+    .from("conversations")
+    .update({
+      assigned_to: assignedTo || null,
+      locked_by: assignedTo || null,
+      locked_at: assignedTo ? new Date().toISOString() : null,
+    })
+    .eq("id", conversationId);
+  if (error) throw new Error(error.message);
+  revalidateMessages(conversationId);
+}
+
+export async function markConversationRead(formData: FormData) {
+  await requireAdminSession(["admin", "doctor", "assistant"]);
+  const supabase = await createClient();
+  const conversationId = text(formData, "conversation_id");
+  const { error } = await supabase
+    .from("conversations")
+    .update({ unread_count: 0 })
+    .eq("id", conversationId);
+  if (error) throw new Error(error.message);
+  revalidateMessages(conversationId);
 }
 
 export async function claimConversation(formData: FormData) {
@@ -1089,10 +1171,11 @@ export async function claimConversation(formData: FormData) {
     .update({
       locked_by: session.userId,
       locked_at: new Date().toISOString(),
+      assigned_to: session.userId,
     })
     .eq("id", conversationId);
   if (error) throw new Error(error.message);
-  revalidatePath(`/admin/inbox/${conversationId}`);
+  revalidateMessages(conversationId);
 }
 
 export async function releaseConversation(formData: FormData) {
@@ -1108,7 +1191,7 @@ export async function releaseConversation(formData: FormData) {
   }
   const { error } = await query;
   if (error) throw new Error(error.message);
-  revalidatePath(`/admin/inbox/${conversationId}`);
+  revalidateMessages(conversationId);
 }
 
 export async function sendConversationTemplate(formData: FormData) {
@@ -1122,7 +1205,7 @@ export async function sendConversationTemplate(formData: FormData) {
 
   const { data: conversation } = await supabase
     .from("conversations")
-    .select("locked_by, locked_at")
+    .select("locked_by, locked_at, wa_phone")
     .eq("id", conversationId)
     .single();
   if (
@@ -1133,27 +1216,65 @@ export async function sendConversationTemplate(formData: FormData) {
     throw new Error("Bu konuşma başka bir kullanıcı tarafından işleniyor.");
   }
 
-  const response = await sendWhatsAppTemplate(
-    phone,
-    templateName,
-    languageCode,
-  );
-  const { error } = await supabase.from("messages").insert({
-    conversation_id: conversationId,
-    wa_message_id: response.messageId,
-    direction: "outbound",
-    body: `[Şablon: ${templateName}]`,
-    status: "sent",
-    sent_by: session.userId,
-    automated: false,
-    raw_payload: { template_name: templateName, language_code: languageCode },
-  });
-  if (error) throw new Error(error.message);
+  const to = phone || conversation?.wa_phone || "";
+  const body = `[Şablon: ${templateName}]`;
+  const enabled = isWhatsAppEnabled();
+
+  if (enabled) {
+    const { data: pendingRow, error: pendingError } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        direction: "outbound",
+        body,
+        status: "pending",
+        sent_by: session.userId,
+        automated: false,
+        raw_payload: { template_name: templateName, language_code: languageCode },
+      })
+      .select("id")
+      .single();
+    if (pendingError || !pendingRow) {
+      throw new Error(pendingError?.message ?? "Mesaj kaydedilemedi.");
+    }
+
+    await sendTemplateMessage(
+      to,
+      templateName,
+      languageCode,
+      undefined,
+      {
+        to,
+        conversationId,
+        dbMessageId: pendingRow.id,
+        supabase,
+      },
+    );
+  } else {
+    const response = await sendTemplateMessage(to, templateName, languageCode);
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      wa_message_id: response.messageId,
+      direction: "outbound",
+      body,
+      status: "sent",
+      sent_by: session.userId,
+      automated: false,
+      raw_payload: { template_name: templateName, language_code: languageCode },
+    });
+    if (error) throw new Error(error.message);
+  }
+
   await supabase
     .from("conversations")
-    .update({ last_message_at: new Date().toISOString() })
+    .update({
+      last_message_at: new Date().toISOString(),
+      last_message_preview: body.slice(0, 160),
+      last_message_direction: "outbound",
+      unread_count: 0,
+    })
     .eq("id", conversationId);
-  revalidatePath(`/admin/inbox/${conversationId}`);
+  revalidateMessages(conversationId);
 }
 
 export async function saveBotSettings(formData: FormData) {

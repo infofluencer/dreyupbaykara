@@ -21,7 +21,7 @@ const NAV: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/admin/leads", label: "Takvim", icon: CalendarDays },
   { href: "/admin/patients", label: "Hastalar", icon: UserRound },
   { href: "/admin/sources", label: "Kaynaklar", icon: Megaphone },
-  { href: "/admin/inbox", label: "WhatsApp", icon: Inbox },
+  { href: "/admin/messages", label: "WhatsApp", icon: Inbox },
   { href: "/admin/bot", label: "Bot", icon: Bot },
   { href: "/admin/content", label: "İçerik", icon: FileText },
   { href: "/admin/team", label: "Ekip", icon: Users },
@@ -60,7 +60,10 @@ export function AdminSidebar() {
                   : item.href === "/admin/content"
                     ? pathname.startsWith("/admin/content") ||
                       pathname.startsWith("/admin/media")
-                    : pathname.startsWith(item.href);
+                    : item.href === "/admin/messages"
+                      ? pathname.startsWith("/admin/messages") ||
+                        pathname.startsWith("/admin/inbox")
+                      : pathname.startsWith(item.href);
           const Icon = item.icon;
 
           return (

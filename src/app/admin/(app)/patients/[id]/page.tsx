@@ -122,7 +122,7 @@ export default async function PatientDetailPage({
             </Link>
           ) : null}
           <Link
-            href={`/admin/inbox?lead=${activeLead?.id ?? ""}`}
+            href={`/admin/messages?lead=${activeLead?.id ?? ""}`}
             className="rounded-full border border-[#0b6b45]/25 px-4 py-2 text-sm font-semibold text-[#0b6b45]"
           >
             WhatsApp

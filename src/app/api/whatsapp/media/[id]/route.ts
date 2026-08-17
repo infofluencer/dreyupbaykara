@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getWhatsAppConfig } from "@/lib/whatsapp/config";
 
 export const runtime = "nodejs";
 
@@ -24,8 +25,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const apiVersion = process.env.WHATSAPP_GRAPH_API_VERSION;
+  const { token, apiVersion } = getWhatsAppConfig();
   if (!token || !apiVersion) {
     return NextResponse.json(
       { error: "WhatsApp API yapılandırılmamış" },

@@ -21,7 +21,7 @@ const PRIMARY: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/admin", label: "Özet", icon: Gauge },
   { href: "/admin/leads", label: "Takvim", icon: CalendarDays },
   { href: "/admin/patients", label: "Hastalar", icon: UserRound },
-  { href: "/admin/inbox", label: "WhatsApp", icon: Inbox },
+  { href: "/admin/messages", label: "WhatsApp", icon: Inbox },
 ];
 
 const MORE: Array<{ href: string; label: string; icon: LucideIcon }> = [
@@ -44,6 +44,12 @@ function isActive(pathname: string, href: string) {
     return (
       pathname.startsWith("/admin/content") ||
       pathname.startsWith("/admin/media")
+    );
+  }
+  if (href === "/admin/messages" || href === "/admin/inbox") {
+    return (
+      pathname.startsWith("/admin/messages") ||
+      pathname.startsWith("/admin/inbox")
     );
   }
   return pathname.startsWith(href);

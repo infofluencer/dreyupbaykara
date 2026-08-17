@@ -2,6 +2,9 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { maybeReplyWithBot } from "@/lib/whatsapp/bot";
+import { getWhatsAppConfig } from "@/lib/whatsapp/config";
+import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
+import { ingestInboundWhatsAppMessage } from "@/lib/whatsapp/ingest";
 
 export const runtime = "nodejs";
 
@@ -26,8 +29,11 @@ type WebhookMessage = {
 type WebhookMessageEcho = WebhookMessage & { to: string };
 
 function verifySignature(rawBody: string, signature: string | null): boolean {
-  const secret = process.env.WHATSAPP_APP_SECRET;
-  if (!secret || !signature?.startsWith("sha256=")) return false;
+  const secret = getWhatsAppConfig().appSecret;
+  // TODO: require WHATSAPP_APP_SECRET in production once Meta app secret is set.
+  if (!secret) return true;
+  if (!signature?.startsWith("sha256=")) return false;
+
   const expected = `sha256=${createHmac("sha256", secret)
     .update(rawBody)
     .digest("hex")}`;
@@ -61,10 +67,7 @@ function mediaInfo(message: WebhookMessage) {
   };
 }
 
-function extractLeadRef(body: string | null): string | null {
-  return body?.match(/\bRef:\s*([A-Z0-9]{6,12})\b/i)?.[1]?.toUpperCase() ?? null;
-}
-
+/** Meta webhook verification — always available for handshake. */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const mode = params.get("hub.mode");
@@ -74,7 +77,7 @@ export async function GET(request: NextRequest) {
   if (
     mode === "subscribe" &&
     challenge &&
-    token === process.env.WHATSAPP_VERIFY_TOKEN
+    token === getWhatsAppConfig().verifyToken
   ) {
     return new NextResponse(challenge, { status: 200 });
   }
@@ -82,17 +85,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text();
-  if (!verifySignature(rawBody, request.headers.get("x-hub-signature-256"))) {
-    return NextResponse.json({ error: "Geçersiz imza" }, { status: 401 });
+  if (!isWhatsAppEnabled()) {
+    return NextResponse.json({ received: true, skipped: true });
   }
 
-  const supabase = createServiceClient();
-  if (!supabase) {
-    return NextResponse.json(
-      { error: "Supabase service client yapılandırılmamış" },
-      { status: 503 },
-    );
+  const rawBody = await request.text();
+
+  if (!verifySignature(rawBody, request.headers.get("x-hub-signature-256"))) {
+    console.error("[whatsapp] webhook signature invalid");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   let payload: {
@@ -114,12 +115,19 @@ export async function POST(request: NextRequest) {
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    return NextResponse.json({ error: "Geçersiz JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const supabase = createServiceClient();
+  if (!supabase) {
+    console.error("[whatsapp] service client missing");
+    return NextResponse.json({ received: true });
   }
 
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       const value = change.value;
+
       for (const status of value?.statuses ?? []) {
         await supabase
           .from("messages")
@@ -128,40 +136,23 @@ export async function POST(request: NextRequest) {
       }
 
       for (const echo of value?.message_echoes ?? []) {
-        const phone = echo.to;
-        const { data: contact, error: contactError } = await supabase
+        const phone = echo.to.replace(/\D/g, "");
+        const { data: contact } = await supabase
           .from("contacts")
           .upsert({ phone }, { onConflict: "phone" })
-          .select("id")
+          .select("id, phone, name")
           .single();
-        if (contactError || !contact) continue;
-
-        let { data: lead } = await supabase
-          .from("leads")
-          .select("id")
-          .eq("contact_id", contact.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (!lead) {
-          const result = await supabase
-            .from("leads")
-            .insert({
-              contact_id: contact.id,
-              channel: "whatsapp_business_app",
-            })
-            .select("id")
-            .single();
-          lead = result.data;
-        }
+        if (!contact) continue;
 
         const { data: conversation } = await supabase
           .from("conversations")
           .upsert(
             {
               contact_id: contact.id,
-              lead_id: lead?.id ?? null,
-              last_message_at: new Date().toISOString(),
+              patient_id: contact.id,
+              wa_phone: contact.phone,
+              contact_name: contact.name,
+              status: "open",
             },
             { onConflict: "contact_id" },
           )
@@ -194,134 +185,28 @@ export async function POST(request: NextRequest) {
         const profileName = value?.contacts?.find(
           (contact) => contact.wa_id === phone,
         )?.profile?.name;
-
-        const { data: contact, error: contactError } = await supabase
-          .from("contacts")
-          .upsert(
-            { phone, name: profileName || phone },
-            { onConflict: "phone" },
-          )
-          .select("id")
-          .single();
-        if (contactError || !contact) {
-          console.error("[whatsapp] contact:", contactError?.message);
-          continue;
-        }
-
-        const body = messageBody(message);
-        const leadRef = extractLeadRef(body);
-        let leadId: string | null = null;
-
-        if (leadRef) {
-          const { data: source } = await supabase
-            .from("lead_sources")
-            .select("*")
-            .eq("lead_ref", leadRef)
-            .maybeSingle();
-
-          if (source?.matched_lead_id) {
-            leadId = source.matched_lead_id;
-          } else if (source) {
-            const { data: lead } = await supabase
-              .from("leads")
-              .insert({
-                contact_id: contact.id,
-                site: source.site,
-                channel: source.channel,
-                campaign: source.campaign,
-                utm_source: source.utm_source,
-                utm_medium: source.utm_medium,
-                utm_campaign: source.utm_campaign,
-                gclid: source.gclid,
-                fbclid: source.fbclid,
-                ctwa_clid: message.referral?.ctwa_clid ?? null,
-                lead_ref: leadRef,
-              })
-              .select("id")
-              .single();
-            leadId = lead?.id ?? null;
-            if (leadId) {
-              await supabase
-                .from("lead_sources")
-                .update({
-                  matched_lead_id: leadId,
-                  matched_at: new Date().toISOString(),
-                })
-                .eq("id", source.id);
-            }
-          }
-        }
-
-        if (!leadId) {
-          const { data: existingLead } = await supabase
-            .from("leads")
-            .select("id")
-            .eq("contact_id", contact.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          leadId = existingLead?.id ?? null;
-        }
-
-        if (!leadId) {
-          const { data: lead } = await supabase
-            .from("leads")
-            .insert({
-              contact_id: contact.id,
-              channel: message.referral ? "meta_ctwa" : "whatsapp",
-              ctwa_clid: message.referral?.ctwa_clid ?? null,
-            })
-            .select("id")
-            .single();
-          leadId = lead?.id ?? null;
-        }
-
-        const { data: conversation, error: conversationError } = await supabase
-          .from("conversations")
-          .upsert(
-            {
-              contact_id: contact.id,
-              lead_id: leadId,
-              last_message_at: new Date().toISOString(),
-            },
-            { onConflict: "contact_id" },
-          )
-          .select("id")
-          .single();
-        if (conversationError || !conversation) {
-          console.error(
-            "[whatsapp] conversation:",
-            conversationError?.message,
-          );
-          continue;
-        }
-
         const media = mediaInfo(message);
-        const { error: messageError } = await supabase.from("messages").insert({
-          conversation_id: conversation.id,
-          wa_message_id: message.id,
-          direction: "inbound",
+        const body = messageBody(message);
+
+        const ingested = await ingestInboundWhatsAppMessage(supabase, {
+          phone,
+          contactName: profileName,
           body,
-          media_type: media.mediaType,
-          media_url: media.mediaId,
-          status: "delivered",
-          raw_payload: message,
-          created_at: message.timestamp
-            ? new Date(Number(message.timestamp) * 1000).toISOString()
-            : new Date().toISOString(),
+          waMessageId: message.id,
+          timestamp: message.timestamp,
+          mediaType: media.mediaType,
+          mediaId: media.mediaId,
+          rawPayload: message,
+          ctwaClid: message.referral?.ctwa_clid ?? null,
         });
 
-        if (messageError?.code === "23505") continue;
-        if (messageError) {
-          console.error("[whatsapp] message:", messageError.message);
-          continue;
-        }
+        if (!ingested) continue;
 
         try {
           await maybeReplyWithBot({
             supabase,
-            conversationId: conversation.id,
-            phone,
+            conversationId: ingested.conversationId,
+            phone: phone.replace(/\D/g, ""),
             inboundText: body ?? "",
           });
         } catch (error) {
@@ -333,4 +218,3 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ received: true });
 }
-

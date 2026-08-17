@@ -71,12 +71,21 @@ export type Lead = {
 export type Conversation = {
   id: string;
   contact_id: string;
+  patient_id: string | null;
   lead_id: string | null;
-  wa_conversation_id: string | null;
+  wa_phone: string | null;
+  contact_name: string | null;
+  status: "open" | "pending" | "closed";
   last_message_at: string | null;
+  last_message_preview: string | null;
+  last_message_direction: "inbound" | "outbound" | null;
+  unread_count: number;
+  assigned_to: string | null;
+  wa_conversation_id: string | null;
   locked_by: string | null;
   locked_at: string | null;
   created_at: string;
+  updated_at?: string;
 };
 
 export type MessageDirection = "inbound" | "outbound";
@@ -85,7 +94,8 @@ export type MessageStatus =
   | "sent"
   | "delivered"
   | "read"
-  | "failed";
+  | "failed"
+  | "received";
 
 export type Message = {
   id: string;
@@ -97,5 +107,6 @@ export type Message = {
   media_url: string | null;
   status: MessageStatus;
   sent_by: string | null;
+  automated?: boolean;
   created_at: string;
 };
