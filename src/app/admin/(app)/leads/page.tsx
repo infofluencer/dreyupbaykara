@@ -3,7 +3,6 @@ import { AppointmentQuickForm } from "@/components/admin/schedule/AppointmentQui
 import { CalendarInspectDate } from "@/components/admin/schedule/CalendarInspectDate";
 import { DayAppointments } from "@/components/admin/schedule/DayAppointments";
 import { planHref, type PlanView } from "@/components/admin/schedule/href";
-import { LeadQueue } from "@/components/admin/schedule/LeadQueue";
 import { MonthCalendar } from "@/components/admin/schedule/MonthCalendar";
 import { WeekList } from "@/components/admin/schedule/WeekList";
 import { YearCalendar } from "@/components/admin/schedule/YearCalendar";
@@ -57,6 +56,7 @@ export default async function AdminLeadsPage({
   const selectedLeadId = query.lead;
   const slot = parseSlot(query.slot);
   const activeSlot = query.slot?.match(/^\d{2}:\d{2}$/) ? query.slot : undefined;
+  const formDefaultOpen = Boolean(selectedLeadId || query.error || activeSlot);
   const weekStart = startOfWeekMonday(date);
   const monthDate = new Date(`${date}T12:00:00+03:00`);
   const year = monthDate.getUTCFullYear();
@@ -151,8 +151,8 @@ export default async function AdminLeadsPage({
             Takvim
           </h1>
           <p className="mt-1 hidden text-sm text-[#466254] sm:block">
-            Üstten tarih seçip günü inceleyin. Randevu tarihi ve saati formdan
-            girilir; yeşil kutu yalnızca dolu saati gösterir.
+            Günün saatlerini inceleyin; randevu eklemek için + Randevu ekle
+            butonunu kullanın.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -232,38 +232,58 @@ export default async function AdminLeadsPage({
         ))}
       </div>
 
-      {leadsError ? (
-        <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
-          {leadsError.message}
-        </p>
-      ) : null}
       {error ? (
         <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
           {error.message}
         </p>
       ) : null}
 
-      <AppointmentQuickForm
-        leads={visibleLeads}
-        selectedLeadId={selectedLeadId}
-        date={date}
-        time={activeSlot ?? `${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`}
-        view={view}
-        error={query.error}
-      />
+      {view === "day" ? (
+        <section className="rounded-2xl border border-[#123524]/10 bg-white p-3 sm:p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold capitalize">
+                {date === todayYmd
+                  ? `Bugün · ${formatDateLongTr(`${date}T12:00:00+03:00`)}`
+                  : formatDateLongTr(`${date}T12:00:00+03:00`)}
+              </h2>
+              <p className="mt-1 hidden text-xs text-[#466254] sm:block">
+                08:00–20:00. Soluk kutular boş; yeşil kutularda hasta adı ve tür
+                görünür.
+              </p>
+            </div>
+          </div>
 
-      <div className="grid gap-4 xl:grid-cols-[20rem_minmax(0,1fr)]">
-        <div className="order-2 xl:order-1">
-        <LeadQueue
-          leads={visibleLeads}
-          selectedLeadId={selectedLeadId}
-          view={view}
-          date={date}
-          stage={stage}
-          search={search}
-        />
-        </div>
-        <section className="order-1 rounded-2xl border border-[#123524]/10 bg-white p-3 sm:p-4 xl:order-2">
+          {leadsError ? (
+            <p className="mt-3 rounded-xl bg-red-50 p-4 text-sm text-red-700">
+              {leadsError.message}
+            </p>
+          ) : null}
+
+          <div className="mt-3">
+            <AppointmentQuickForm
+              leads={visibleLeads}
+              selectedLeadId={selectedLeadId}
+              date={date}
+              time={
+                activeSlot ??
+                `${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`
+              }
+              view={view}
+              error={query.error}
+              defaultOpen={formDefaultOpen}
+            />
+          </div>
+
+          <DayAppointments
+            date={date}
+            todayYmd={todayYmd}
+            appointments={items}
+            emptyText="Bu tarihte randevu yok. + Randevu ekle ile yeni kayıt açın."
+          />
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-[#123524]/10 bg-white p-3 sm:p-4">
           {view === "week" ? (
             <WeekList
               weekStart={weekStart}
@@ -285,7 +305,7 @@ export default async function AdminLeadsPage({
               stage={stage}
               search={search}
             />
-          ) : view === "year" ? (
+          ) : (
             <YearCalendar
               year={year}
               todayYmd={todayYmd}
@@ -294,28 +314,31 @@ export default async function AdminLeadsPage({
               stage={stage}
               search={search}
             />
-          ) : (
-            <>
-              <h2 className="font-semibold capitalize">
-                {date === todayYmd
-                  ? `Bugün · ${formatDateLongTr(`${date}T12:00:00+03:00`)}`
-                  : formatDateLongTr(`${date}T12:00:00+03:00`)}
-              </h2>
-              <p className="mt-1 hidden text-xs text-[#466254] sm:block">
-                08:00–20:00 kare dilimler. Yeşil kutu dolu saattir. Başka bir
-                günü görmek için üstten tarih seçin veya ay görünümünden güne
-                tıklayın.
-              </p>
-              <DayAppointments
-                date={date}
-                todayYmd={todayYmd}
-                appointments={items}
-                emptyText="Bu tarihte randevu yok. Tarihi ve saati yukarıdaki formdan girin."
-              />
-            </>
           )}
         </section>
-      </div>
+      )}
+
+      {view !== "day" ? (
+        <>
+          {leadsError ? (
+            <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
+              {leadsError.message}
+            </p>
+          ) : null}
+          <AppointmentQuickForm
+            leads={visibleLeads}
+            selectedLeadId={selectedLeadId}
+            date={date}
+            time={
+              activeSlot ??
+              `${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`
+            }
+            view={view}
+            error={query.error}
+            defaultOpen={formDefaultOpen}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

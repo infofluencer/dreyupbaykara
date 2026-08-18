@@ -1,6 +1,11 @@
 import Link from "next/link";
+import {
+  markLeadAppointmentStatus,
+  markLeadContacted,
+} from "@/app/admin/actions";
 import { AdminSourcePie } from "@/components/admin/AdminSourcePie";
-import { TodayLeadWorklist } from "@/components/admin/TodayLeadWorklist";
+import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
+import type { TodayLeadRow } from "@/components/admin/TodayLeadWorklist";
 import {
   classifyAdPlatform,
   classifySourceEvent,
@@ -11,10 +16,8 @@ import {
   type AdPlatform,
   type SourceEvent,
 } from "@/lib/crm/source-kind";
-import { asLeadStatus } from "@/lib/crm/lead-status";
 import { loadTodayLeadWorklist } from "@/lib/crm/today-leads";
 import { getIstanbulTodayYmd } from "@/lib/date/now";
-import { startOfWeekMonday } from "@/lib/date/tr";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,19 +30,13 @@ export default async function AdminHomePage() {
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const apiEnabled = isWhatsAppEnabled();
 
-  let leadCount: number | null = null;
-  let newLeadCount: number | null = null;
-  let patientCount: number | null = null;
-  let appointmentCount: number | null = null;
-  let contentCount: number | null = null;
+  let newLeadCount = 0;
+  let appointmentCount = 0;
   let userEmail: string | null = null;
   let waOpen = 0;
   let waUnread = 0;
   let waTodayInbound = 0;
   let waAwaiting = 0;
-  let weekNewLeads = 0;
-  let convertedLeads = 0;
-  const statusBar = { yeni: 0, randevulu: 0, donustu: 0, kayip: 0 };
   let todayWork = { yeni: [], bugun: [], geciken: [] } as Awaited<
     ReturnType<typeof loadTodayLeadWorklist>
   >;
@@ -63,26 +60,19 @@ export default async function AdminHomePage() {
     userEmail = user?.email ?? null;
 
     const todayYmd = await getIstanbulTodayYmd();
-    const weekStart = startOfWeekMonday(todayYmd);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const [
-      { count: total },
       { count: fresh },
-      { count: patients },
       { count: appointments },
-      { count: contents },
       { data: sourceRows },
-      { data: pipelineRows, error: pipelineError },
     ] = await Promise.all([
-      supabase.from("leads").select("*", { count: "exact", head: true }),
       supabase
         .from("leads")
         .select("*", { count: "exact", head: true })
         .eq("stage", "new"),
-      supabase.from("contacts").select("*", { count: "exact", head: true }),
       supabase
         .from("appointments")
         .select("*", { count: "exact", head: true })
@@ -90,15 +80,11 @@ export default async function AdminHomePage() {
         .lt("starts_at", tomorrow.toISOString())
         .neq("status", "cancelled"),
       supabase
-        .from("content_pages")
-        .select("*", { count: "exact", head: true }),
-      supabase
         .from("lead_source_report")
         .select(
           "channel, utm_source, utm_medium, utm_campaign, campaign, gclid, fbclid",
         )
         .limit(5000),
-      supabase.from("leads").select("status, created_at").limit(5000),
     ]);
 
     const waStats = await Promise.all([
@@ -115,11 +101,8 @@ export default async function AdminHomePage() {
     ]);
     const [{ data: waRows }, { count: todayInbound }] = waStats;
 
-    leadCount = total ?? 0;
     newLeadCount = fresh ?? 0;
-    patientCount = patients ?? 0;
     appointmentCount = appointments ?? 0;
-    contentCount = contents ?? 0;
     waTodayInbound = todayInbound ?? 0;
 
     for (const row of waRows ?? []) {
@@ -138,30 +121,14 @@ export default async function AdminHomePage() {
       eventCounts[classifySourceEvent(row.channel)] += 1;
     }
 
-    if (!pipelineError) {
-      for (const row of pipelineRows ?? []) {
-        const status = asLeadStatus(row.status);
-        if (status === "yeni") statusBar.yeni += 1;
-        if (status === "muayene_randevusu") statusBar.randevulu += 1;
-        if (status === "donustu") {
-          statusBar.donustu += 1;
-          convertedLeads += 1;
-        }
-        if (status === "kayip" || status === "iptal") statusBar.kayip += 1;
-        if (row.created_at) {
-          const created = new Date(row.created_at).toLocaleDateString("en-CA", {
-            timeZone: "Europe/Istanbul",
-          });
-          if (created >= weekStart) weekNewLeads += 1;
-        }
-      }
-      try {
-        todayWork = await loadTodayLeadWorklist(todayYmd);
-      } catch {
-        /* migration henüz yoksa özet yine açılsın */
-      }
+    try {
+      todayWork = await loadTodayLeadWorklist(todayYmd);
+    } catch {
+      /* migration henüz yoksa özet yine açılsın */
     }
   }
+
+  const callList = mergeTodayCalls(todayWork);
 
   return (
     <div className="space-y-8">
@@ -169,11 +136,18 @@ export default async function AdminHomePage() {
         <h1 className="font-[family-name:var(--font-instrument-sans)] text-xl font-semibold tracking-tight sm:text-3xl">
           Özet
         </h1>
-        <p className="mt-2 text-sm text-[#466254]">
-          {userEmail
-            ? `Giriş: ${userEmail}`
-            : "Supabase bağlandığında burada özet görünecek."}
-        </p>
+        {configured ? (
+          <p className="mt-2 text-sm text-[#466254]">
+            Bugün: {appointmentCount} randevu · {newLeadCount} yeni talep
+            {userEmail ? (
+              <span className="hidden sm:inline"> · {userEmail}</span>
+            ) : null}
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-[#466254]">
+            Supabase bağlandığında burada özet görünecek.
+          </p>
+        )}
       </div>
 
       {!configured ? (
@@ -196,18 +170,77 @@ export default async function AdminHomePage() {
           </ol>
         </div>
       ) : (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <StatCard label="Hasta" value={String(patientCount ?? 0)} />
-            <StatCard label="Toplam talep" value={String(leadCount ?? 0)} />
-            <StatCard label="Yeni talep" value={String(newLeadCount ?? 0)} />
-            <StatCard
-              label="Bugünkü randevu"
-              value={String(appointmentCount ?? 0)}
-            />
-            <StatCard label="İçerik" value={String(contentCount ?? 0)} />
+        <section className="rounded-2xl border border-[#123524]/08 bg-white px-5 py-5">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
+                Bugün aranacaklar
+              </h2>
+              <p className="mt-1 text-sm text-[#466254]">
+                Gecikenler üstte. Ara veya randevu olarak işaretleyin.
+              </p>
+            </div>
+            <Link
+              href="/admin/pipeline"
+              className="text-sm font-semibold text-[#0b6b45]"
+            >
+              Tüm talepler →
+            </Link>
           </div>
+          {!callList.length ? (
+            <p className="mt-8 pb-2 text-center text-sm text-[#466254]">
+              Bugün aranacak kimse yok 👍
+            </p>
+          ) : (
+            <ul className="mt-4 divide-y divide-[#123524]/08">
+              {callList.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/admin/pipeline?lead=${row.id}`}
+                        className="font-semibold text-[#123524] hover:text-[#0b6b45]"
+                      >
+                        {row.contact_name || row.phone || "İsimsiz"}
+                      </Link>
+                      <LeadStatusBadge status={row.status} />
+                      {row.delayed ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+                          Gecikmiş
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-0.5 text-sm text-[#466254]">
+                      {row.phone}
+                      {row.next_action_note ? ` · ${row.next_action_note}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <form action={markLeadContacted}>
+                      <input type="hidden" name="lead_id" value={row.id} />
+                      <button className="rounded-full bg-[#0b6b45] px-3 py-1.5 text-xs font-semibold text-white">
+                        Ara / işaretle
+                      </button>
+                    </form>
+                    <form action={markLeadAppointmentStatus}>
+                      <input type="hidden" name="lead_id" value={row.id} />
+                      <button className="rounded-full border border-[#0b6b45]/25 px-3 py-1.5 text-xs font-semibold text-[#0b6b45]">
+                        Randevu ver
+                      </button>
+                    </form>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
+      {configured ? (
+        <>
           <Link
             href="/admin/messages"
             className="relative block rounded-2xl border border-[#123524]/08 bg-white px-5 py-5 transition active:border-[#0b6b45]/30"
@@ -229,99 +262,35 @@ export default async function AdminHomePage() {
             </div>
           </Link>
 
-          <div className="rounded-2xl border border-[#123524]/08 bg-white px-5 py-5">
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-[#0b6b45]">Talepler</p>
-                <p className="mt-1 text-sm text-[#466254]">
-                  Bu hafta {weekNewLeads} yeni · dönüşüm{" "}
-                  {leadCount
-                    ? Math.round((convertedLeads / leadCount) * 100)
-                    : 0}
-                  %
-                </p>
-              </div>
-              <Link
-                href="/admin/pipeline"
-                className="text-sm font-semibold text-[#0b6b45]"
-              >
-                Listeye git →
-              </Link>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {(
-                [
-                  ["Yeni", statusBar.yeni, "#0b6b45"],
-                  ["Randevulu", statusBar.randevulu, "#1d4ed8"],
-                  ["Dönüştü", statusBar.donustu, "#166534"],
-                  ["Kayıp", statusBar.kayip, "#b91c1c"],
-                ] as const
-              ).map(([label, value, color]) => {
-                const max = Math.max(
-                  statusBar.yeni,
-                  statusBar.randevulu,
-                  statusBar.donustu,
-                  statusBar.kayip,
-                  1,
-                );
-                return (
-                  <div key={label}>
-                    <p className="text-xs text-[#466254]">{label}</p>
-                    <p className="mt-0.5 font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold">
-                      {value}
-                    </p>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#f4f6f5]">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.round((value / max) * 100)}%`,
-                          backgroundColor: color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <AdminSourcePie
+              title="Kaynaklar"
+              hint="Reklam / organik dağılım"
+              totalLabel="kayıt"
+              href="/admin/sources"
+              slices={PLATFORMS.map((id) => ({
+                id,
+                label: PLATFORM_LABEL[id],
+                value: platformCounts[id],
+                color: PLATFORM_COLOR[id],
+                href: `/admin/sources?platform=${id}`,
+              }))}
+            />
+            <AdminSourcePie
+              title="Ne yaptı?"
+              hint="Site, WhatsApp veya form"
+              totalLabel="kayıt"
+              href="/admin/sources"
+              slices={EVENTS.map((id) => ({
+                id,
+                label: EVENT_LABEL[id],
+                value: eventCounts[id],
+                color: EVENT_COLOR[id],
+                href: `/admin/sources?event=${id}`,
+              }))}
+            />
           </div>
-
-          <TodayLeadWorklist
-            yeni={todayWork.yeni}
-            bugun={todayWork.bugun}
-            geciken={todayWork.geciken}
-          />
         </>
-      )}
-
-      {configured ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <AdminSourcePie
-            title="Kaynaklar"
-            hint="Reklam / organik dağılım"
-            totalLabel="kayıt"
-            href="/admin/sources"
-            slices={PLATFORMS.map((id) => ({
-              id,
-              label: PLATFORM_LABEL[id],
-              value: platformCounts[id],
-              color: PLATFORM_COLOR[id],
-              href: `/admin/sources?platform=${id}`,
-            }))}
-          />
-          <AdminSourcePie
-            title="Ne yaptı?"
-            hint="Site, WhatsApp veya form"
-            totalLabel="kayıt"
-            href="/admin/sources"
-            slices={EVENTS.map((id) => ({
-              id,
-              label: EVENT_LABEL[id],
-              value: eventCounts[id],
-              color: EVENT_COLOR[id],
-              href: `/admin/sources?event=${id}`,
-            }))}
-          />
-        </div>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -360,15 +329,29 @@ export default async function AdminHomePage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-[#123524]/08 bg-white px-4 py-3.5 sm:px-5 sm:py-4">
-      <p className="text-sm text-[#466254]">{label}</p>
-      <p className="mt-1 font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold sm:mt-2 sm:text-3xl">
-        {value}
-      </p>
-    </div>
-  );
+function mergeTodayCalls(todayWork: {
+  yeni: TodayLeadRow[];
+  bugun: TodayLeadRow[];
+  geciken: TodayLeadRow[];
+}) {
+  const seen = new Set<string>();
+  const list: Array<TodayLeadRow & { delayed?: boolean }> = [];
+  for (const row of todayWork.geciken) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    list.push({ ...row, delayed: true });
+  }
+  for (const row of todayWork.bugun) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    list.push(row);
+  }
+  for (const row of todayWork.yeni) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    list.push(row);
+  }
+  return list;
 }
 
 function MiniStat({ label, value }: { label: string; value: number }) {

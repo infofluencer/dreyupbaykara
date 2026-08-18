@@ -4,14 +4,13 @@ import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
+  markLeadAppointmentStatus,
+  markLeadContacted,
   stampLeadContacted,
   updateLeadPipeline,
 } from "@/app/admin/actions";
 import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
-import {
-  classifyAdPlatform,
-  PLATFORM_LABEL,
-} from "@/lib/crm/source-kind";
+import { classifyAdPlatform, PLATFORM_LABEL } from "@/lib/crm/source-kind";
 import {
   asLeadStatus,
   isLostLikeStatus,
@@ -122,17 +121,18 @@ export function LeadPipelineBoard({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-2xl border border-[#123524]/08 bg-white p-4">
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") setParams({ q: search });
-          }}
-          placeholder="Ad veya telefon ara…"
-          aria-label="Taleplerde ara"
-          className="w-full rounded-xl border border-[#123524]/15 px-3 py-2.5 text-sm outline-none focus:border-[#0b6b45]"
-        />
+      <input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") setParams({ q: search });
+        }}
+        placeholder="Ad veya telefon ara…"
+        aria-label="Taleplerde ara"
+        className="w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b6b45]"
+      />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-1.5">
           {LEAD_STATUS_FILTERS.map((item) => (
             <button
@@ -149,30 +149,21 @@ export function LeadPipelineBoard({
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setParams({ sort: "newest" })}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              sort === "newest"
-                ? "bg-[#123524] text-white"
-                : "border border-[#123524]/15 text-[#466254]"
-            }`}
+        <label className="flex shrink-0 items-center gap-2 text-sm text-[#466254]">
+          <span className="font-medium">Sırala:</span>
+          <select
+            value={sort}
+            onChange={(event) =>
+              setParams({
+                sort: event.target.value === "action" ? "action" : "newest",
+              })
+            }
+            className="rounded-xl border border-[#123524]/15 bg-white px-3 py-2 text-sm font-semibold text-[#123524] outline-none focus:border-[#0b6b45]"
           >
-            En yeni
-          </button>
-          <button
-            type="button"
-            onClick={() => setParams({ sort: "action" })}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              sort === "action"
-                ? "bg-[#123524] text-white"
-                : "border border-[#123524]/15 text-[#466254]"
-            }`}
-          >
-            Sıradaki aksiyon
-          </button>
-        </div>
+            <option value="newest">En yeni</option>
+            <option value="action">Sıradaki aksiyon</option>
+          </select>
+        </label>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-[#123524]/08 bg-white">
@@ -183,42 +174,42 @@ export function LeadPipelineBoard({
         ) : (
           <div className="divide-y divide-[#123524]/08">
             {filtered.map((row) => {
-              const platform = classifyAdPlatform(row);
               const active = row.id === selectedId;
               return (
-                <button
+                <div
                   key={row.id}
-                  type="button"
-                  onClick={() => openLead(row.id)}
-                  className={`grid w-full grid-cols-1 gap-2 px-4 py-3.5 text-left transition hover:bg-[#f7f9f8] sm:grid-cols-[1.3fr_.7fr_.9fr_.8fr_.8fr] sm:items-center ${
-                    active ? "bg-[#e7f5ed]" : ""
+                  className={`flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between ${
+                    active ? "bg-[#e7f5ed]" : "hover:bg-[#f7f9f8]"
                   }`}
                 >
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-[#123524]">
-                      {row.contact_name || "İsimsiz"}
-                    </p>
-                    <p className="text-xs text-[#466254]">{row.phone}</p>
+                  <button
+                    type="button"
+                    onClick={() => openLead(row.id)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-semibold text-[#123524]">
+                        {row.contact_name || "İsimsiz"}
+                      </p>
+                      <LeadStatusBadge status={row.status} />
+                    </div>
+                    <p className="mt-0.5 text-sm text-[#466254]">{row.phone}</p>
+                  </button>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <form action={markLeadContacted}>
+                      <input type="hidden" name="lead_id" value={row.id} />
+                      <button className="rounded-full bg-[#0b6b45] px-3.5 py-1.5 text-xs font-semibold text-white">
+                        Ara / işaretle
+                      </button>
+                    </form>
+                    <form action={markLeadAppointmentStatus}>
+                      <input type="hidden" name="lead_id" value={row.id} />
+                      <button className="rounded-full border border-[#0b6b45]/25 px-3.5 py-1.5 text-xs font-semibold text-[#0b6b45]">
+                        Randevu ver
+                      </button>
+                    </form>
                   </div>
-                  <span className="w-fit rounded-full bg-[#f4f6f5] px-2.5 py-0.5 text-[11px] font-semibold text-[#466254]">
-                    {PLATFORM_LABEL[platform]}
-                  </span>
-                  <LeadStatusBadge status={row.status} />
-                  <p className="text-xs text-[#466254]">
-                    {row.last_contacted_at
-                      ? new Date(row.last_contacted_at).toLocaleString("tr-TR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                  </p>
-                  <p className="text-xs text-[#466254]">
-                    {row.next_action_at || "—"}
-                    {row.assignee_name ? ` · ${row.assignee_name}` : ""}
-                  </p>
-                </button>
+                </div>
               );
             })}
           </div>

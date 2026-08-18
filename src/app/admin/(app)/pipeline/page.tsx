@@ -1,12 +1,9 @@
 import { LeadPipelineBoard } from "@/components/admin/LeadPipelineBoard";
-import { TodayLeadWorklist } from "@/components/admin/TodayLeadWorklist";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
   LEAD_STATUS_FILTERS,
   type LeadStatusFilter,
 } from "@/lib/crm/lead-status";
-import { loadTodayLeadWorklist } from "@/lib/crm/today-leads";
-import { getIstanbulTodayYmd } from "@/lib/date/now";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AdminPipelinePage({
@@ -33,10 +30,9 @@ export default async function AdminPipelinePage({
   const sort = query.sort === "action" ? "action" : "newest";
   const search = query.q?.trim() ?? "";
   const selectedId = query.lead ?? null;
-  const todayYmd = await getIstanbulTodayYmd();
   const supabase = await createClient();
 
-  const [{ data: leadRows, error }, { data: staff }, today] = await Promise.all([
+  const [{ data: leadRows, error }, { data: staff }] = await Promise.all([
     supabase
       .from("leads")
       .select(
@@ -58,7 +54,6 @@ export default async function AdminPipelinePage({
       .select("id, full_name, role")
       .in("role", ["admin", "doctor", "assistant"])
       .order("full_name"),
-    loadTodayLeadWorklist(todayYmd),
   ]);
 
   if (error) {
@@ -140,15 +135,9 @@ export default async function AdminPipelinePage({
           Talepler
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-[#466254]">
-          Her lead’in durumunu takip edin. Hiçbir talep düşmesin; asistan
-          bugün kimi arayacağını burada görür.
+          Tüm taleplerin listesi. Ara, durum güncelle veya randevu verin.
         </p>
       </div>
-      <TodayLeadWorklist
-        yeni={today.yeni}
-        bugun={today.bugun}
-        geciken={today.geciken}
-      />
       <LeadPipelineBoard
         leads={leads}
         selectedId={selectedId}

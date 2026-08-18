@@ -19,6 +19,7 @@ export function AppointmentQuickForm({
   time,
   view,
   error,
+  defaultOpen = false,
 }: {
   leads: ScheduleLead[];
   selectedLeadId?: string;
@@ -26,11 +27,13 @@ export function AppointmentQuickForm({
   time: string;
   view?: PlanView;
   error?: string | null;
+  defaultOpen?: boolean;
 }) {
   const router = useRouter();
   const initial = selectedLeadId
     ? firstRelation(leads.find((lead) => lead.id === selectedLeadId)?.contacts)
     : null;
+  const [open, setOpen] = useState(defaultOpen);
   const [leadId, setLeadId] = useState(selectedLeadId ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
@@ -44,7 +47,12 @@ export function AppointmentQuickForm({
     if (!error) return;
     setStatus("error");
     setMessage(error);
+    setOpen(true);
   }, [error]);
+
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
 
   function onLeadChange(nextId: string) {
     setLeadId(nextId);
@@ -104,11 +112,23 @@ export function AppointmentQuickForm({
 
   return (
     <>
-      <form
-        key={`${selectedLeadId ?? "new"}-${date}-${time}`}
-        onSubmit={onSubmit}
-        className="grid gap-3 rounded-2xl border border-[#123524]/10 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4 xl:items-end"
-      >
+      <div className="flex items-center justify-end">
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className="inline-flex min-h-10 items-center rounded-full border border-[#0b6b45]/25 bg-white px-4 text-sm font-semibold text-[#0b6b45]"
+          aria-expanded={open}
+        >
+          {open ? "Formu gizle" : "+ Randevu ekle"}
+        </button>
+      </div>
+
+      {open ? (
+        <form
+          key={`${selectedLeadId ?? "new"}-${date}-${time}`}
+          onSubmit={onSubmit}
+          className="mb-4 grid gap-3 rounded-2xl border border-[#123524]/10 bg-[#f7f9f8] p-4 sm:grid-cols-2 lg:grid-cols-4 xl:items-end"
+        >
         {view && view !== "day" ? (
           <input type="hidden" name="redirect_view" value={view} />
         ) : null}
@@ -191,11 +211,10 @@ export function AppointmentQuickForm({
         <TypeAndDurationFields />
         <label className="text-sm font-medium sm:col-span-2 lg:col-span-4">
           Not
-          <textarea
+          <input
             name="notes"
-            rows={3}
             placeholder="Örn. MR getirecek, refakatçi ile gelecek"
-            className="mt-1.5 min-h-[5.5rem] w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-3 text-base"
+            className="mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-3 text-base"
           />
         </label>
         <button
@@ -205,6 +224,7 @@ export function AppointmentQuickForm({
           Randevu ekle
         </button>
       </form>
+      ) : null}
       <AppointmentStatusDialog
         status={status}
         message={message}

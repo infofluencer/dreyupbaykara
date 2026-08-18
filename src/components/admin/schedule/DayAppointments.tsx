@@ -19,7 +19,7 @@ export function DayAppointments({
   emptyText: string;
 }) {
   return (
-    <div className="mt-4 space-y-3">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
         {SLOTS.map(({ hour, minute, label: slot }) => {
           const covering = appointments.filter((appointment) =>
@@ -40,20 +40,26 @@ export function DayAppointments({
           return (
             <div
               key={slot}
-              className={`flex min-h-[6.25rem] flex-col overflow-hidden rounded-2xl border p-2.5 sm:min-h-0 sm:aspect-square ${
+              className={`flex min-h-[6.5rem] flex-col overflow-hidden rounded-2xl border p-2.5 sm:min-h-0 sm:aspect-square ${
                 occupied
-                  ? "border-[#0b6b45]/25 bg-[#f3faf6]"
-                  : "border-[#123524]/10 bg-white"
+                  ? "border-[#0b6b45]/35 bg-[#e7f5ed] shadow-sm"
+                  : "border-[#123524]/06 bg-[#fafbfb] opacity-70"
               }`}
             >
               <div className="flex items-baseline justify-between gap-1">
-                <p className="text-sm font-semibold tabular-nums">{slot}</p>
+                <p
+                  className={`text-sm font-semibold tabular-nums ${
+                    occupied ? "text-[#123524]" : "text-[#8a9a90]"
+                  }`}
+                >
+                  {slot}
+                </p>
                 {occupied ? (
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-[#0b6b45]">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#0b6b45]">
                     Dolu
                   </span>
                 ) : (
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-[#8a9a90]">
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-[#b0bab4]">
                     Boş
                   </span>
                 )}
@@ -65,14 +71,14 @@ export function DayAppointments({
                       const info = appointmentInfo(appointment);
                       return (
                         <div key={appointment.id} className="space-y-1">
-                          <p className="text-xs font-semibold leading-snug text-[#123524]">
+                          <p className="text-sm font-semibold leading-snug text-[#123524]">
                             {info.name}
                           </p>
-                          <p className="text-[10px] leading-snug text-[#466254]">
-                            {info.duration} · {info.status}
+                          <p className="text-xs font-medium leading-snug text-[#0b6b45]">
+                            {info.type}
                           </p>
                           {info.notes ? (
-                            <p className="line-clamp-2 text-[10px] leading-snug text-[#24543e]">
+                            <p className="line-clamp-2 text-[11px] leading-snug text-[#466254]">
                               {info.notes}
                             </p>
                           ) : null}
@@ -103,16 +109,14 @@ export function DayAppointments({
                           key={`${appointment.id}-cont`}
                           className="rounded-lg bg-[#d8efe3] px-1.5 py-1 text-[10px] font-medium leading-snug text-[#24543e]"
                         >
-                          {info.name} devam ediyor
+                          {info.name} · {info.type} devam ediyor
                         </p>
                       );
                     })}
                   </div>
                 ) : (
-                  <p className="text-[11px] leading-snug text-[#8a9a90]">
-                    {date === todayYmd
-                      ? "Bu saat boş"
-                      : "Bu tarihte boş"}
+                  <p className="text-[11px] leading-snug text-[#b0bab4]">
+                    {date === todayYmd ? "Boş" : "Boş"}
                   </p>
                 )}
               </div>
