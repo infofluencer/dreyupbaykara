@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminSourcePie } from "@/components/admin/AdminSourcePie";
+import { TodayLeadWorklist } from "@/components/admin/TodayLeadWorklist";
 import {
   classifyAdPlatform,
   classifySourceEvent,
@@ -10,6 +11,10 @@ import {
   type AdPlatform,
   type SourceEvent,
 } from "@/lib/crm/source-kind";
+import { asLeadStatus } from "@/lib/crm/lead-status";
+import { loadTodayLeadWorklist } from "@/lib/crm/today-leads";
+import { getIstanbulTodayYmd } from "@/lib/date/now";
+import { startOfWeekMonday } from "@/lib/date/tr";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,6 +37,12 @@ export default async function AdminHomePage() {
   let waUnread = 0;
   let waTodayInbound = 0;
   let waAwaiting = 0;
+  let weekNewLeads = 0;
+  let convertedLeads = 0;
+  const statusBar = { yeni: 0, randevulu: 0, donustu: 0, kayip: 0 };
+  let todayWork = { yeni: [], bugun: [], geciken: [] } as Awaited<
+    ReturnType<typeof loadTodayLeadWorklist>
+  >;
   const platformCounts: Record<AdPlatform, number> = {
     google_ads: 0,
     meta: 0,
@@ -51,6 +62,8 @@ export default async function AdminHomePage() {
     } = await supabase.auth.getUser();
     userEmail = user?.email ?? null;
 
+    const todayYmd = await getIstanbulTodayYmd();
+    const weekStart = startOfWeekMonday(todayYmd);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -62,6 +75,7 @@ export default async function AdminHomePage() {
       { count: appointments },
       { count: contents },
       { data: sourceRows },
+      { data: pipelineRows, error: pipelineError },
     ] = await Promise.all([
       supabase.from("leads").select("*", { count: "exact", head: true }),
       supabase
@@ -84,6 +98,7 @@ export default async function AdminHomePage() {
           "channel, utm_source, utm_medium, utm_campaign, campaign, gclid, fbclid",
         )
         .limit(5000),
+      supabase.from("leads").select("status, created_at").limit(5000),
     ]);
 
     const waStats = await Promise.all([
@@ -121,6 +136,30 @@ export default async function AdminHomePage() {
     for (const row of sourceRows ?? []) {
       platformCounts[classifyAdPlatform(row)] += 1;
       eventCounts[classifySourceEvent(row.channel)] += 1;
+    }
+
+    if (!pipelineError) {
+      for (const row of pipelineRows ?? []) {
+        const status = asLeadStatus(row.status);
+        if (status === "yeni") statusBar.yeni += 1;
+        if (status === "muayene_randevusu") statusBar.randevulu += 1;
+        if (status === "donustu") {
+          statusBar.donustu += 1;
+          convertedLeads += 1;
+        }
+        if (status === "kayip" || status === "iptal") statusBar.kayip += 1;
+        if (row.created_at) {
+          const created = new Date(row.created_at).toLocaleDateString("en-CA", {
+            timeZone: "Europe/Istanbul",
+          });
+          if (created >= weekStart) weekNewLeads += 1;
+        }
+      }
+      try {
+        todayWork = await loadTodayLeadWorklist(todayYmd);
+      } catch {
+        /* migration henüz yoksa özet yine açılsın */
+      }
     }
   }
 
@@ -189,6 +228,68 @@ export default async function AdminHomePage() {
               <MiniStat label="Yanıt bekleyen" value={waAwaiting} />
             </div>
           </Link>
+
+          <div className="rounded-2xl border border-[#123524]/08 bg-white px-5 py-5">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-[#0b6b45]">Talepler</p>
+                <p className="mt-1 text-sm text-[#466254]">
+                  Bu hafta {weekNewLeads} yeni · dönüşüm{" "}
+                  {leadCount
+                    ? Math.round((convertedLeads / leadCount) * 100)
+                    : 0}
+                  %
+                </p>
+              </div>
+              <Link
+                href="/admin/pipeline"
+                className="text-sm font-semibold text-[#0b6b45]"
+              >
+                Listeye git →
+              </Link>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {(
+                [
+                  ["Yeni", statusBar.yeni, "#0b6b45"],
+                  ["Randevulu", statusBar.randevulu, "#1d4ed8"],
+                  ["Dönüştü", statusBar.donustu, "#166534"],
+                  ["Kayıp", statusBar.kayip, "#b91c1c"],
+                ] as const
+              ).map(([label, value, color]) => {
+                const max = Math.max(
+                  statusBar.yeni,
+                  statusBar.randevulu,
+                  statusBar.donustu,
+                  statusBar.kayip,
+                  1,
+                );
+                return (
+                  <div key={label}>
+                    <p className="text-xs text-[#466254]">{label}</p>
+                    <p className="mt-0.5 font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold">
+                      {value}
+                    </p>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#f4f6f5]">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.round((value / max) * 100)}%`,
+                          backgroundColor: color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <TodayLeadWorklist
+            yeni={todayWork.yeni}
+            bugun={todayWork.bugun}
+            geciken={todayWork.geciken}
+          />
         </>
       )}
 
@@ -224,6 +325,11 @@ export default async function AdminHomePage() {
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
+        <QuickLink
+          href="/admin/pipeline"
+          title="Talepler"
+          desc="Durum takibi, bugün aranacaklar"
+        />
         <QuickLink
           href="/admin/patients"
           title="Hastalar"

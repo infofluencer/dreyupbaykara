@@ -9,6 +9,7 @@ import {
   FileText,
   Gauge,
   Inbox,
+  ListTodo,
   Megaphone,
   UserRound,
   Users,
@@ -18,6 +19,7 @@ import { AdminSignOut } from "@/components/admin/AdminSignOut";
 
 const NAV: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/admin", label: "Özet", icon: Gauge },
+  { href: "/admin/pipeline", label: "Talepler", icon: ListTodo },
   { href: "/admin/leads", label: "Takvim", icon: CalendarDays },
   { href: "/admin/patients", label: "Hastalar", icon: UserRound },
   { href: "/admin/sources", label: "Kaynaklar", icon: Megaphone },

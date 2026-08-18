@@ -24,6 +24,11 @@ import {
   isConversationLockFresh,
   isWithin24hWindow,
 } from "@/lib/whatsapp/service-window";
+import {
+  isLostLikeStatus,
+  LEAD_STATUSES,
+  type LeadPipelineStatus,
+} from "@/lib/crm/lead-status";
 import type { LeadStage } from "@/types/crm";
 
 function revalidateMessages(conversationId?: string) {
@@ -693,6 +698,82 @@ export async function updateLead(formData: FormData) {
   revalidatePath("/admin/leads");
   revalidatePath(`/admin/leads/${leadId}`);
   revalidatePath("/admin/calendar");
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/admin");
+}
+
+function revalidatePipeline(leadId?: string) {
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/admin");
+  if (leadId) {
+    revalidatePath(`/admin/pipeline?lead=${leadId}`);
+    revalidatePath(`/admin/leads/${leadId}`);
+  }
+}
+
+export async function updateLeadPipeline(formData: FormData) {
+  await requireAdminSession(["admin", "doctor", "assistant"]);
+  const supabase = await createClient();
+  const leadId = text(formData, "lead_id");
+  const status = text(formData, "status") as LeadPipelineStatus;
+  if (!LEAD_STATUSES.includes(status)) {
+    throw new Error("Geçersiz durum.");
+  }
+  const lostReason = optionalText(formData, "lost_reason");
+  if (isLostLikeStatus(status) && !lostReason) {
+    throw new Error("Kayıp veya iptal için sebep zorunludur.");
+  }
+
+  const patch: Record<string, string | null> = {
+    status,
+    assigned_to: optionalText(formData, "assigned_to"),
+    next_action_at: optionalText(formData, "next_action_at"),
+    next_action_note: optionalText(formData, "next_action_note"),
+    lost_reason: isLostLikeStatus(status) ? lostReason : null,
+  };
+
+  const { error } = await supabase.from("leads").update(patch).eq("id", leadId);
+  if (error) throw new Error(error.message);
+  revalidatePipeline(leadId);
+}
+
+export async function markLeadContacted(formData: FormData) {
+  await requireAdminSession(["admin", "doctor", "assistant"]);
+  const supabase = await createClient();
+  const leadId = text(formData, "lead_id");
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      status: "arandi",
+      last_contacted_at: new Date().toISOString(),
+    })
+    .eq("id", leadId);
+  if (error) throw new Error(error.message);
+  revalidatePipeline(leadId);
+}
+
+export async function stampLeadContacted(formData: FormData) {
+  await requireAdminSession(["admin", "doctor", "assistant"]);
+  const supabase = await createClient();
+  const leadId = text(formData, "lead_id");
+  const { error } = await supabase
+    .from("leads")
+    .update({ last_contacted_at: new Date().toISOString() })
+    .eq("id", leadId);
+  if (error) throw new Error(error.message);
+  revalidatePipeline(leadId);
+}
+
+export async function markLeadAppointmentStatus(formData: FormData) {
+  await requireAdminSession(["admin", "doctor", "assistant"]);
+  const supabase = await createClient();
+  const leadId = text(formData, "lead_id");
+  const { error } = await supabase
+    .from("leads")
+    .update({ status: "muayene_randevusu" })
+    .eq("id", leadId);
+  if (error) throw new Error(error.message);
+  revalidatePipeline(leadId);
 }
 
 export async function createTask(formData: FormData) {
@@ -1143,7 +1224,9 @@ export async function markConversationRead(formData: FormData) {
     .update({ unread_count: 0 })
     .eq("id", conversationId);
   if (error) throw new Error(error.message);
-  revalidateMessages(conversationId);
+  // Inbox client updates unread locally; revalidating /admin/messages here
+  // remounts the page before ?c= is set and closes the thread panel.
+  revalidatePath("/admin");
 }
 
 export async function claimConversation(formData: FormData) {

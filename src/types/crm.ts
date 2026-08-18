@@ -52,6 +52,11 @@ export type Lead = {
   id: string;
   contact_id: string;
   stage: LeadStage;
+  status?: string;
+  last_contacted_at?: string | null;
+  next_action_at?: string | null;
+  next_action_note?: string | null;
+  lost_reason?: string | null;
   assigned_to: string | null;
   site: string | null;
   channel: string | null;

@@ -10,6 +10,7 @@ import {
   FileText,
   Gauge,
   Inbox,
+  ListTodo,
   Megaphone,
   UserRound,
   Users,
@@ -25,6 +26,7 @@ const PRIMARY: Array<{ href: string; label: string; icon: LucideIcon }> = [
 ];
 
 const MORE: Array<{ href: string; label: string; icon: LucideIcon }> = [
+  { href: "/admin/pipeline", label: "Talepler", icon: ListTodo },
   { href: "/admin/sources", label: "Kaynaklar", icon: Megaphone },
   { href: "/admin/bot", label: "Bot", icon: Bot },
   { href: "/admin/content", label: "İçerik", icon: FileText },

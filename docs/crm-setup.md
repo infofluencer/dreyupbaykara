@@ -16,6 +16,7 @@ Path: `/admin` · DB: Supabase · WhatsApp: Cloud API (sonraki sprint)
    - `supabase/migrations/20260808160000_patients.sql`
    - `supabase/migrations/20260808180000_appointment_no_overlap.sql`
    - `supabase/migrations/20260817120000_whatsapp_inbox_tracking.sql`
+   - `supabase/migrations/20260818120000_lead_status_machine.sql`
 4. Authentication → Users → Add user (email/password).
    Ardından Table Editor → `profiles` tablosunda kullanıcının `role`
    değerini `admin` yapın.
@@ -37,6 +38,7 @@ Yönetim ekranları:
 - Mevcut `public` görsellerini medya kütüphanesine almak için:
   `node scripts/import-site-media.mjs`
   veya İçerik → Medya → “Var olan fotoğrafları aktar”
+- `/admin/pipeline`: talep durum takibi (yeni / aranacak / randevulu / kayıp)
 - `/admin/patients`: hasta kimliği, klinik notlar ve dosya
 - `/admin/leads`: takvim (randevu ekle / sil)
 - `/admin/calendar`: randevu detayı
