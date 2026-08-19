@@ -1,8 +1,8 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { assertWhatsAppSendConfig } from "@/lib/whatsapp/config";
-import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
+import { assertWhatsAppSendConfig, isWhatsAppEnabled } from "@/lib/whatsapp/config";
+import type { MessageSource } from "@/lib/whatsapp/ingest";
 import { isWithin24hWindow } from "@/lib/whatsapp/service-window";
 
 export type SendMessageResult = {
@@ -18,76 +18,173 @@ export type WhatsAppTemplateComponent = {
   parameters?: Array<Record<string, unknown>>;
 };
 
-type MetaSendResponse = {
+export class WhatsAppSendError extends Error {
+  readonly status: number;
+  readonly raw: unknown;
+
+  constructor(message: string, status: number, raw?: unknown) {
+    super(message);
+    this.name = "WhatsAppSendError";
+    this.status = status;
+    this.raw = raw;
+  }
+}
+
+type CloudSendResponse = {
   messages?: Array<{ id: string }>;
   error?: {
     message?: string;
-    code?: number;
+    code?: number | string;
+    reason?: string;
     error_subcode?: number;
     type?: string;
+    docs?: string;
   };
 };
 
-type OutboundContext = {
+export type OutboundContext = {
   to: string;
   conversationId: string;
-  dbMessageId: string;
   supabase: SupabaseClient;
+  sentBy: string | null;
+  source: MessageSource;
+  automated: boolean;
+  bodyOverride?: string;
+  extraPayload?: Record<string, unknown>;
 };
 
 function normalizePhone(to: string): string {
   return to.replace(/\D/g, "");
 }
 
-async function postWhatsAppPayload(
+function parseResponseBody(text: string): CloudSendResponse {
+  if (!text.trim()) return {};
+  try {
+    return JSON.parse(text) as CloudSendResponse;
+  } catch {
+    return { error: { message: text } };
+  }
+}
+
+function dualhookNotRoutableMessage(reason: string | undefined): string {
+  return `WhatsApp bağlantısı şu an aktif değil (sebep: ${reason || "unknown"}).`;
+}
+
+/**
+ * Graph-compatible POST to Dualhook Runtime API or Meta, host from env.
+ */
+export async function postWhatsAppCloudPayload(
   payload: Record<string, unknown>,
-): Promise<{ messageId?: string; error?: MetaSendResponse["error"] }> {
-  const { phoneId, token, apiVersion } = assertWhatsAppSendConfig();
+): Promise<{ messageId: string; raw: CloudSendResponse }> {
+  const config = assertWhatsAppSendConfig();
+  const url = `${config.apiBase}/${config.phoneNumberId}/messages`;
 
-  const response = await fetch(
-    `https://graph.facebook.com/${apiVersion}/${phoneId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-      cache: "no-store",
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.authToken}`,
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
 
-  const data = (await response.json()) as MetaSendResponse;
+  const rawText = await response.text();
+  const data = parseResponseBody(rawText);
   const messageId = data.messages?.[0]?.id;
+  const errorCode = data.error?.code;
+  const reason =
+    typeof data.error?.reason === "string" ? data.error.reason : undefined;
+
+  if (response.status === 403 && errorCode === "connection_not_routable") {
+    console.error("[whatsapp] connection_not_routable", {
+      reason,
+      status: response.status,
+      body: data,
+    });
+    throw new WhatsAppSendError(
+      dualhookNotRoutableMessage(reason),
+      403,
+      data,
+    );
+  }
+
+  if (response.status === 429) {
+    const retryAfter = response.headers.get("retry-after");
+    console.error("[whatsapp] rate limited", {
+      retryAfter,
+      status: 429,
+      body: data,
+    });
+    const waitHint = retryAfter
+      ? ` ${retryAfter} saniye sonra tekrar deneyin.`
+      : " Kısa bir süre sonra tekrar deneyin.";
+    throw new WhatsAppSendError(
+      `WhatsApp gönderim limiti aşıldı.${waitHint}`,
+      429,
+      data,
+    );
+  }
 
   if (!response.ok || !messageId) {
     console.error("[whatsapp] send failed", {
       status: response.status,
-      code: data.error?.code,
+      code: errorCode,
+      reason,
       subcode: data.error?.error_subcode,
       message: data.error?.message,
+      body: data,
     });
-    return { error: data.error ?? { message: `HTTP ${response.status}` } };
+    throw new WhatsAppSendError(
+      data.error?.message || `WhatsApp gönderimi başarısız (HTTP ${response.status}).`,
+      response.status,
+      data,
+    );
   }
 
-  return { messageId };
+  return { messageId, raw: data };
 }
 
-async function markOutboundMessage(
-  supabase: SupabaseClient,
-  dbMessageId: string,
+async function persistOutbound(
+  context: OutboundContext,
   patch: {
-    wa_message_id?: string | null;
+    waMessageId?: string | null;
     status: "sent" | "failed";
-    raw_payload?: Record<string, unknown>;
+    body: string;
+    rawPayload: Record<string, unknown>;
   },
 ) {
-  await supabase.from("messages").update(patch).eq("id", dbMessageId);
+  const row = {
+    conversation_id: context.conversationId,
+    direction: "outbound" as const,
+    body: patch.body,
+    status: patch.status,
+    source: context.source,
+    sent_by: context.sentBy,
+    automated: context.automated,
+    raw_payload: patch.rawPayload,
+    ...(patch.waMessageId ? { wa_message_id: patch.waMessageId } : {}),
+  };
+
+  if (patch.waMessageId && patch.status === "sent") {
+    const { error } = await context.supabase.from("messages").upsert(row, {
+      onConflict: "wa_message_id",
+      ignoreDuplicates: true,
+    });
+    if (error && error.code !== "23505") {
+      console.error("[whatsapp] outbound persist:", error.message);
+    }
+    return;
+  }
+
+  const { error } = await context.supabase.from("messages").insert(row);
+  if (error) {
+    console.error("[whatsapp] outbound persist:", error.message);
+  }
 }
 
 /**
  * Free-text outbound. When disabled, returns a local id (caller persists).
- * When enabled, expects a pending DB row and updates it to sent/failed.
  */
 export async function sendMessage(
   to: string,
@@ -117,46 +214,54 @@ export async function sendMessage(
     console.error("[whatsapp] send blocked: 24h window closed", {
       conversationId: context.conversationId,
     });
-    await markOutboundMessage(context.supabase, context.dbMessageId, {
+    await persistOutbound(context, {
       status: "failed",
-      raw_payload: { error: "24h customer care window closed" },
-    });
-    return {
-      messageId: "",
-      storedOnly: false,
-      success: false,
-    };
-  }
-
-  const result = await postWhatsAppPayload({
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to: phone,
-    type: "text",
-    text: {
-      preview_url: false,
       body,
-    },
-  });
-
-  if (!result.messageId) {
-    await markOutboundMessage(context.supabase, context.dbMessageId, {
-      status: "failed",
-      raw_payload: { meta_error: result.error ?? null },
+      rawPayload: { error: "24h customer care window closed" },
     });
-    return { messageId: "", storedOnly: false, success: false };
+    throw new WhatsAppSendError(
+      "24 saatlik müşteri hizmeti penceresi kapalı; şablon mesaj gerekir.",
+      403,
+    );
   }
 
-  await markOutboundMessage(context.supabase, context.dbMessageId, {
-    wa_message_id: result.messageId,
-    status: "sent",
-  });
+  try {
+    const result = await postWhatsAppCloudPayload({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: phone,
+      type: "text",
+      text: {
+        preview_url: false,
+        body,
+      },
+    });
 
-  return {
-    messageId: result.messageId,
-    storedOnly: false,
-    success: true,
-  };
+    await persistOutbound(context, {
+      waMessageId: result.messageId,
+      status: "sent",
+      body,
+      rawPayload: { ...result.raw, ...(context.extraPayload ?? {}) },
+    });
+
+    return {
+      messageId: result.messageId,
+      storedOnly: false,
+      success: true,
+    };
+  } catch (error) {
+    const raw =
+      error instanceof WhatsAppSendError ? error.raw : { error: String(error) };
+    await persistOutbound(context, {
+      status: "failed",
+      body,
+      rawPayload: {
+        ...(typeof raw === "object" && raw ? (raw as Record<string, unknown>) : { raw }),
+        ...(context.extraPayload ?? {}),
+      },
+    });
+    throw error;
+  }
 }
 
 /** Template outbound — usable outside the 24h window. */
@@ -190,34 +295,44 @@ export async function sendTemplateMessage(
   if (components?.length) {
     template.components = components;
   }
+  const body = context.bodyOverride ?? `[Şablon: ${templateName}]`;
+  const extra = {
+    template_name: templateName,
+    language_code: languageCode,
+    ...(context.extraPayload ?? {}),
+  };
 
-  const result = await postWhatsAppPayload({
-    messaging_product: "whatsapp",
-    to: phone,
-    type: "template",
-    template,
-  });
+  try {
+    const result = await postWhatsAppCloudPayload({
+      messaging_product: "whatsapp",
+      to: phone,
+      type: "template",
+      template,
+    });
 
-  if (!result.messageId) {
-    await markOutboundMessage(context.supabase, context.dbMessageId, {
+    await persistOutbound(context, {
+      waMessageId: result.messageId,
+      status: "sent",
+      body,
+      rawPayload: { ...extra, ...result.raw },
+    });
+
+    return {
+      messageId: result.messageId,
+      storedOnly: false,
+      success: true,
+    };
+  } catch (error) {
+    const raw =
+      error instanceof WhatsAppSendError ? error.raw : { error: String(error) };
+    await persistOutbound(context, {
       status: "failed",
-      raw_payload: {
-        template_name: templateName,
-        language_code: languageCode,
-        meta_error: result.error ?? null,
+      body,
+      rawPayload: {
+        ...extra,
+        ...(typeof raw === "object" && raw ? (raw as Record<string, unknown>) : { raw }),
       },
     });
-    return { messageId: "", storedOnly: false, success: false };
+    throw error;
   }
-
-  await markOutboundMessage(context.supabase, context.dbMessageId, {
-    wa_message_id: result.messageId,
-    status: "sent",
-  });
-
-  return {
-    messageId: result.messageId,
-    storedOnly: false,
-    success: true,
-  };
 }

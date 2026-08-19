@@ -18,7 +18,7 @@ import {
 } from "@/lib/crm/source-kind";
 import { loadTodayLeadWorklist } from "@/lib/crm/today-leads";
 import { getIstanbulTodayYmd } from "@/lib/date/now";
-import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
+import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import { createClient } from "@/lib/supabase/server";
 
 const PLATFORMS = ["google_ads", "meta", "other", "organic"] as const;

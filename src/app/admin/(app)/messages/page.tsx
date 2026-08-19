@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { MessagesInbox } from "@/components/admin/MessagesInbox";
 import { requireAdminSession } from "@/lib/admin/auth";
-import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
+import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AdminMessagesPage({
@@ -114,13 +114,14 @@ export default async function AdminMessagesPage({
     created_at: string;
     media_type: string | null;
     media_url: string | null;
+    source: string | null;
   }> = [];
 
   if (selectedId) {
     const { data } = await supabase
       .from("messages")
       .select(
-        "id, direction, body, status, automated, created_at, media_type, media_url",
+        "id, direction, body, status, automated, created_at, media_type, media_url, source",
       )
       .eq("conversation_id", selectedId)
       .order("created_at")
@@ -128,6 +129,7 @@ export default async function AdminMessagesPage({
     messages = (data ?? []).map((message) => ({
       ...message,
       direction: message.direction as "inbound" | "outbound",
+      source: message.source ?? null,
     }));
   }
 

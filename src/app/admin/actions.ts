@@ -19,7 +19,7 @@ import { mergeHomeSections, type HomeSections } from "@/lib/cms/home";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendMessage, sendTemplateMessage } from "@/lib/whatsapp/send-message";
-import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
+import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import {
   isConversationLockFresh,
   isWithin24hWindow,
@@ -1132,27 +1132,13 @@ export async function sendConversationMessage(formData: FormData) {
   const to = phone || conversation?.wa_phone || "";
 
   if (enabled) {
-    const { data: pendingRow, error: pendingError } = await supabase
-      .from("messages")
-      .insert({
-        conversation_id: conversationId,
-        direction: "outbound",
-        body,
-        status: "pending",
-        sent_by: session.userId,
-        automated: false,
-      })
-      .select("id")
-      .single();
-    if (pendingError || !pendingRow) {
-      throw new Error(pendingError?.message ?? "Mesaj kaydedilemedi.");
-    }
-
     await sendMessage(to, body, {
       to,
       conversationId,
-      dbMessageId: pendingRow.id,
       supabase,
+      sentBy: session.userId,
+      source: "panel",
+      automated: false,
     });
   } else {
     const response = await sendMessage(to, body);
@@ -1164,6 +1150,7 @@ export async function sendConversationMessage(formData: FormData) {
       status: "sent",
       sent_by: session.userId,
       automated: false,
+      source: "panel",
     });
     if (error) throw new Error(error.message);
   }
@@ -1304,35 +1291,16 @@ export async function sendConversationTemplate(formData: FormData) {
   const enabled = isWhatsAppEnabled();
 
   if (enabled) {
-    const { data: pendingRow, error: pendingError } = await supabase
-      .from("messages")
-      .insert({
-        conversation_id: conversationId,
-        direction: "outbound",
-        body,
-        status: "pending",
-        sent_by: session.userId,
-        automated: false,
-        raw_payload: { template_name: templateName, language_code: languageCode },
-      })
-      .select("id")
-      .single();
-    if (pendingError || !pendingRow) {
-      throw new Error(pendingError?.message ?? "Mesaj kaydedilemedi.");
-    }
-
-    await sendTemplateMessage(
+    await sendTemplateMessage(to, templateName, languageCode, undefined, {
       to,
-      templateName,
-      languageCode,
-      undefined,
-      {
-        to,
-        conversationId,
-        dbMessageId: pendingRow.id,
-        supabase,
-      },
-    );
+      conversationId,
+      supabase,
+      sentBy: session.userId,
+      source: "panel",
+      automated: false,
+      bodyOverride: body,
+      extraPayload: { template_name: templateName, language_code: languageCode },
+    });
   } else {
     const response = await sendTemplateMessage(to, templateName, languageCode);
     const { error } = await supabase.from("messages").insert({
@@ -1343,6 +1311,7 @@ export async function sendConversationTemplate(formData: FormData) {
       status: "sent",
       sent_by: session.userId,
       automated: false,
+      source: "panel",
       raw_payload: { template_name: templateName, language_code: languageCode },
     });
     if (error) throw new Error(error.message);

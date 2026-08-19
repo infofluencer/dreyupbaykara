@@ -70,6 +70,7 @@ export type InboxMessage = {
   created_at: string;
   media_type: string | null;
   media_url: string | null;
+  source: string | null;
 };
 
 export type StaffMember = {
@@ -85,6 +86,35 @@ const FILTERS: Array<{ id: FilterKey; label: string }> = [
   { id: "awaiting", label: "Yanıt bekleyen" },
   { id: "mine", label: "Bana atanan" },
 ];
+
+const MESSAGE_SELECT =
+  "id, direction, body, status, automated, created_at, media_type, media_url, source";
+
+function mapInboxMessage(row: Record<string, unknown>): InboxMessage {
+  return {
+    id: String(row.id),
+    direction: row.direction === "outbound" ? "outbound" : "inbound",
+    body: (row.body as string | null) ?? null,
+    status: String(row.status ?? "sent"),
+    automated: (row.automated as boolean | null) ?? null,
+    created_at: String(row.created_at),
+    media_type: (row.media_type as string | null) ?? null,
+    media_url: (row.media_url as string | null) ?? null,
+    source: (row.source as string | null) ?? null,
+  };
+}
+
+function sourceLabel(source: string | null): string | null {
+  if (source === "panel") return "panelden";
+  if (source === "app_echo") return "telefondan";
+  return null;
+}
+
+function sortMessages(rows: InboxMessage[]): InboxMessage[] {
+  return [...rows].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+}
 
 const CONVERSATION_SELECT = `
   id,
@@ -189,17 +219,12 @@ export function MessagesInbox({
     const supabase = createClient();
     const { data, error } = await supabase
       .from("messages")
-      .select(
-        "id, direction, body, status, automated, created_at, media_type, media_url",
-      )
+      .select(MESSAGE_SELECT)
       .eq("conversation_id", conversationId)
       .order("created_at")
       .limit(500);
     if (error) throw error;
-    return (data ?? []).map((message) => ({
-      ...message,
-      direction: message.direction as "inbound" | "outbound",
-    }));
+    return sortMessages((data ?? []).map((row) => mapInboxMessage(row)));
   }, []);
 
   const fetchConversations = useCallback(async () => {
@@ -274,24 +299,8 @@ export function MessagesInbox({
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel("wa-inbox")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        (payload) => {
-          const row = payload.new as { conversation_id?: string } | null;
-          const openId = selectedIdRef.current;
-          if (openId && row?.conversation_id === openId) {
-            void fetchMessages(openId)
-              .then(setMessages)
-              .catch((error: Error) => console.error("[inbox] realtime messages:", error));
-          }
-          void fetchConversations().catch((error: Error) => {
-            console.error("[inbox] realtime conversations:", error);
-          });
-        },
-      )
+    const conversationChannel = supabase
+      .channel("wa-inbox-conversations")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "conversations" },
@@ -303,22 +312,62 @@ export function MessagesInbox({
       )
       .subscribe();
 
-    // TODO: if Realtime is disabled on the project, fall back to polling.
-    const poll = window.setInterval(() => {
-      void fetchConversations().catch(() => undefined);
-      const openId = selectedIdRef.current;
-      if (openId) {
-        void fetchMessages(openId)
-          .then(setMessages)
-          .catch(() => undefined);
-      }
-    }, 10_000);
+    return () => {
+      void supabase.removeChannel(conversationChannel);
+    };
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const conversationId = selectedId;
+    const supabase = createClient();
+    const threadChannel = supabase
+      .channel(`wa-thread-${conversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          if (selectedIdRef.current !== conversationId) return;
+          if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as { id?: string } | null;
+            if (!oldRow?.id) return;
+            setMessages((rows) => rows.filter((row) => row.id !== oldRow.id));
+            return;
+          }
+          const row = payload.new as Record<string, unknown> | null;
+          if (!row?.id) return;
+          const incoming = mapInboxMessage(row);
+          setMessages((rows) => {
+            const withoutOptimistic = rows.filter((existing) => {
+              if (existing.id === incoming.id) return false;
+              if (
+                existing.id.startsWith("local_") &&
+                existing.direction === "outbound" &&
+                incoming.direction === "outbound" &&
+                existing.body === incoming.body
+              ) {
+                return false;
+              }
+              return true;
+            });
+            return sortMessages([...withoutOptimistic, incoming]);
+          });
+          void fetchConversations().catch((error: Error) => {
+            console.error("[inbox] realtime conversations:", error);
+          });
+        },
+      )
+      .subscribe();
 
     return () => {
-      window.clearInterval(poll);
-      void supabase.removeChannel(channel);
+      void supabase.removeChannel(threadChannel);
     };
-  }, [fetchConversations, fetchMessages]);
+  }, [selectedId, fetchConversations]);
 
   async function handleSend() {
     if (!selected || !draft.trim() || sending) return;
@@ -329,11 +378,12 @@ export function MessagesInbox({
       id: `local_${crypto.randomUUID()}`,
       direction: "outbound",
       body,
-      status: "sent",
+      status: "pending",
       automated: false,
       created_at: new Date().toISOString(),
       media_type: null,
       media_url: null,
+      source: "panel",
     };
     setDraft("");
     setSending(true);
@@ -671,6 +721,7 @@ export function MessagesInbox({
                   const prev = messages[index - 1];
                   const showDay =
                     !prev || dayKey(prev.created_at) !== dayKey(message.created_at);
+                  const channel = sourceLabel(message.source);
                   return (
                     <div key={message.id}>
                       {showDay ? (
@@ -695,7 +746,7 @@ export function MessagesInbox({
                         ) : null}
                         <MessageBody text={message.body || "Medya içeriği"} />
                         <p className="mt-1 flex items-center justify-end gap-1 text-[10px] text-[#466254]">
-                          {message.automated ? <span>Bot ·</span> : null}
+                          {channel ? <span>{channel}</span> : null}
                           <span>{clockLabel(message.created_at)}</span>
                           {message.direction === "outbound" ? (
                             <StatusTick status={message.status} />
@@ -715,7 +766,7 @@ export function MessagesInbox({
                 </p>
               ) : !windowOpen ? (
                 <p className="mb-2 text-xs text-amber-800">
-                  24 saatlik pencere kapalı — sadece onaylı şablon gönderilebilir.
+                  Serbest mesaj penceresi kapalı — template gerekli
                 </p>
               ) : null}
               <form
@@ -733,7 +784,7 @@ export function MessagesInbox({
                   disabled={sending || (apiEnabled && !windowOpen)}
                   placeholder={
                     apiEnabled && !windowOpen
-                      ? "Pencere kapalı — şablon gerekir"
+                      ? "Serbest mesaj penceresi kapalı"
                       : "Mesaj yazın…"
                   }
                   aria-label="Mesaj yazın"
@@ -772,13 +823,16 @@ function Tag({ children }: { children: ReactNode }) {
 
 function StatusTick({ status }: { status: string }) {
   if (status === "failed") {
-    return <AlertCircle className="h-3.5 w-3.5 text-red-600" aria-label="Hata" />;
+    return <AlertCircle className="h-3.5 w-3.5 text-red-600" aria-label="İletilemedi" />;
   }
   if (status === "read") {
     return <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" aria-label="Okundu" />;
   }
   if (status === "delivered") {
     return <CheckCheck className="h-3.5 w-3.5 text-[#466254]" aria-label="İletildi" />;
+  }
+  if (status === "pending") {
+    return <Check className="h-3.5 w-3.5 text-[#466254]/50" aria-label="Gönderiliyor" />;
   }
   return <Check className="h-3.5 w-3.5 text-[#466254]" aria-label="Gönderildi" />;
 }

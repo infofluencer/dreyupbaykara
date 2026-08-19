@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { getWhatsAppConfig } from "@/lib/whatsapp/config";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp/cloud-api";
 
 export const runtime = "nodejs";
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
   }
 
-  const templateName = process.env.WHATSAPP_APPOINTMENT_TEMPLATE;
+  const templateName = getWhatsAppConfig().appointmentTemplate;
   if (!templateName) {
     return NextResponse.json(
       { error: "WHATSAPP_APPOINTMENT_TEMPLATE tanımlı değil" },
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
           body: `[Randevu hatırlatma şablonu: ${templateName}]`,
           status: "sent",
           automated: true,
+          source: "system",
           raw_payload: {
             appointment_id: appointment.id,
             template_name: templateName,

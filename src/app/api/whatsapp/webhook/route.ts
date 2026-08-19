@@ -2,9 +2,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { maybeReplyWithBot } from "@/lib/whatsapp/bot";
-import { getWhatsAppConfig } from "@/lib/whatsapp/config";
-import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
-import { ingestInboundWhatsAppMessage } from "@/lib/whatsapp/ingest";
+import { getWhatsAppConfig, isWhatsAppEnabled } from "@/lib/whatsapp/config";
+import {
+  ingestInboundWhatsAppMessage,
+  ingestWhatsAppAppEcho,
+} from "@/lib/whatsapp/ingest";
 
 export const runtime = "nodejs";
 
@@ -28,17 +30,40 @@ type WebhookMessage = {
 
 type WebhookMessageEcho = WebhookMessage & { to: string };
 
+type WebhookChangeValue = {
+  contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
+  messages?: WebhookMessage[];
+  message_echoes?: WebhookMessageEcho[];
+  statuses?: Array<{
+    id: string;
+    status: "sent" | "delivered" | "read" | "failed";
+  }>;
+  history?: unknown;
+  state_sync?: unknown;
+  [key: string]: unknown;
+};
+
+type WebhookChange = {
+  field?: string;
+  value?: WebhookChangeValue;
+};
+
+type WebhookPayload = {
+  object?: string;
+  entry?: Array<{
+    id?: string;
+    changes?: WebhookChange[];
+  }>;
+};
+
 function verifySignature(rawBody: string, signature: string | null): boolean {
   const secret = getWhatsAppConfig().appSecret;
-  // TODO: require WHATSAPP_APP_SECRET in production once Meta app secret is set.
-  if (!secret) return true;
-  if (!signature?.startsWith("sha256=")) return false;
+  if (!secret || !signature?.startsWith("sha256=")) return false;
 
-  const expected = `sha256=${createHmac("sha256", secret)
-    .update(rawBody)
-    .digest("hex")}`;
-  const expectedBuffer = Buffer.from(expected);
-  const actualBuffer = Buffer.from(signature);
+  const expectedHex = createHmac("sha256", secret).update(rawBody).digest("hex");
+  const actualHex = signature.slice("sha256=".length);
+  const expectedBuffer = Buffer.from(expectedHex, "utf8");
+  const actualBuffer = Buffer.from(actualHex, "utf8");
   return (
     expectedBuffer.length === actualBuffer.length &&
     timingSafeEqual(expectedBuffer, actualBuffer)
@@ -67,6 +92,88 @@ function mediaInfo(message: WebhookMessage) {
   };
 }
 
+function stubCoexistenceSync(
+  field: "history" | "smb_app_state_sync",
+  change: WebhookChange,
+) {
+  const value = change.value ?? {};
+  console.info("[whatsapp] coexistence sync stub", {
+    field,
+    valueKeys: Object.keys(value),
+  });
+}
+
+async function handleStatuses(
+  supabase: NonNullable<ReturnType<typeof createServiceClient>>,
+  statuses: NonNullable<WebhookChangeValue["statuses"]>,
+) {
+  for (const status of statuses) {
+    await supabase
+      .from("messages")
+      .update({ status: status.status })
+      .eq("wa_message_id", status.id);
+  }
+}
+
+async function handleSmbMessageEchoes(
+  supabase: NonNullable<ReturnType<typeof createServiceClient>>,
+  change: WebhookChange,
+) {
+  for (const echo of change.value?.message_echoes ?? []) {
+    const media = mediaInfo(echo);
+    await ingestWhatsAppAppEcho(supabase, {
+      phone: echo.to,
+      body: messageBody(echo),
+      waMessageId: echo.id,
+      timestamp: echo.timestamp,
+      mediaType: media.mediaType,
+      mediaId: media.mediaId,
+      rawPayload: change,
+    });
+  }
+}
+
+async function handleInboundMessages(
+  supabase: NonNullable<ReturnType<typeof createServiceClient>>,
+  value: WebhookChangeValue,
+) {
+  for (const message of value.messages ?? []) {
+    const phone = message.from;
+    const profileName = value.contacts?.find(
+      (contact) => contact.wa_id === phone,
+    )?.profile?.name;
+    const media = mediaInfo(message);
+    const body = messageBody(message);
+    const fromAd = Boolean(message.referral);
+
+    const ingested = await ingestInboundWhatsAppMessage(supabase, {
+      phone,
+      contactName: profileName,
+      body,
+      waMessageId: message.id,
+      timestamp: message.timestamp,
+      mediaType: media.mediaType,
+      mediaId: media.mediaId,
+      rawPayload: message,
+      ctwaClid: message.referral?.ctwa_clid ?? null,
+      fromAd,
+    });
+
+    if (!ingested?.created) continue;
+
+    try {
+      await maybeReplyWithBot({
+        supabase,
+        conversationId: ingested.conversationId,
+        phone: phone.replace(/\D/g, ""),
+        inboundText: body ?? "",
+      });
+    } catch (error) {
+      console.error("[whatsapp] bot:", error);
+    }
+  }
+}
+
 /** Meta webhook verification — always available for handshake. */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
@@ -85,10 +192,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isWhatsAppEnabled()) {
-    return NextResponse.json({ received: true, skipped: true });
-  }
-
   const rawBody = await request.text();
 
   if (!verifySignature(rawBody, request.headers.get("x-hub-signature-256"))) {
@@ -96,24 +199,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  let payload: {
-    entry?: Array<{
-      changes?: Array<{
-        value?: {
-          contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
-          messages?: WebhookMessage[];
-          message_echoes?: WebhookMessageEcho[];
-          statuses?: Array<{
-            id: string;
-            status: "sent" | "delivered" | "read" | "failed";
-          }>;
-        };
-      }>;
-    }>;
-  };
+  if (!isWhatsAppEnabled()) {
+    return NextResponse.json({ received: true, skipped: true });
+  }
 
+  let payload: WebhookPayload;
   try {
-    payload = JSON.parse(rawBody);
+    payload = JSON.parse(rawBody) as WebhookPayload;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -126,93 +218,31 @@ export async function POST(request: NextRequest) {
 
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
+      const field = change.field ?? "";
       const value = change.value;
 
-      for (const status of value?.statuses ?? []) {
-        await supabase
-          .from("messages")
-          .update({ status: status.status })
-          .eq("wa_message_id", status.id);
+      if (field === "history") {
+        stubCoexistenceSync("history", change);
+        continue;
       }
-
-      for (const echo of value?.message_echoes ?? []) {
-        const phone = echo.to.replace(/\D/g, "");
-        const { data: contact } = await supabase
-          .from("contacts")
-          .upsert({ phone }, { onConflict: "phone" })
-          .select("id, phone, name")
-          .single();
-        if (!contact) continue;
-
-        const { data: conversation } = await supabase
-          .from("conversations")
-          .upsert(
-            {
-              contact_id: contact.id,
-              patient_id: contact.id,
-              wa_phone: contact.phone,
-              contact_name: contact.name,
-              status: "open",
-            },
-            { onConflict: "contact_id" },
-          )
-          .select("id")
-          .single();
-        if (!conversation) continue;
-
-        const media = mediaInfo(echo);
-        await supabase.from("messages").upsert(
-          {
-            conversation_id: conversation.id,
-            wa_message_id: echo.id,
-            direction: "outbound",
-            body: messageBody(echo),
-            media_type: media.mediaType,
-            media_url: media.mediaId,
-            status: "sent",
-            automated: false,
-            raw_payload: echo,
-            created_at: echo.timestamp
-              ? new Date(Number(echo.timestamp) * 1000).toISOString()
-              : new Date().toISOString(),
-          },
-          { onConflict: "wa_message_id", ignoreDuplicates: true },
-        );
+      if (field === "smb_app_state_sync") {
+        stubCoexistenceSync("smb_app_state_sync", change);
+        continue;
       }
-
-      for (const message of value?.messages ?? []) {
-        const phone = message.from;
-        const profileName = value?.contacts?.find(
-          (contact) => contact.wa_id === phone,
-        )?.profile?.name;
-        const media = mediaInfo(message);
-        const body = messageBody(message);
-
-        const ingested = await ingestInboundWhatsAppMessage(supabase, {
-          phone,
-          contactName: profileName,
-          body,
-          waMessageId: message.id,
-          timestamp: message.timestamp,
-          mediaType: media.mediaType,
-          mediaId: media.mediaId,
-          rawPayload: message,
-          ctwaClid: message.referral?.ctwa_clid ?? null,
-        });
-
-        if (!ingested) continue;
-
-        try {
-          await maybeReplyWithBot({
-            supabase,
-            conversationId: ingested.conversationId,
-            phone: phone.replace(/\D/g, ""),
-            inboundText: body ?? "",
-          });
-        } catch (error) {
-          console.error("[whatsapp] bot:", error);
+      if (field === "smb_message_echoes") {
+        await handleSmbMessageEchoes(supabase, change);
+        continue;
+      }
+      if (field === "messages" || (!field && value)) {
+        await handleStatuses(supabase, value?.statuses ?? []);
+        await handleInboundMessages(supabase, value ?? {});
+        if (value?.message_echoes?.length) {
+          await handleSmbMessageEchoes(supabase, change);
         }
+        continue;
       }
+
+      console.warn("[whatsapp] unhandled webhook field", field || "(empty)");
     }
   }
 

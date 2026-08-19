@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { composeBotReply, matchBotFaqs } from "@/lib/whatsapp/bot-match";
 import { resolveUnmatchedReply } from "@/lib/whatsapp/bot-unmatched";
 import { sendMessage, sendTemplateMessage } from "@/lib/whatsapp/send-message";
-import { isWhatsAppEnabled } from "@/lib/whatsapp/enabled";
+import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 
 type BotSettings = {
   enabled: boolean;
@@ -116,26 +116,14 @@ export async function maybeReplyWithBot(options: {
   if (!reply) return;
 
   if (isWhatsAppEnabled()) {
-    const { data: pendingRow } = await supabase
-      .from("messages")
-      .insert({
-        conversation_id: conversationId,
-        direction: "outbound",
-        body: reply,
-        status: "pending",
-        automated: true,
-      })
-      .select("id")
-      .single();
-
-    if (pendingRow) {
-      await sendMessage(phone, reply, {
-        to: phone,
-        conversationId,
-        dbMessageId: pendingRow.id,
-        supabase,
-      });
-    }
+    await sendMessage(phone, reply, {
+      to: phone,
+      conversationId,
+      supabase,
+      sentBy: null,
+      source: "bot",
+      automated: true,
+    });
     return;
   }
 
@@ -147,6 +135,7 @@ export async function maybeReplyWithBot(options: {
     body: reply,
     status: "sent",
     automated: true,
+    source: "bot",
   });
 }
 

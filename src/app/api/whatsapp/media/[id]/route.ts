@@ -25,8 +25,8 @@ export async function GET(
   }
 
   const { id } = await params;
-  const { token, apiVersion } = getWhatsAppConfig();
-  if (!token || !apiVersion) {
+  const { apiBase, authToken, phoneNumberId } = getWhatsAppConfig();
+  if (!apiBase || !authToken || !phoneNumberId) {
     return NextResponse.json(
       { error: "WhatsApp API yapılandırılmamış" },
       { status: 503 },
@@ -34,9 +34,9 @@ export async function GET(
   }
 
   const metadataResponse = await fetch(
-    `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(id)}`,
+    `${apiBase}/${encodeURIComponent(id)}`,
     {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${authToken}` },
       cache: "no-store",
     },
   );
@@ -56,7 +56,7 @@ export async function GET(
   }
 
   const mediaResponse = await fetch(metadata.url, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${authToken}` },
     cache: "no-store",
   });
   if (!mediaResponse.ok || !mediaResponse.body) {

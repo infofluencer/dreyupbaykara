@@ -2,6 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export type MessageSource = "panel" | "app_echo" | "bot" | "system" | "ad";
+
 const REF_RE = /\bRef:\s*([A-Z0-9]{6,12})\b/i;
 
 export function extractLeadRef(body: string | null | undefined): string | null {
@@ -135,8 +137,13 @@ export async function ingestInboundWhatsAppMessage(
     mediaId?: string | null;
     rawPayload?: unknown;
     ctwaClid?: string | null;
+    fromAd?: boolean;
   },
-): Promise<{ conversationId: string; leadId: string | null } | null> {
+): Promise<{
+  conversationId: string;
+  leadId: string | null;
+  created: boolean;
+} | null> {
   const phone = options.phone.replace(/\D/g, "");
   if (!phone) return null;
 
@@ -180,25 +187,111 @@ export async function ingestInboundWhatsAppMessage(
     ? new Date(Number(options.timestamp) * 1000).toISOString()
     : new Date().toISOString();
 
-  const { error: messageError } = await supabase.from("messages").insert({
-    conversation_id: conversationId,
-    wa_message_id: options.waMessageId,
-    direction: "inbound",
-    body: options.body,
-    media_type: options.mediaType ?? null,
-    media_url: options.mediaId ?? null,
-    status: "received",
-    raw_payload: options.rawPayload ?? null,
-    created_at: createdAt,
-  });
+  const inboundSource: MessageSource | null =
+    options.fromAd || options.ctwaClid || leadRef ? "ad" : null;
+
+  const { data: inserted, error: messageError } = await supabase
+    .from("messages")
+    .upsert(
+      {
+        conversation_id: conversationId,
+        wa_message_id: options.waMessageId,
+        direction: "inbound",
+        body: options.body,
+        media_type: options.mediaType ?? null,
+        media_url: options.mediaId ?? null,
+        status: "received",
+        source: inboundSource,
+        raw_payload: options.rawPayload ?? null,
+        created_at: createdAt,
+      },
+      { onConflict: "wa_message_id", ignoreDuplicates: true },
+    )
+    .select("id");
 
   if (messageError?.code === "23505") {
-    return { conversationId, leadId };
+    return { conversationId, leadId, created: false };
   }
   if (messageError) {
     console.error("[whatsapp] message:", messageError.message);
     return null;
   }
 
-  return { conversationId, leadId };
+  return {
+    conversationId,
+    leadId,
+    created: (inserted?.length ?? 0) > 0,
+  };
+}
+
+/**
+ * Coexistence: message sent from WhatsApp Business app (smb_message_echoes).
+ */
+export async function ingestWhatsAppAppEcho(
+  supabase: SupabaseClient,
+  options: {
+    phone: string;
+    body: string | null;
+    waMessageId: string;
+    timestamp?: string;
+    mediaType?: string | null;
+    mediaId?: string | null;
+    rawPayload?: unknown;
+  },
+): Promise<{ conversationId: string; created: boolean } | null> {
+  const phone = options.phone.replace(/\D/g, "");
+  if (!phone || !options.waMessageId) return null;
+
+  const { data: contact, error: contactError } = await supabase
+    .from("contacts")
+    .upsert({ phone }, { onConflict: "phone" })
+    .select("id, name, phone")
+    .single();
+
+  if (contactError || !contact) {
+    console.error("[whatsapp] echo contact:", contactError?.message);
+    return null;
+  }
+
+  const conversationId = await findOrCreateConversation(
+    supabase,
+    contact,
+    null,
+  );
+  if (!conversationId) return null;
+
+  const createdAt = options.timestamp
+    ? new Date(Number(options.timestamp) * 1000).toISOString()
+    : new Date().toISOString();
+
+  const { data: inserted, error: messageError } = await supabase
+    .from("messages")
+    .upsert(
+      {
+        conversation_id: conversationId,
+        wa_message_id: options.waMessageId,
+        direction: "outbound",
+        body: options.body,
+        media_type: options.mediaType ?? null,
+        media_url: options.mediaId ?? null,
+        status: "sent",
+        sent_by: null,
+        automated: false,
+        source: "app_echo" satisfies MessageSource,
+        raw_payload: options.rawPayload ?? null,
+        created_at: createdAt,
+      },
+      { onConflict: "wa_message_id", ignoreDuplicates: true },
+    )
+    .select("id");
+
+  if (messageError?.code === "23505") {
+    return { conversationId, created: false };
+  }
+  if (messageError) {
+    console.error("[whatsapp] echo message:", messageError.message);
+    return null;
+  }
+
+  return { conversationId, created: (inserted?.length ?? 0) > 0 };
 }
