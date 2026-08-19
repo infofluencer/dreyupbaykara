@@ -24,8 +24,11 @@ const INITIAL: FormState = {
 
 export function LeadForm({
   copy = HOME_FALLBACK.leadForm,
+  embedded = false,
 }: {
   copy?: HomeCopyBlock;
+  /** Blog / iç sayfa yerleşimi için dış padding’i azaltır */
+  embedded?: boolean;
 }) {
   const [form, setForm] = useState<FormState>(INITIAL);
 
@@ -63,10 +66,14 @@ export function LeadForm({
   return (
     <section
       id="randevu-formu"
-      className="relative px-6 py-14 md:px-10 md:py-16 lg:px-16"
+      className={
+        embedded
+          ? "relative"
+          : "relative px-6 py-14 md:px-10 md:py-16 lg:px-16"
+      }
       aria-labelledby="lead-form-title"
     >
-      <div className="mx-auto max-w-xl">
+      <div className={embedded ? "mx-auto w-full max-w-xl" : "mx-auto max-w-xl"}>
         <form
           onSubmit={onSubmit}
           className="rounded-[1.75rem] border border-[#0b6b45]/12 bg-white px-6 py-8 shadow-[0_16px_48px_rgba(18,53,36,0.06)] sm:px-8 sm:py-10"

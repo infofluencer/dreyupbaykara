@@ -4,11 +4,77 @@ export type BlogPost = {
   date: string;
   excerpt: string;
   image: string;
-  sourceUrl: string;
+  imageAlt?: string;
+  sourceUrl?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  showLeadForm?: boolean;
+  showWhatsAppCta?: boolean;
   contentHtml: string;
 };
 
 export const blogPosts: BlogPost[] = [
+  {
+    slug: "endoskopik-ameliyat-nedir",
+    title: "Endoskopik Ameliyat Nedir?",
+    date: "2026-08-19",
+    excerpt:
+      "Endoskopik ameliyat, küçük kesiden kamera ile yapılan kapalı cerrahidir. Bel fıtığı ve dar kanal tedavisinde hızlı iyileşme sunar.",
+    image: "/hero/belfitigi.webp",
+    imageAlt: "Full endoskopik bel fıtığı ameliyatı görseli",
+    metaTitle: "Endoskopik Ameliyat Nedir? | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Endoskopik ameliyat nedir, bel fıtığında ve dar kanalda endoskopik tedavi ile kapalı ameliyat nasıl uygulanır? Minimal invaziv yaklaşımı öğrenin.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    contentHtml: `<p>Omurga hastalıklarında cerrahi seçenekler geliştikçe hastalar daha az travma, daha hızlı iyileşme ve daha kısa hastane yatışı arıyor. Bu ihtiyaca yanıt veren modern yaklaşımlardan biri <strong>endoskopik ameliyat</strong>tır. Aşağıda endoskopik ameliyatın ne olduğu, bel fıtığında ve dar kanalda nasıl uygulandığı ile kapalı ameliyat farklarını sade bir hiyerarşiyle özetledik.</p>
+
+<h2>Endoskopik ameliyat nedir</h2>
+<p>Endoskopik ameliyat, milimetrik bir kesiden girilerek özel kamera (endoskop) ve mikro cerrahi aletlerle yapılan <strong>minimal invaziv</strong> bir cerrahi yöntemdir. Cerrah, yüksek çözünürlüklü görüntü eşliğinde hedef dokuya ulaşır; sağlıklı kas ve bağ yapılarını mümkün olduğunca korur.</p>
+<p>Klasik açık ameliyatlardaki geniş kesiler yerine birkaç milimetrelik giriş kullanılır. Bu sayede doku hasarı azalır, ağrı genellikle daha hafif seyreder ve birçok hastada aynı gün ayağa kalkma ile kısa sürede taburculuk mümkün olur.</p>
+<ul>
+<li>Küçük kesi (genellikle birkaç mm)</li>
+<li>Kamera rehberliğinde hassas müdahale</li>
+<li>Daha az doku travması ve daha hızlı iyileşme hedefi</li>
+</ul>
+
+<h2>Bel fıtığında endoskopik tedavi</h2>
+<p>Bel fıtığı, omurgadaki disklerin dış kısmının zayıflayarak iç kısmının dışarı kaymasıyla oluşur. Sinir köküne baskı; bel-bacak ağrısı, uyuşma ve güç kaybına yol açabilir. <a href="/tedaviler/bel-fitigi-ameliyati">Bel fıtığında endoskopik tedavi</a>, sinire baskı yapan fıtıklaşmış dokunun kamera altında çıkarılmasını hedefler.</p>
+<p>Full endoskopik kapalı bel fıtığı ameliyatında fıtıklı bölgeye küçük bir kesiden girilir. Endoskopik sistem bölgeyi görüntüler; cerrah bu görüntü eşliğinde müdahale eder. Böylece hem vücutta daha az doku hasarı oluşur hem de iyileşme süreci hızlanır.</p>
+<ul>
+<li>Kalçadan bacağa vuran ağrıda hedefe yönelik çözüm</li>
+<li>Kasların korunması ve minimal iz</li>
+<li>Çoğu hastada aynı gün taburcu planı</li>
+</ul>
+
+<h2>Endoskopik tedavi</h2>
+<p><strong>Endoskopik tedavi</strong>, yalnızca “küçük kesi” demek değildir; aynı zamanda sinir ve omurga anatomisinin korunmasına odaklanan bir yaklaşımdır. Bel fıtığı, boyun fıtığı ve kanal darlığı gibi seçilmiş hastalıklarda endoskopik yöntem, açık cerrahiye alternatif veya tamamlayıcı bir seçenek olarak planlanabilir.</p>
+<p>Uygunluk; muayene, MR ve klinik bulgulara göre belirlenir. İlaç, istirahat ve fizik tedavi gibi konservatif yöntemler yetersiz kaldığında veya nörolojik kayıp varsa cerrahi gündeme gelir. Endoskopik tedavide amaç, ağrıyı azaltmak, sinir baskısını kaldırmak ve günlük yaşama güvenli dönüşü hızlandırmaktır.</p>
+
+<h2>Kapalı ameliyat</h2>
+<p><strong>Kapalı ameliyat</strong> ifadesi, halk arasında endoskopik ve benzeri minimal invaziv teknikleri tanımlamak için kullanılır. Açık ameliyatta daha geniş kesi ve daha fazla doku travması söz konusuyken kapalı yöntemde milimetrik girişle kamera eşliğinde çalışılır.</p>
+<p>Kapalı ameliyatın öne çıkan avantajları şunlardır:</p>
+<ul>
+<li>Daha küçük kesi ve daha az iz</li>
+<li>Genellikle daha az ağrı</li>
+<li>Kısa hastane yatışı / aynı gün taburcu ihtimali</li>
+<li>İş ve sosyal hayata daha hızlı dönüş hedefi</li>
+</ul>
+<p>Her kapalı yöntem her hasta için uygun değildir. Doğru teknik seçimi, deneyimli omurga cerrahisi değerlendirmesiyle yapılmalıdır.</p>
+
+<figure><img src="/hero/kanaldarligi.webp" alt="Dar kanalda endoskopik tedavi" loading="lazy" width="1000" height="667" /></figure>
+
+<h2>Dar kanalda endoskopik tedavi</h2>
+<p>Omurga kanal darlığı (spinal stenoz), kanalın daralmasıyla sinirlerin sıkışması sonucu ağrı, uyuşma, güç kaybı ve yürüme mesafesinde kısalmaya yol açabilir. <a href="/tedaviler/kanal-darligi-ameliyati">Dar kanalda endoskopik tedavi</a>, daraltan dokuların kamera altında kontrollü temizlenmesiyle kanalı genişletmeyi amaçlar.</p>
+<p>Full endoskopik tam kapalı kanal darlığı ameliyatı, geleneksel açık cerrahiye göre daha az invaziv olması, daha hızlı iyileşme süreci ve seçilmiş hastalarda daha düşük komplikasyon riski taşıması nedeniyle tercih edilebilir. İleri yaş hastalarda da vücuda daha az yük bindirmesi önemli bir avantajdır.</p>
+<ul>
+<li>Ağrı, uyuşma ve güç kaybı şikayetlerinde rahatlama hedefi</li>
+<li>Seçilmiş vakalarda platin olmadan dekompresyon olasılığı</li>
+<li>Yürüme mesafesinde artış beklentisi</li>
+</ul>
+
+<p>Endoskopik ameliyat, bel fıtığı ve dar kanal gibi omurga sorunlarında doğru hastada doğru teknikle uygulandığında konforlu bir iyileşme süreci sunabilir. Şikayetleriniz sürüyorsa Op. Dr. Eyüp Baykara ile değerlendirme için iletişime geçebilirsiniz.</p>`,
+  },
   {
     slug: "nukleoplasti-nedir-bel-fitiginda-ameliyatsiz-ve-minimal-invaziv-tedavi-secenekleri",
     title: "Nükleoplasti Nedir? Bel Fıtığında Ameliyatsız ve Minimal İnvaziv Tedavi Seçenekleri",

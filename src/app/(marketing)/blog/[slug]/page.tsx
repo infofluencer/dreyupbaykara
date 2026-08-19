@@ -2,14 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { blogPosts, getBlogPost } from "@/data/blog";
+import {
+  BlogLeadForm,
+  BlogWhatsAppButtons,
+} from "@/components/BlogConversion";
 import { CmsSections } from "@/components/cms/CmsSections";
 import { PageHero } from "@/components/PageHero";
+import { TrackedWhatsAppLink } from "@/components/TrackedWhatsAppLink";
 import { VectorPattern } from "@/components/VectorPattern";
 import { getPublishedPage, mediaPublicUrl } from "@/lib/cms/content";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
+
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://endoskopikbelameliyati.com"
+).replace(/\/$/, "");
 
 export function generateStaticParams() {
   return blogPosts.map((p) => ({ slug: p.slug }));
@@ -23,27 +32,40 @@ export async function generateMetadata({
   const post = getBlogPost(slug);
   if (!cmsPost && !post) return {};
 
+  const path = `/blog/${slug}`;
+  const absolute = `${SITE_URL}${path}`;
+  const title =
+    cmsPost?.seo_title ||
+    post?.metaTitle ||
+    `${cmsPost?.title || post?.title} | Op. Dr. Eyüp Baykara`;
+  const description =
+    cmsPost?.seo_description ||
+    post?.metaDescription ||
+    cmsPost?.excerpt ||
+    post?.excerpt;
+  const image = cmsPost
+    ? mediaPublicUrl(cmsPost.featured_image_path)
+    : post?.image;
+
   return {
-    title:
-      cmsPost?.seo_title ||
-      `${cmsPost?.title || post?.title} | Op. Dr. Eyüp Baykara`,
-    description:
-      cmsPost?.seo_description || cmsPost?.excerpt || post?.excerpt,
+    title,
+    description,
     alternates: {
-      canonical: cmsPost?.canonical_url || `/blog/${slug}`,
+      canonical: cmsPost?.canonical_url || path,
+      languages: {
+        tr: absolute,
+        "tr-TR": absolute,
+        "x-default": absolute,
+      },
     },
     openGraph: {
       title: cmsPost?.title || post?.title,
-      description: cmsPost?.excerpt || post?.excerpt,
-      images: cmsPost
-        ? mediaPublicUrl(cmsPost.featured_image_path)
-          ? [mediaPublicUrl(cmsPost.featured_image_path)!]
-          : undefined
-        : post?.image
-          ? [post.image]
-          : undefined,
+      description: cmsPost?.excerpt || post?.excerpt || description,
+      url: absolute,
+      images: image ? [image] : undefined,
       type: "article",
       publishedTime: cmsPost?.published_at || post?.date,
+      locale: "tr_TR",
     },
   };
 }
@@ -68,11 +90,15 @@ export default async function BlogPostPage({ params }: PageProps) {
   const image = cmsPost
     ? mediaPublicUrl(cmsPost.featured_image_path) || undefined
     : post!.image;
+  const imageAlt =
+    cmsPost?.featured_image_alt || post?.imageAlt || title;
   const date =
     cmsPost?.published_at?.slice(0, 10) ||
     post?.date ||
     new Date().toISOString().slice(0, 10);
   const related = blogPosts.filter((p) => p.slug !== slug).slice(0, 3);
+  const showWhatsApp = post?.showWhatsAppCta ?? Boolean(cmsPost);
+  const showLeadForm = post?.showLeadForm ?? false;
 
   return (
     <main className="min-h-screen bg-[#f7f1e9]">
@@ -80,7 +106,7 @@ export default async function BlogPostPage({ params }: PageProps) {
         title={title}
         description={excerpt}
         image={image}
-        imageAlt={cmsPost?.featured_image_alt || ""}
+        imageAlt={imageAlt}
         breadcrumb={[
           { label: "Anasayfa", href: "/" },
           { label: "Blog", href: "/blog" },
@@ -100,6 +126,19 @@ export default async function BlogPostPage({ params }: PageProps) {
                 {formatDate(date)}
               </time>
 
+              {image ? (
+                <figure className="mt-8 overflow-hidden rounded-[1.5rem] border border-[#0b6b45]/10 bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={image}
+                    alt={imageAlt}
+                    width={1200}
+                    height={800}
+                    className="aspect-[16/10] w-full object-cover"
+                  />
+                </figure>
+              ) : null}
+
               {cmsPost ? (
                 <div className="mt-8">
                   <CmsSections sections={cmsPost.content_sections} />
@@ -111,7 +150,11 @@ export default async function BlogPostPage({ params }: PageProps) {
                 />
               )}
 
-              {post && !cmsPost ? (
+              {showWhatsApp ? <BlogWhatsAppButtons page={slug} /> : null}
+
+              {showLeadForm ? <BlogLeadForm pageTitle={title} /> : null}
+
+              {post?.sourceUrl && !cmsPost ? (
                 <p className="mt-12 border-t border-[#0b6b45]/12 pt-6 text-sm text-[#466254]">
                   Kaynak:{" "}
                   <a
@@ -147,6 +190,17 @@ export default async function BlogPostPage({ params }: PageProps) {
                     </Link>
                   ))}
                 </div>
+                {showWhatsApp ? (
+                  <div className="mt-6">
+                    <TrackedWhatsAppLink
+                      channel="blog_sidebar"
+                      campaign={slug}
+                      className="inline-flex w-full items-center justify-center rounded-full bg-[#17372a] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0b6b45]"
+                    >
+                      WhatsApp ile soru sorun
+                    </TrackedWhatsAppLink>
+                  </div>
+                ) : null}
               </aside>
             ) : null}
           </div>
