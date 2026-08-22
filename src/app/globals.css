@@ -97,6 +97,7 @@ html {
 
 .blog-prose h2 {
   margin-top: 2rem;
+  scroll-margin-top: 6rem;
   font-family: var(--font-instrument-sans), system-ui, sans-serif;
   font-size: 1.45rem;
   font-weight: 600;

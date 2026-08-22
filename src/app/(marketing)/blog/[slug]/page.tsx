@@ -3,7 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { blogPosts, getBlogPost } from "@/data/blog";
 import {
+  BlogContactCard,
   BlogLeadForm,
+  BlogTableOfContents,
   BlogWhatsAppButtons,
 } from "@/components/BlogConversion";
 import { CmsSections } from "@/components/cms/CmsSections";
@@ -99,6 +101,8 @@ export default async function BlogPostPage({ params }: PageProps) {
   const related = blogPosts.filter((p) => p.slug !== slug).slice(0, 3);
   const showWhatsApp = post?.showWhatsAppCta ?? Boolean(cmsPost);
   const showLeadForm = post?.showLeadForm ?? false;
+  const showContactCard = post?.showContactCard ?? false;
+  const toc = post?.toc ?? [];
 
   return (
     <main className="min-h-screen bg-[#f7f1e9]">
@@ -139,6 +143,8 @@ export default async function BlogPostPage({ params }: PageProps) {
                 </figure>
               ) : null}
 
+              {toc.length ? <BlogTableOfContents items={toc} /> : null}
+
               {cmsPost ? (
                 <div className="mt-8">
                   <CmsSections sections={cmsPost.content_sections} />
@@ -149,6 +155,20 @@ export default async function BlogPostPage({ params }: PageProps) {
                   dangerouslySetInnerHTML={{ __html: post!.contentHtml }}
                 />
               )}
+
+              {showContactCard ? (
+                <BlogContactCard
+                  page={slug}
+                  title={
+                    post?.contactCardTitle ||
+                    "Doğru değerlendirme için iletişime geçin"
+                  }
+                  body={
+                    post?.contactCardBody ||
+                    "Şikayetlerinizi netleştirmek ve size uygun tedavi yolunu öğrenmek için yazın veya arayın."
+                  }
+                />
+              ) : null}
 
               {showWhatsApp ? <BlogWhatsAppButtons page={slug} /> : null}
 
@@ -170,7 +190,7 @@ export default async function BlogPostPage({ params }: PageProps) {
             </div>
 
             {related.length > 0 ? (
-              <aside className="lg:top-8">
+              <aside className="lg:sticky lg:top-8">
                 <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold tracking-tight text-[#123524]">
                   Diğer yazılar
                 </h2>
@@ -191,7 +211,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                   ))}
                 </div>
                 {showWhatsApp ? (
-                  <div className="mt-6">
+                  <div className="mt-6 space-y-3">
                     <TrackedWhatsAppLink
                       channel="blog_sidebar"
                       campaign={slug}
@@ -199,6 +219,12 @@ export default async function BlogPostPage({ params }: PageProps) {
                     >
                       WhatsApp ile soru sorun
                     </TrackedWhatsAppLink>
+                    <Link
+                      href="/iletisim"
+                      className="inline-flex w-full items-center justify-center rounded-full border border-[#0b6b45]/25 bg-white px-5 py-3 text-sm font-semibold text-[#0b6b45] transition hover:border-[#0b6b45]/45"
+                    >
+                      İletişim
+                    </Link>
                   </div>
                 ) : null}
               </aside>

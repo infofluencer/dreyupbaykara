@@ -1,3 +1,8 @@
+export type BlogTocItem = {
+  id: string;
+  label: string;
+};
+
 export type BlogPost = {
   slug: string;
   title: string;
@@ -10,10 +15,249 @@ export type BlogPost = {
   metaDescription?: string;
   showLeadForm?: boolean;
   showWhatsAppCta?: boolean;
+  showContactCard?: boolean;
+  contactCardTitle?: string;
+  contactCardBody?: string;
+  toc?: BlogTocItem[];
   contentHtml: string;
 };
 
 export const blogPosts: BlogPost[] = [
+  {
+    slug: "kalcadan-bacaga-vuran-agri-siyatik",
+    title: "Kalçadan Bacağa Vuran Ağrı (Siyatik)",
+    date: "2026-08-23",
+    excerpt:
+      "Belden veya kalçadan bacağa vuran ağrı çoğu zaman siyatik sinir baskısından kaynaklanır. En sık nedenler bel fıtığı ve kanal darlığıdır.",
+    image: "/hero/belfitigi.webp",
+    imageAlt: "Kalçadan bacağa vuran ağrı siyatik",
+    metaTitle: "Kalçadan Bacağa Vuran Ağrı (Siyatik) | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Kalçadan veya belden bacağa vuran ağrı (siyatik): bel fıtığı ve dar kanal nedenleri, belirtiler, MR ile tanı ve full endoskopik tedavi.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Siyatik ağrınız için değerlendirme alın",
+    contactCardBody:
+      "Kalçadan bacağa vuran ağrının nedenini netleştirmek ve size uygun tedaviyi öğrenmek için iletişime geçin.",
+    toc: [
+      { id: "siyatik-nedir", label: "Kalçadan bacağa vuran ağrı nedir?" },
+      { id: "nedenleri", label: "En yaygın nedenler: bel fıtığı ve dar kanal" },
+      { id: "belirtiler", label: "Fıtık kaynaklı ağrı nasıl hissedilir?" },
+      { id: "siyatik-sinir", label: "Siyatik sinir neden bu kadar önemlidir?" },
+      { id: "tani", label: "Ağrının nedeni nasıl anlaşılır?" },
+      { id: "tedavi", label: "Bacağa vuran ağrı nasıl tedavi edilir?" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p>Kalçadan ya da belden bacağa vuran ağrı, günlük hayatı oldukça zorlaştıran; kişiyi günlerce, bazen haftalarca işten alıkoyan şiddetli bir ağrıdır. Halk arasında <strong>siyatik ağrısı</strong> olarak tarif edilir. Ağrı genellikle belden kalçaya, bacaklara ve hatta bazen ayak parmaklarına kadar yayılan, bıçak saplanması gibi bir hisle tanımlanır.</p>
+<p>Ağrının farklı nedenleri olabilir; ancak en yaygın sebepleri <strong>bel fıtığı</strong> ve <strong>kanal darlığı</strong>dır. Bu yazıda siyatik ağrısının nedenlerini, belirtilerini, tanı ve tedavi seçeneklerini özetliyoruz.</p>
+
+<h2 id="siyatik-nedir">Kalçadan bacağa vuran ağrı nedir?</h2>
+<p>Siyatik ağrısı, vücuttaki en uzun sinir olan ve lumbar omurgadan ayaklara kadar uzanan <strong>siyatik sinirinin</strong> sıkışması veya tahriş olmasıyla ortaya çıkar. Ağrı tek taraflı olabilir; yürüme, çömelme veya uzun süre oturma gibi hareketlerle artabilir.</p>
+<p>Hafif olgularda dinlenme sırasında ağrı azalabilir. Ancak geceleri uzun süre hareketsiz kalınca veya uzun süre oturunca ağrı yeniden artar; ayağa kalkıldığında kalça ve bacaklarda tekrar hissedilebilir.</p>
+
+<figure><img src="/hero/belfitigi.webp" alt="Belden kalçaya ve bacağa vuran siyatik ağrı" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="nedenleri">En yaygın nedenler: bel fıtığı ve dar kanal</h2>
+<p>Her iki hastalıkta da siyatik sinir baskı altında kalır. Bel fıtığında taşan disk materyali sinire baskı yaparken; kanal darlığında daralan omurga kanalı sinirleri sıkıştırır.</p>
+<ul>
+<li><a href="/tedaviler/bel-fitigi-ameliyati">Bel fıtığı</a> — en sık görülen neden</li>
+<li><a href="/tedaviler/kanal-darligi-ameliyati">Kanal darlığı</a> — özellikle orta ve ileri yaşta</li>
+<li>Bel kayması, omurga kırığı gibi diğer omurga sorunları</li>
+</ul>
+<p>Diğer taraftan, yaşlılarda bacağa yayılan ağrının sık görülen bir nedeni de <strong>kalça kireçlenmesi</strong>dir. Kalça osteoartrit ağrısı bacağa yayılabilir ve yan diz ağrısı olarak da kendini gösterebilir; bu nedenle ayırıcı tanı önemlidir.</p>
+
+<figure><img src="/hero/kanaldarligi.webp" alt="Kanal darlığında bacağa vuran ağrı" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="belirtiler">Fıtık kaynaklı ağrı nasıl hissedilir?</h2>
+<p>Fıtık kaynaklı kalçadan ya da belden bacağa vuran ağrı genellikle <strong>tek taraflıdır</strong>. Ağrı yürüme veya çömelme gibi bele yük bindiren hareketlerle artabilir.</p>
+<ul>
+<li>Belden kalçaya ve bacağa yayılan keskin ağrı</li>
+<li>Uyuşma, karıncalanma veya yanma hissi</li>
+<li>Uzun oturma veya yatma sonrası artan rahatsızlık</li>
+<li>İleri durumlarda güçsüzlük veya bacak sürümme</li>
+</ul>
+
+<h2 id="siyatik-sinir">Siyatik sinir neden bu kadar önemlidir?</h2>
+<p>Siyatik sinir, omurilik aracılığıyla beyinden bacaklara ve bacaklardan beyne giden sinyalleri iletir; bacaklardaki hisleri sağlar. Bu nedenle bel fıtığı, kanal daralması, bel kayması veya omurga kırığı gibi nedenlerle siyatik sinirin sıkışması; belden ya da kalçadan bacağa vuran ağrıya, his kaybına ve bacak sürümeye yol açabilir.</p>
+<p>İleri vakalarda tedavi gecikirse bacaktaki sorunlar kalıcı olabilir. Bu yüzden ilerleyici güç kaybı veya uzun süren şiddetli ağrıda gecikmeden değerlendirme yapılmalıdır.</p>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara siyatik ağrı değerlendirmesi" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="tani">Ağrının nedeni nasıl anlaşılır?</h2>
+<p>Hasta öyküsü, ayrıntılı muayene ve görüntüleme yöntemleriyle ağrının nedeni bulunabilir. Teşhiste genellikle <strong>MR</strong> (MRI) kullanılır; bazı durumlarda BT de tercih edilebilir. Görüntüleme, fıtık mı yoksa kanal darlığı mı, yoksa başka bir neden mi olduğunu ayırt etmeye yardımcı olur.</p>
+
+<h2 id="tedavi">Bacağa vuran ağrı nasıl tedavi edilir?</h2>
+<p>Akut semptomları hafifletmek için ağrı kesiciler ve kas gevşetici ilaçlar reçete edilebilir; uygun hastalarda lokal anestezik enjeksiyonlar kullanılabilir. Zamanında ağrı tedavisi, ağrının kronikleşmesini engellemeye yardımcı olur.</p>
+<p>Ağrının nedenine göre spesifik tedaviler uygulanır:</p>
+<ul>
+<li><strong>Konservatif tedavi:</strong> ilaç, istirahat, fizik tedavi</li>
+<li><strong>Epidural enjeksiyon:</strong> seçilmiş hastalarda ağrı kontrolü</li>
+<li><strong>Cerrahi:</strong> geçmeyen inatçı ağrı veya nörolojik defisit durumunda</li>
+</ul>
+<p>Bacağa vuran ağrı bel fıtığı kaynaklıysa ve konservatif yöntemler yetersiz kalırsa, günümüzün gelişmiş seçeneklerinden biri <strong>full endoskopik tam kapalı bel fıtığı ameliyatı</strong>dır. Minimal kesi, kamera rehberliği ve hızlı iyileşme hedefiyle sinir baskısı giderilebilir. Ayrıntılı bilgi için <a href="/tedaviler/bel-fitigi-ameliyati">bel fıtığı ameliyatı</a> sayfamıza ve <a href="/blog/endoskopik-ameliyat-nedir">endoskopik ameliyat nedir</a> yazımıza göz atabilirsiniz.</p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p>Kalçadan veya belden bacağa vuran ağrı çoğu zaman siyatik sinir baskısından kaynaklanır; en sık nedenler bel fıtığı ve dar kanaldır. Doğru tanı ve zamanında tedavi ile günlük yaşama dönüş hızlanır. Bilgi ve randevu için <a href="/iletisim">iletişim</a> sayfamızı kullanabilirsiniz.</p>`,
+  },
+  {
+    slug: "gecmeyen-bel-agrisi-nedenleri-ve-tedavisi",
+    title: "Geçmeyen Bel Ağrısı Nedenleri ve Tedavisi",
+    date: "2026-08-23",
+    excerpt:
+      "Kronikleşen bel ağrısı kas, disk veya omurga kaynaklı olabilir. Doğru tanı ve tedavi ile kalıcı rahatlama mümkündür.",
+    image: "/hero/kanaldarligi.webp",
+    imageAlt: "Geçmeyen bel ağrısı nedenleri ve tedavisi",
+    metaTitle: "Geçmeyen Bel Ağrısı Nedenleri ve Tedavisi | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Geçmeyen bel ağrısı nedenleri, ne yapmalısınız, ilaç-fizik tedavi ve full endoskopik bel fıtığı ameliyatı seçeneklerini öğrenin.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Geçmeyen bel ağrınız için destek alın",
+    contactCardBody:
+      "Kronik bel ağrısının nedenini öğrenmek ve tedavi seçeneklerini konuşmak için iletişime geçin.",
+    toc: [
+      { id: "giris", label: "Geçmeyen bel ağrısı neden artıyor?" },
+      { id: "nedenler", label: "Geçmeyen bel ağrısı nedenleri" },
+      { id: "ne-yapmaliyim", label: "Bel ağrım geçmiyor, ne yapmalıyım?" },
+      { id: "tedavi", label: "Tedavi seçenekleri" },
+      { id: "cerrahi", label: "Geçmeyen bel ağrısı için cerrahi tedavi" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p id="giris">Günümüzde bel ağrısı; modern yaşamın getirdiği hareketsizlik, uzun süre oturma ve duruş bozukluğu gibi etkenlerle 30–50 yaş arasında adeta bir salgın haline gelmiştir. Ülkemizde milyonlarca insanın günlük aktivitelerini kısıtlayan yaygın bir problemdir.</p>
+<p>Kısa süreli veya hafif bel ağrıları çoğu zaman kendiliğinden iyileşirken; <strong>kronikleşen ve zamanla azalmayan bel ağrıları</strong> önemli omurga sorunlarının habercisi olabilir. Bu yazıda geçmeyen bel ağrısının nedenlerini, tanı sürecini ve tedavi seçeneklerini ele alıyoruz.</p>
+
+<h2 id="nedenler">Geçmeyen bel ağrısı nedenleri</h2>
+<p>Bel ağrısı birçok farklı sebepten kaynaklanabilir. Yaygın sebepler arasında kas ağrıları, disk problemleri ve omurga bozuklukları yer alır.</p>
+
+<figure><img src="/hero/belfitigi.webp" alt="Geçmeyen bel ağrısında disk ve fıtık problemleri" loading="lazy" width="1000" height="667" /></figure>
+
+<h3>Kas ve bağ dokusu problemleri</h3>
+<p>Uzun süreli oturma, duruş bozuklukları, ağır kaldırma veya ani hareketlerle kaslar ve bağ dokuları zorlanabilir. Kas spazmları kısa süreli bel ağrılarının en yaygın nedenidir. Tekrarlayan zorlanmalar kronik ağrılara dönüşebilir.</p>
+
+<h3>Disk problemleri</h3>
+<p>Omurlar arasında yer alan disklerin fıtıklaşması, sinir köklerine baskı yaparak bel ağrısına yol açar. <strong>Bel fıtığı</strong>; ağır kaldırma, yanlış duruş veya yaşla birlikte disk dejenerasyonu sonucu gelişebilir. Fıtıklaşan disk sinir üzerine baskı yaparak şiddetli ağrıya neden olabilir. Detay için <a href="/tedaviler/bel-fitigi-ameliyati">bel fıtığı ameliyatı</a> sayfamıza bakabilirsiniz.</p>
+
+<h3>Omurga bozuklukları</h3>
+<p>Skolyoz veya lordoz gibi omurga eğrilikleri kronikleşen bel ağrılarına yol açabilir. Bu bozukluklar omurganın dengesini bozarak zamanla kas ve bağ dokularının zorlanmasına neden olur.</p>
+
+<h3>Diğer nedenler</h3>
+<p>Nadir de olsa bel ağrısı ciddi sağlık sorunlarının belirtisi olabilir: omurga enfeksiyonları, tümörler, böbrek taşı gibi iç organ kaynaklı rahatsızlıklar veya bazı viral enfeksiyonlar. Bu durumlarda ağrı genellikle hastalığa özgü diğer belirtilerle birlikte ortaya çıkar.</p>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara geçmeyen bel ağrısı muayenesi" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="ne-yapmaliyim">Bel ağrım geçmiyor, ne yapmalıyım?</h2>
+<p>Geçmeyen bel ağrısında ilk adım <strong>doğru tanıdır</strong>. Hekim hasta öyküsünü dinler, fizik muayene yapar ve gerekirse radyolojik görüntüleme ister. Röntgen, MR ve BT; özellikle omurga kaynaklı sorunların tespitinde kritik öneme sahiptir.</p>
+<ul>
+<li>6 haftadan uzun süren ağrı</li>
+<li>Bacağa vuran ağrı veya uyuşma</li>
+<li>Güç kaybı, yürüme zorluğu</li>
+<li>Gece ağrısı veya kilo kaybı gibi kırmızı bayrak bulgular</li>
+</ul>
+<p>Bu belirtilerde gecikmeden beyin cerrahisi veya fizik tedavi değerlendirmesi önerilir. Hangi bölüme gideceğinizi merak ediyorsanız <a href="/blog/bel-fitigi-icin-hangi-bolume-gidilmeli">bel fıtığı için hangi bölüme gidilmeli</a> yazımıza da bakabilirsiniz.</p>
+
+<h2 id="tedavi">Tedavi seçenekleri</h2>
+<p>Geçmeyen bel ağrısının ilk tedavi basamağı genellikle ilaç ve fizik tedaviyi içerir:</p>
+<ul>
+<li>Antiinflamatuvar ilaçlar ve kas gevşeticiler</li>
+<li>Fizyoterapist eşliğinde egzersiz programları</li>
+<li>Doğru duruş, düzenli hareket ve ideal kilo</li>
+<li>Sağlıklı beslenme ve yaşam tarzı düzenlemeleri</li>
+</ul>
+<p>Kronik bel ağrısının yönetiminde yaşam tarzı değişiklikleri büyük önem taşır. Kasları güçlendirmek ve omurga yükünü azaltmak, nüks riskini düşürmeye yardımcı olur.</p>
+
+<figure><img src="/hero/kanaldarligi.webp" alt="Geçmeyen bel ağrısında cerrahi tedavi seçenekleri" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="cerrahi">Geçmeyen bel ağrısı için cerrahi tedavi</h2>
+<p>Konservatif tedavilere rağmen bel ağrısı devam ediyorsa ve ağrı fıtık ya da omurga kaynaklıysa cerrahi müdahale gerekebilir. Günümüzde modern cerrahi teknikler arasında yer alan <strong>full endoskopik bel fıtığı ameliyatı</strong> birçok hasta için umut verici bir çözümdür.</p>
+<p>Bu minimal invaziv yöntemde cerrah yaklaşık 4 milimetrelik bir girişten endoskopik aletlerle fıtıklaşmış disk materyalini çıkarır. Küçük kesi, minimal doku hasarı ve hızlı iyileşme yöntemin en önemli avantajlarıdır; çoğu hasta aynı gün taburcu olabilir.</p>
+<p>Ayrıntılı bilgi için <a href="/tedaviler/bel-fitigi-ameliyati">Full Endoskopik Bel Fıtığı Ameliyatı</a> sayfamıza ve <a href="/blog/endoskopik-ameliyat-nedir">endoskopik ameliyat nedir</a> yazımıza göz atabilirsiniz.</p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p>Geçmeyen bel ağrısı modern yaşamın sık görülen sorunlarından biridir. Doğru tanı ve uygun tedavi ile başa çıkmak mümkündür. Konservatif tedavilere rağmen ağrılarınız sürüyor ve kaynak fıtıksa, full endoskopik bel fıtığı ameliyatı günümüzün en gelişmiş seçeneklerinden biridir.</p>
+<p>Bilgi ve randevu için <a href="/iletisim">iletişim</a> sayfamızı kullanabilirsiniz.</p>`,
+  },
+  {
+    slug: "bel-fitigi-icin-hangi-bolume-gidilmeli",
+    title: "Bel Fıtığı İçin Hangi Bölüme Gidilmeli?",
+    date: "2026-08-23",
+    excerpt:
+      "Bel fıtığında asıl başvurulması gereken branşlar beyin cerrahisi ve fizik tedavidir. Doğru bölüm seçimi tanı ve tedaviyi hızlandırır.",
+    image: "/hero/belfitigi.webp",
+    imageAlt: "Bel fıtığı için hangi bölüme gidilmeli",
+    metaTitle: "Bel Fıtığı İçin Hangi Bölüme Gidilmeli? | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Bel fıtığı için hangi bölüme gidilmeli? Beyin cerrahisi ve fizik tedavi arasındaki farkı, bel ağrısında doğru branş seçimini öğrenin.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Bel fıtığınız için doğru değerlendirme",
+    contactCardBody:
+      "Hangi bölüme gitmeniz gerektiğini netleştirmek ve size uygun tedavi yolunu öğrenmek için iletişime geçin.",
+    toc: [
+      { id: "neden-kafa-karisikligi", label: "Bel ağrısında neden kafa karışıklığı olur?" },
+      { id: "hangi-branslar", label: "Bel ağrısı hangi branşları ilgilendirir?" },
+      { id: "asil-bolumler", label: "Bel fıtığında asıl başvurulması gereken bölümler" },
+      { id: "beyin-cerrahisi-mi-fizik-tedavi-mi", label: "Beyin cerrahisi mi, fizik tedavi mi?" },
+      { id: "ne-zaman-beyin-cerrahisi", label: "Ne zaman beyin cerrahisine gitmelisiniz?" },
+      { id: "sonuc", label: "Sonuç: Doğru bölüm, doğru tedavi" },
+    ],
+    contentHtml: `<p>Bel ağrısı çektiğimizde veya bel fıtığı olduğumuzu düşündüğümüzde çoğu hasta aslında <strong>hangi bölüme başvuracağını</strong> bilemez. Bel ağrısının sebepleri birçok uzmanlık alanını ilgilendirebilir; başka organlardan yansıyan ağrılar da bel ağrısına yol açabilir. Bu karmaşa haklı bir kafa karışıklığı yaratır.</p>
+<p>Bu yazıda bel fıtığı ve bel ağrısında hangi branşa gidilmesi gerektiğini, beyin cerrahisi ile fizik tedavi arasındaki rol ayrımını ve ne zaman cerrahi değerlendirme gerektiğini netleştiriyoruz.</p>
+
+<h2 id="neden-kafa-karisikligi">Bel ağrısında neden kafa karışıklığı olur?</h2>
+<p>Bel ağrısı tek bir hastalığın adı değildir; bir <strong>bulgudur</strong>. Kas zorlanması, bel fıtığı, kanal darlığı, eklem problemleri, böbrek taşı, idrar yolu enfeksiyonu veya jinekolojik sorunlar gibi farklı nedenler benzer şikayetler yaratabilir. Bu yüzden hastalar bazen dahiliye, ortopedi, üroloji veya fizik tedavi arasında gidip gelir.</p>
+<p>Önemli olan, ağrının kaynağını doğru ayırt etmektir. Ayrıntılı muayene ve gerektiğinde MR gibi görüntüleme yöntemleriyle sebep ortaya konmadan doğru tedavi planı kurulamaz.</p>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara bel fıtığı değerlendirmesi" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="hangi-branslar">Bel ağrısı hangi branşları ilgilendirir?</h2>
+<p>Pratikte hastalar bel ağrısıyla şu branşlara başvurabilmektedir:</p>
+<ul>
+<li><strong>Dahiliye</strong> — genel değerlendirme ve sistemik hastalık şüphesi</li>
+<li><strong>Ortopedi</strong> — kemik-eklem kaynaklı bel ağrıları</li>
+<li><strong>Fizik tedavi ve rehabilitasyon</strong> — kas-iskelet sistemi ve non-cerrahi tedavi</li>
+<li><strong>Beyin ve sinir cerrahisi</strong> — disk, sinir baskısı ve cerrahi gerektiren omurga sorunları</li>
+<li><strong>Üroloji</strong> — böbrek/idrar yolu kaynaklı yansıyan ağrılar</li>
+</ul>
+<p>Bel ağrısı <strong>asıl olarak fizik tedavi ve beyin cerrahisi</strong> branşlarını ilgilendiren bir bulgudur. Bu iki branştan birinin yapacağı ayrıntılı muayene ve gerekli tetkikler sonrası sebep netleşir.</p>
+
+<h2 id="asil-bolumler">Bel fıtığında asıl başvurulması gereken bölümler</h2>
+<p>Aynı kafa karışıklığı bel fıtığı için de geçerlidir. Bel fıtığı hastalarının asıl başvurması gereken branşlar <strong>beyin ve sinir cerrahisi</strong> ile <strong>fizik tedavi</strong> uzmanlarıdır.</p>
+<p>Beyin cerrahisi uzmanı; detaylı nörolojik muayene ve görüntüleme (özellikle MR) ile fıtığın sinire baskı yapıp yapmadığını, güç kaybı veya ilerleyici bulgu olup olmadığını değerlendirir. Buna göre ilaç/fizik tedavi mi, yoksa endoskopik kapalı ameliyat gibi cerrahi bir seçenek mi gerektiğine karar verilir.</p>
+<ul>
+<li>Belden kalçaya ve bacağa vuran ağrı</li>
+<li>Uyuşma, karıncalanma, güçsüzlük</li>
+<li>Uzun süren ve günlük hayatı bozan bel ağrısı</li>
+</ul>
+<p>Bu belirtilerde doğru adres: <a href="/tedaviler/bel-fitigi-ameliyati">bel fıtığı değerlendirmesi</a> yapan beyin cerrahisi veya fizik tedavi uzmanıdır.</p>
+
+<figure><img src="/hero/belfitigi.webp" alt="Bel fıtığında doğru branş seçimi" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="beyin-cerrahisi-mi-fizik-tedavi-mi">Beyin cerrahisi mi, fizik tedavi mi?</h2>
+<p>İkisi de doğru kapıdır; fark, şikayetin şiddetine ve bulgulara göre netleşir:</p>
+<ul>
+<li><strong>Fizik tedavi:</strong> Erken dönem, hafif-orta şiddette ağrı, belirgin nörolojik kayıp yoksa ilk basamak tedaviler (egzersiz, fizik tedavi, ilaç) için uygundur.</li>
+<li><strong>Beyin cerrahisi:</strong> Sinir baskısı, bacağa vuran şiddetli ağrı, güç kaybı, uzun süren şikayetler veya konservatif tedaviye yanıtsızlık varsa değerlendirme şarttır.</li>
+</ul>
+<p>Birçok hastada süreç birlikte ilerler: fizik tedavi ile başlanır, yeterli yanıt alınamazsa veya kırmızı bayrak bulgular varsa beyin cerrahisi planı yapılır. Op. Dr. Eyüp Baykara, full endoskopik yaklaşımla seçilmiş hastalarda minimal invaziv cerrahi seçenekleri de sunar.</p>
+
+<h2 id="ne-zaman-beyin-cerrahisi">Ne zaman beyin cerrahisine gitmelisiniz?</h2>
+<p>Aşağıdaki durumlarda zaman kaybetmeden beyin ve sinir cerrahisi değerlendirmesi önerilir:</p>
+<ul>
+<li>6 haftadan uzun süren bel ve bacak ağrısı</li>
+<li>Ayakta veya bacakta güç kaybı</li>
+<li>İlerleyici uyuşma ve yürüme zorluğu</li>
+<li>Fizik tedavi / ilaç ile düzelmeyen ağrı</li>
+<li>İdrar veya dışkı kontrolünde bozulma (acil değerlendirme)</li>
+</ul>
+<p>Erken ve doğru branş seçimi; gereksiz dolaşmayı azaltır, tanı süresini kısaltır ve tedavi başarısını artırır.</p>
+
+<h2 id="sonuc">Sonuç: Doğru bölüm, doğru tedavi</h2>
+<p>Özetle: bel ağrısı ve bel fıtığında asıl başvurmanız gereken branşlar <strong>beyin cerrahisi</strong> ve <strong>fizik tedavi</strong>dir. Detaylı muayene ve görüntüleme ile sebep netleştikten sonra kişiye özel tedavi planı çıkarılır.</p>
+<p>Bel fıtığınızdan kurtulmak ve size uygun yaklaşımı öğrenmek için <a href="/iletisim">iletişim</a> kısmından bize ulaşabilirsiniz. Herkese fıtıksız ve ağrısız günler dileriz.</p>`,
+  },
   {
     slug: "endoskopik-ameliyat-nedir",
     title: "Endoskopik Ameliyat Nedir?",
