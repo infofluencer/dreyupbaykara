@@ -180,15 +180,36 @@ export function Footer() {
             />
           </Link>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-white/40">
               © {year} Op. Dr. Eyüp Baykara. Tüm hakları saklıdır.
             </p>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/45">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 text-xs text-white/45">
               <Link href="/cerezler" className="transition hover:text-white">
                 Çerez politikası
               </Link>
               <CookiePreferencesButton className="text-left transition hover:text-white" />
+              <a
+                href="https://593emarketing.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.18)] transition hover:bg-white/95"
+                aria-label="Powered by 593 EMarketing"
+              >
+                <span className="text-[10px] font-medium tracking-[0.12em] text-[#9ca3af] uppercase">
+                  Powered by
+                </span>
+                <Image
+                  src="/593-emarketing-logo.png"
+                  alt=""
+                  width={512}
+                  height={512}
+                  className="h-5 w-5 rounded-full"
+                />
+                <span className="text-[12px] font-semibold tracking-tight text-[#1f2937]">
+                  593 EMarketing
+                </span>
+              </a>
             </div>
           </div>
         </div>
