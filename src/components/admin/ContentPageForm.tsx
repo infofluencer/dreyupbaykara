@@ -18,7 +18,7 @@ type ContentPageValue = {
 };
 
 const input =
-  "mt-1.5 w-full rounded-xl border border-[#123524]/15 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[#0b6b45]";
+  "mt-1.5 min-h-11 w-full rounded-xl border border-[#123524]/15 bg-white px-3.5 py-2.5 text-base outline-none focus:border-[#0b6b45] sm:text-sm";
 
 export function ContentPageForm({
   page,
@@ -140,10 +140,10 @@ export function ContentPageForm({
         />
       </Field>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button
           type="submit"
-          className="rounded-full bg-[#0b6b45] px-6 py-2.5 text-sm font-semibold text-white"
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white"
         >
           Kaydet
         </button>
@@ -151,7 +151,7 @@ export function ContentPageForm({
           <button
             type="submit"
             formAction={deleteContentPage}
-            className="rounded-full border border-red-200 px-5 py-2.5 text-sm font-semibold text-red-700"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-red-200 px-5 text-sm font-semibold text-red-700"
           >
             Sayfayı sil
           </button>

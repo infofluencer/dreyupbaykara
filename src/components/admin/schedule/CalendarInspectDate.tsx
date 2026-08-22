@@ -15,8 +15,8 @@ export function CalendarInspectDate({
   const router = useRouter();
 
   return (
-    <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm font-semibold text-[#123524] sm:flex-row sm:items-center sm:gap-2">
-      <span className="text-[#466254]">Tarih seç</span>
+    <label className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold text-[#123524]">
+      <span className="sr-only sm:not-sr-only sm:text-[#466254]">Tarih seç</span>
       <input
         type="date"
         value={date}
@@ -32,7 +32,7 @@ export function CalendarInspectDate({
             }),
           );
         }}
-        className="min-h-12 w-full min-w-0 flex-1 rounded-2xl border border-[#123524]/15 bg-white px-3 text-base font-semibold text-[#123524] sm:min-h-10 sm:rounded-full sm:text-sm"
+        className="min-h-10 w-full min-w-0 flex-1 rounded-xl border border-[#123524]/15 bg-white px-2.5 text-sm font-semibold text-[#123524] sm:min-h-10 sm:rounded-full sm:px-3"
       />
     </label>
   );

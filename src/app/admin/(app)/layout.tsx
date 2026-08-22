@@ -16,7 +16,7 @@ export default function AdminAppLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="admin-shell min-h-screen pb-[calc(4.25rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-64">
+    <div className="admin-shell min-h-screen lg:pl-64">
       <AdminSidebar />
       <AdminMobileNav />
       <main className="mx-auto max-w-[92rem] px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-10">

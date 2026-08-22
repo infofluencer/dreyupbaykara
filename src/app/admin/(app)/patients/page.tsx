@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UserPlus } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { formatPatientNo, patientAge } from "@/lib/crm/patient";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +39,7 @@ export default async function PatientsPage({
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="font-[family-name:var(--font-instrument-sans)] text-xl font-semibold sm:text-2xl">
             Hastalar
           </h1>
@@ -48,8 +49,9 @@ export default async function PatientsPage({
         </div>
         <Link
           href="/admin/patients/new"
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white sm:min-h-10"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white sm:w-auto sm:min-h-10"
         >
+          <UserPlus className="h-4 w-4 shrink-0" aria-hidden />
           Yeni hasta
         </Link>
       </div>
@@ -77,45 +79,43 @@ export default async function PatientsPage({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-[#123524]/10 bg-white">
-        {!patients?.length ? (
-          <p className="p-5 text-sm text-[#466254]">
-            {search
-              ? "Eşleşen hasta yok."
-              : "Henüz hasta yok. Yeni hasta ekleyin veya takvimden randevu yazın."}
-          </p>
-        ) : (
-          <div className="divide-y divide-[#123524]/08">
-            {patients.map((patient) => {
-              const age = patientAge(patient.birth_date);
-              return (
-                <Link
-                  key={patient.id}
-                  href={`/admin/patients/${patient.id}`}
-                  className="flex min-h-16 items-start justify-between gap-3 px-4 py-4 active:bg-[#f7f9f8] sm:items-center sm:px-5"
-                >
-                  <div>
-                    <p className="font-semibold">
-                      {patient.name || "İsimsiz"}{" "}
-                      <span className="text-xs font-semibold text-[#0b6b45]">
-                        {formatPatientNo(patient.patient_no)}
-                      </span>
-                    </p>
-                    <p className="mt-1 text-sm text-[#466254]">
-                      {patient.phone}
-                      {age ? ` · ${age} yaş` : ""}
-                      {patient.city ? ` · ${patient.city}` : ""}
-                    </p>
-                  </div>
-                  <span className="shrink-0 pt-1 text-xs font-semibold text-[#0b6b45] sm:pt-0">
-                    Kimliği aç →
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {!patients?.length ? (
+        <p className="rounded-2xl border border-[#123524]/10 bg-white p-5 text-sm text-[#466254]">
+          {search
+            ? "Eşleşen hasta yok."
+            : "Henüz hasta yok. Yeni hasta ekleyin veya takvimden randevu yazın."}
+        </p>
+      ) : (
+        <div className="space-y-3 sm:space-y-0 sm:overflow-hidden sm:rounded-2xl sm:border sm:border-[#123524]/10 sm:bg-white sm:divide-y sm:divide-[#123524]/08">
+          {patients.map((patient) => {
+            const age = patientAge(patient.birth_date);
+            return (
+              <Link
+                key={patient.id}
+                href={`/admin/patients/${patient.id}`}
+                className="flex min-h-16 flex-col gap-2 rounded-2xl border border-[#123524]/10 bg-white px-4 py-4 active:bg-[#f7f9f8] sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:rounded-none sm:border-0 sm:px-5"
+              >
+                <div className="min-w-0">
+                  <p className="text-base font-semibold sm:text-sm">
+                    {patient.name || "İsimsiz"}{" "}
+                    <span className="text-xs font-semibold text-[#0b6b45]">
+                      {formatPatientNo(patient.patient_no)}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-sm text-[#466254]">
+                    {patient.phone || "Telefon yok"}
+                    {age ? ` · ${age} yaş` : ""}
+                    {patient.city ? ` · ${patient.city}` : ""}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs font-semibold text-[#0b6b45]">
+                  Kimliği aç →
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

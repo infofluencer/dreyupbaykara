@@ -281,7 +281,7 @@ export default async function AdminSourcesPage({
 
           <form
             action="/admin/sources"
-            className="flex w-full min-w-0 items-center gap-2 lg:w-80"
+            className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:w-80"
           >
             {platform !== "all" ? (
               <input type="hidden" name="platform" value={platform} />
@@ -295,10 +295,10 @@ export default async function AdminSourcesPage({
                 name="q"
                 defaultValue={search}
                 placeholder="Ref, kampanya, sayfa…"
-                className="w-full rounded-xl border border-[#123524]/12 bg-[#f7f9f8] py-2.5 pr-3 pl-10 text-sm outline-none focus:border-[#0b6b45]/40 focus:bg-white"
+                className="min-h-11 w-full rounded-xl border border-[#123524]/12 bg-[#f7f9f8] py-2.5 pr-3 pl-10 text-base outline-none focus:border-[#0b6b45]/40 focus:bg-white sm:text-sm"
               />
             </label>
-            <button className="rounded-xl bg-[#123524] px-3 py-2.5 text-sm font-semibold text-white">
+            <button className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#123524] px-4 text-sm font-semibold text-white sm:shrink-0">
               Ara
             </button>
           </form>
@@ -367,7 +367,43 @@ export default async function AdminSourcesPage({
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-[#123524]/08 bg-white">
+        <>
+        <div className="space-y-3 sm:hidden">
+          {visible.map((row) => (
+            <article
+              key={row.id}
+              className="rounded-2xl border border-[#123524]/10 bg-white px-4 py-4"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${PLATFORM_BADGE[row.platform]}`}
+                >
+                  {PLATFORM_LABEL[row.platform]}
+                </span>
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${EVENT_BADGE[row.sourceEvent]}`}
+                >
+                  {EVENT_LABEL[row.sourceEvent]}
+                </span>
+              </div>
+              <p className="mt-2 font-mono text-sm font-semibold text-[#123524]">
+                {row.lead_ref}
+                {row.matched_lead_id ? (
+                  <span className="ml-2 font-sans text-[10px] font-medium text-[#0b6b45]">
+                    eşleşti
+                  </span>
+                ) : null}
+              </p>
+              <p className="mt-1 text-sm text-[#466254]">
+                {row.utm_campaign || row.campaign || "Kampanya yok"}
+              </p>
+              <p className="mt-1 text-xs text-[#466254]/80">
+                {row.page_path || "—"} · {formatDateTimeTr(row.created_at)}
+              </p>
+            </article>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto rounded-2xl border border-[#123524]/08 bg-white sm:block">
           <table className="w-full min-w-[52rem] text-left text-sm">
             <thead className="border-b border-[#123524]/08 bg-[#f7f9f8] text-[#466254]">
               <tr>
@@ -443,13 +479,14 @@ export default async function AdminSourcesPage({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );
 }
 
 function eventChip(active: boolean) {
-  return `inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+  return `inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
     active
       ? "bg-[#123524] text-white"
       : "border border-[#123524]/12 bg-[#f7f9f8] text-[#466254] hover:border-[#123524]/25 hover:bg-white"

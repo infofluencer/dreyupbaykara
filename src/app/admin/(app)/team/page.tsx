@@ -31,10 +31,10 @@ export default async function TeamPage() {
             <form
               key={profile.id}
               action={updateProfileRole}
-              className="flex flex-wrap items-center justify-between gap-3 border-b border-[#123524]/8 px-5 py-4 last:border-0"
+              className="flex w-full flex-col gap-3 border-b border-[#123524]/8 px-4 py-4 last:border-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5"
             >
               <input type="hidden" name="profile_id" value={profile.id} />
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium">
                   {profile.full_name || "İsimsiz kullanıcı"}
                 </p>
@@ -42,11 +42,11 @@ export default async function TeamPage() {
                   {new Date(profile.created_at).toLocaleDateString("tr-TR")}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                 <select
                   name="role"
                   defaultValue={profile.role}
-                  className="rounded-xl border border-[#123524]/15 bg-white px-3 py-2 text-sm"
+                  className="min-h-11 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2 text-base sm:w-auto sm:text-sm"
                 >
                   <option value="admin">Admin</option>
                   <option value="doctor">Doktor</option>
@@ -54,7 +54,7 @@ export default async function TeamPage() {
                   <option value="agency">Ajans</option>
                   <option value="editor">Editör</option>
                 </select>
-                <button className="rounded-full bg-[#123524] px-4 py-2 text-sm font-semibold text-white">
+                <button className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#123524] px-4 text-sm font-semibold text-white sm:w-auto">
                   Kaydet
                 </button>
               </div>

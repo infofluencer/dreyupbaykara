@@ -93,8 +93,8 @@ export default async function PatientDetailPage({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <Link
             href="/admin/patients"
             className="text-sm font-medium text-[#0b6b45]"
@@ -112,18 +112,18 @@ export default async function PatientDetailPage({
               : ""}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
           {activeLead ? (
             <Link
               href={`/admin/leads?lead=${activeLead.id}&date=${todayYmd}`}
-              className="rounded-full bg-[#0b6b45] px-4 py-2 text-sm font-semibold text-white"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#0b6b45] px-4 text-sm font-semibold text-white sm:w-auto sm:min-h-10"
             >
               Takvime randevu yaz
             </Link>
           ) : null}
           <Link
             href={`/admin/messages?lead=${activeLead?.id ?? ""}`}
-            className="rounded-full border border-[#0b6b45]/25 px-4 py-2 text-sm font-semibold text-[#0b6b45]"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-[#0b6b45]/25 px-4 text-sm font-semibold text-[#0b6b45] sm:w-auto sm:min-h-10"
           >
             WhatsApp
           </Link>
@@ -215,7 +215,7 @@ export default async function PatientDetailPage({
                 className={input}
               />
             </Field>
-            <button className="rounded-full bg-[#0b6b45] px-6 py-2.5 text-sm font-semibold text-white">
+            <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white">
               Kimliği kaydet
             </button>
           </form>
@@ -246,7 +246,7 @@ export default async function PatientDetailPage({
               placeholder="Muayene bulgusu, ameliyat notu, kontrol planı..."
               className={input}
             />
-            <button className="rounded-full bg-[#123524] px-5 py-2.5 text-sm font-semibold text-white">
+            <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#123524] px-5 text-sm font-semibold text-white">
               Not ekle
             </button>
           </form>

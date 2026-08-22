@@ -1,7 +1,12 @@
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-export async function createClient() {
+/**
+ * Request-scoped Supabase server client (React cache).
+ * Creating a client does not call getUser — auth stays in requireAdminSession.
+ */
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -24,4 +29,4 @@ export async function createClient() {
       },
     },
   );
-}
+});

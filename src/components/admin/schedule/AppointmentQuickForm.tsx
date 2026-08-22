@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createAppointment } from "@/app/admin/actions";
+import { loadScheduleLeads } from "@/app/admin/schedule-actions";
 import { AppointmentStatusDialog } from "@/components/admin/schedule/AppointmentStatusDialog";
 import { TypeAndDurationFields } from "@/components/admin/schedule/TypeAndDurationFields";
 import { planHref, type PlanView } from "@/components/admin/schedule/href";
@@ -13,30 +14,36 @@ import { firstRelation } from "@/lib/crm/labels";
 const TIME_SLOTS = clinicSlots();
 
 export function AppointmentQuickForm({
-  leads,
   selectedLeadId,
   date,
   time,
   view,
+  stage = "active",
+  search = "",
   error,
   defaultOpen = false,
+  hideToggleUnlessOpen = false,
 }: {
-  leads: ScheduleLead[];
   selectedLeadId?: string;
   date: string;
   time: string;
   view?: PlanView;
+  stage?: string;
+  search?: string;
   error?: string | null;
   defaultOpen?: boolean;
+  /** Day view: hide "+ Randevu ekle" when closed (empty CTA / slot clicks open form). */
+  hideToggleUnlessOpen?: boolean;
 }) {
   const router = useRouter();
-  const initial = selectedLeadId
-    ? firstRelation(leads.find((lead) => lead.id === selectedLeadId)?.contacts)
-    : null;
   const [open, setOpen] = useState(defaultOpen);
+  const [leads, setLeads] = useState<ScheduleLead[]>([]);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  const [leadsError, setLeadsError] = useState<string | null>(null);
+  const [leadsLoaded, setLeadsLoaded] = useState(false);
   const [leadId, setLeadId] = useState(selectedLeadId ?? "");
-  const [name, setName] = useState(initial?.name ?? "");
-  const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<"loading" | "success" | "error" | null>(
     error ? "error" : null,
   );
@@ -53,6 +60,42 @@ export function AppointmentQuickForm({
   useEffect(() => {
     if (defaultOpen) setOpen(true);
   }, [defaultOpen]);
+
+  useEffect(() => {
+    setLeadsLoaded(false);
+    setLeads([]);
+    setLeadsError(null);
+  }, [stage, search]);
+
+  useEffect(() => {
+    if (!open || leadsLoaded || leadsLoading) return;
+    let cancelled = false;
+    setLeadsLoading(true);
+    setLeadsError(null);
+    void loadScheduleLeads({ stage, q: search }).then((result) => {
+      if (cancelled) return;
+      setLeadsLoading(false);
+      if (!result.ok) {
+        setLeadsError(result.error);
+        return;
+      }
+      setLeads(result.leads);
+      setLeadsLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, leadsLoaded, leadsLoading, stage, search]);
+
+  useEffect(() => {
+    if (!leadsLoaded || !selectedLeadId) return;
+    const contact = firstRelation(
+      leads.find((lead) => lead.id === selectedLeadId)?.contacts,
+    );
+    setLeadId(selectedLeadId);
+    setName(contact?.name ?? "");
+    setPhone(contact?.phone ?? "");
+  }, [leadsLoaded, selectedLeadId, leads]);
 
   function onLeadChange(nextId: string) {
     setLeadId(nextId);
@@ -112,16 +155,18 @@ export function AppointmentQuickForm({
 
   return (
     <>
-      <div className="flex items-center justify-end">
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          className="inline-flex min-h-10 items-center rounded-full border border-[#0b6b45]/25 bg-white px-4 text-sm font-semibold text-[#0b6b45]"
-          aria-expanded={open}
-        >
-          {open ? "Formu gizle" : "+ Randevu ekle"}
-        </button>
-      </div>
+      {!hideToggleUnlessOpen || open ? (
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="inline-flex min-h-10 items-center rounded-full border border-[#0b6b45]/25 bg-white px-4 text-sm font-semibold text-[#0b6b45]"
+            aria-expanded={open}
+          >
+            {open ? "Formu gizle" : "+ Randevu ekle"}
+          </button>
+        </div>
+      ) : null}
 
       {open ? (
         <form
@@ -138,9 +183,12 @@ export function AppointmentQuickForm({
             name="lead_id"
             value={leadId}
             onChange={(event) => onLeadChange(event.target.value)}
-            className="mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-3 text-base"
+            disabled={leadsLoading}
+            className="mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-3 text-base disabled:opacity-60"
           >
-            <option value="">Yeni hasta</option>
+            <option value="">
+              {leadsLoading ? "Hastalar yükleniyor…" : "Yeni hasta"}
+            </option>
             {leads.map((lead) => {
               const item = firstRelation(lead.contacts);
               return (
@@ -150,6 +198,9 @@ export function AppointmentQuickForm({
               );
             })}
           </select>
+          {leadsError ? (
+            <span className="mt-1 block text-xs text-red-700">{leadsError}</span>
+          ) : null}
         </label>
         <label className="text-sm font-medium">
           Ad soyad

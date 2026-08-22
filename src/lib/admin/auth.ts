@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/types/crm";
@@ -10,9 +11,12 @@ export type AdminSession = {
   role: UserRole;
 };
 
-export async function requireAdminSession(
-  allowedRoles?: UserRole[],
-): Promise<AdminSession> {
+/**
+ * Request-scoped getUser + profiles lookup.
+ * Kept argument-free so React cache() hits even when callers pass
+ * different allowedRoles array literals (Object.is on args).
+ */
+const readAdminSession = cache(async (): Promise<AdminSession> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,7 +33,7 @@ export async function requireAdminSession(
     .single();
 
   const role = profile?.role as UserRole | undefined;
-  if (!role || (allowedRoles && !allowedRoles.includes(role))) {
+  if (!role) {
     redirect("/admin?error=yetkisiz");
   }
 
@@ -38,5 +42,14 @@ export async function requireAdminSession(
     email: user.email ?? null,
     role,
   };
-}
+});
 
+export async function requireAdminSession(
+  allowedRoles?: UserRole[],
+): Promise<AdminSession> {
+  const session = await readAdminSession();
+  if (allowedRoles && !allowedRoles.includes(session.role)) {
+    redirect("/admin?error=yetkisiz");
+  }
+  return session;
+}

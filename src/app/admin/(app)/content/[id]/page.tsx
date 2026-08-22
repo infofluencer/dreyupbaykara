@@ -9,7 +9,7 @@ import { requireAdminSession } from "@/lib/admin/auth";
 import { createClient } from "@/lib/supabase/server";
 
 const input =
-  "mt-1.5 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b6b45]";
+  "mt-1.5 min-h-11 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2.5 text-base outline-none focus:border-[#0b6b45] sm:text-sm";
 
 export default async function EditContentPage({
   params,
@@ -133,7 +133,7 @@ export default async function EditContentPage({
               Görünür
             </label>
             <div className="flex gap-3">
-              <button className="rounded-full bg-[#0b6b45] px-5 py-2 text-sm font-semibold text-white">
+              <button className="inline-flex min-h-10 items-center justify-center rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white">
                 Bölümü kaydet
               </button>
               <button
@@ -193,7 +193,7 @@ export default async function EditContentPage({
             <input name="is_visible" type="checkbox" defaultChecked />
             Görünür
           </label>
-          <button className="rounded-full bg-[#123524] px-5 py-2 text-sm font-semibold text-white">
+          <button className="inline-flex min-h-10 items-center justify-center rounded-full bg-[#123524] px-5 text-sm font-semibold text-white">
             Bölüm ekle
           </button>
         </form>

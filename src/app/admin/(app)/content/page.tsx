@@ -7,7 +7,7 @@ import { getHomeSections } from "@/lib/cms/home-server";
 import { createClient } from "@/lib/supabase/server";
 
 const input =
-  "mt-1.5 w-full rounded-xl border border-[#123524]/15 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[#0b6b45]";
+  "mt-1.5 min-h-11 w-full rounded-xl border border-[#123524]/15 bg-white px-3.5 py-2.5 text-base outline-none focus:border-[#0b6b45] sm:text-sm";
 
 type Tab = "sections" | "media" | "settings";
 
@@ -51,7 +51,7 @@ export default async function AdminContentPage({
       : {};
 
   const tabClass = (id: Tab) =>
-    `rounded-full px-4 py-2 text-sm font-semibold ${
+    `inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold ${
       tab === id
         ? "bg-[#123524] text-white"
         : "border border-[#123524]/12 bg-white text-[#466254] hover:border-[#123524]/25"
@@ -130,7 +130,7 @@ export default async function AdminContentPage({
               className={input}
             />
           </Field>
-          <button className="rounded-full bg-[#0b6b45] px-6 py-2.5 text-sm font-semibold text-white sm:col-span-2 sm:justify-self-start">
+          <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white sm:col-span-2 sm:justify-self-start">
             Ayarları kaydet
           </button>
         </form>
@@ -218,7 +218,7 @@ function Field({
 
 function SaveButton() {
   return (
-    <button className="rounded-full bg-[#0b6b45] px-5 py-2.5 text-sm font-semibold text-white">
+    <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white">
       Bu section’ı kaydet
     </button>
   );

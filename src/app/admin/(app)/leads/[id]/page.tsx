@@ -13,7 +13,7 @@ import { formatDateLongTr, formatTimeTr, istanbulYmd } from "@/lib/date/tr";
 import { createClient } from "@/lib/supabase/server";
 
 const input =
-  "mt-1.5 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b6b45]";
+  "mt-1.5 min-h-11 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2.5 text-base outline-none focus:border-[#0b6b45] sm:text-sm";
 
 const STAGES = [
   ["new", "Yeni"],
@@ -165,7 +165,7 @@ export default async function LeadDetailPage({
                 className={input}
               />
             </Field>
-            <button className="rounded-full bg-[#0b6b45] px-6 py-2.5 text-sm font-semibold text-white">
+            <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white">
               Değişiklikleri kaydet
             </button>
           </form>
@@ -275,7 +275,7 @@ export default async function LeadDetailPage({
                   </option>
                 ))}
               </select>
-              <button className="rounded-full bg-[#123524] px-5 py-2 text-sm font-semibold text-white">
+              <button className="inline-flex min-h-10 items-center justify-center rounded-full bg-[#123524] px-5 text-sm font-semibold text-white">
                 Not ekle
               </button>
             </form>

@@ -43,6 +43,7 @@ export default async function AdminMessagesPage({
         unread_count,
         assigned_to,
         lead_id,
+        contact_id,
         patient_id,
         leads (
           id,
@@ -87,6 +88,7 @@ export default async function AdminMessagesPage({
       unread_count: row.unread_count ?? 0,
       assigned_to: row.assigned_to,
       lead_id: row.lead_id,
+      contact_id: row.contact_id,
       patient_id: row.patient_id,
       lead: lead
         ? {

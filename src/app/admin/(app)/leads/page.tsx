@@ -1,17 +1,11 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { AppointmentQuickForm } from "@/components/admin/schedule/AppointmentQuickForm";
+import { CalendarAppointments } from "@/components/admin/schedule/CalendarAppointments";
 import { CalendarInspectDate } from "@/components/admin/schedule/CalendarInspectDate";
-import { DayAppointments } from "@/components/admin/schedule/DayAppointments";
+import { CalendarSkeleton } from "@/components/admin/schedule/CalendarSkeleton";
 import { planHref, type PlanView } from "@/components/admin/schedule/href";
-import { MonthCalendar } from "@/components/admin/schedule/MonthCalendar";
-import { WeekList } from "@/components/admin/schedule/WeekList";
-import { YearCalendar } from "@/components/admin/schedule/YearCalendar";
-import type {
-  ScheduleAppointment,
-  ScheduleLead,
-} from "@/components/admin/schedule/types";
 import { requireAdminSession } from "@/lib/admin/auth";
-import { firstRelation } from "@/lib/crm/labels";
 import { getIstanbulTodayYmd } from "@/lib/date/now";
 import {
   addDaysYmd,
@@ -19,7 +13,6 @@ import {
   formatMonthYearTr,
   startOfWeekMonday,
 } from "@/lib/date/tr";
-import { createClient } from "@/lib/supabase/server";
 
 function parseSlot(raw?: string): { hour: number; minute: number } {
   const match = raw?.match(/^(\d{2}):(\d{2})$/);
@@ -65,59 +58,11 @@ export default async function AdminLeadsPage({
   const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const monthEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
   const nextMonthStart = addDaysYmd(monthEnd, 1);
-  const yearStart = `${year}-01-01`;
   const nextYearStart = `${year + 1}-01-01`;
+  const formTime =
+    activeSlot ??
+    `${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
 
-  const rangeStart =
-    view === "week"
-      ? `${weekStart}T00:00:00+03:00`
-      : view === "month"
-        ? `${monthStart}T00:00:00+03:00`
-        : view === "year"
-          ? `${yearStart}T00:00:00+03:00`
-          : `${date}T00:00:00+03:00`;
-  const rangeEnd =
-    view === "week"
-      ? `${addDaysYmd(weekStart, 7)}T00:00:00+03:00`
-      : view === "month"
-        ? `${nextMonthStart}T00:00:00+03:00`
-        : view === "year"
-          ? `${nextYearStart}T00:00:00+03:00`
-          : `${addDaysYmd(date, 1)}T00:00:00+03:00`;
-
-  const supabase = await createClient();
-  const [{ data: leads, error: leadsError }, { data: appointments, error }] =
-    await Promise.all([
-      supabase
-        .from("leads")
-        .select(
-          "id, stage, site, channel, utm_source, created_at, contacts(id, name, phone)",
-        )
-        .order("created_at", { ascending: false })
-        .limit(120),
-      supabase
-        .from("appointments")
-        .select(
-          "id, lead_id, title, starts_at, ends_at, status, appointment_type, location, notes, leads(id, contact_id, contacts(id, name, phone))",
-        )
-        .gte("starts_at", new Date(rangeStart).toISOString())
-        .lt("starts_at", new Date(rangeEnd).toISOString())
-        .neq("status", "cancelled")
-        .order("starts_at"),
-    ]);
-
-  const visibleLeads = ((leads ?? []) as ScheduleLead[]).filter((lead) => {
-    if (stage === "active" && ["won", "lost", "spam"].includes(lead.stage)) {
-      return false;
-    }
-    if (!search) return true;
-    const contact = firstRelation(lead.contacts);
-    return `${contact?.name ?? ""} ${contact?.phone ?? ""}`
-      .toLocaleLowerCase("tr-TR")
-      .includes(search.toLocaleLowerCase("tr-TR"));
-  });
-
-  const items = (appointments ?? []) as ScheduleAppointment[];
   const prevDate =
     view === "week"
       ? addDaysYmd(weekStart, -7)
@@ -143,6 +88,33 @@ export default async function AdminLeadsPage({
           ? `${year}`
           : formatDateLongTr(`${date}T12:00:00+03:00`);
 
+  const appointments = (
+    <Suspense fallback={<CalendarSkeleton view={view} />}>
+      <CalendarAppointments
+        view={view}
+        date={date}
+        todayYmd={todayYmd}
+        selectedLeadId={selectedLeadId}
+        stage={stage}
+        search={search}
+      />
+    </Suspense>
+  );
+
+  const quickForm = (
+    <AppointmentQuickForm
+      selectedLeadId={selectedLeadId}
+      date={date}
+      time={formTime}
+      view={view}
+      stage={stage}
+      search={search}
+      error={query.error}
+      defaultOpen={formDefaultOpen}
+      hideToggleUnlessOpen={view === "day"}
+    />
+  );
+
   return (
     <div className="space-y-4">
       <div className="space-y-3">
@@ -155,7 +127,7 @@ export default async function AdminLeadsPage({
             butonunu kullanın.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <Link
             href={planHref({
               view,
@@ -163,7 +135,7 @@ export default async function AdminLeadsPage({
               lead: selectedLeadId,
               q: search,
             })}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#123524]/15 bg-white text-lg font-semibold sm:h-10 sm:w-10 sm:rounded-full"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#123524]/15 bg-white text-base font-semibold sm:h-10 sm:w-10 sm:rounded-full sm:text-lg"
             aria-label="Önceki"
           >
             ←
@@ -180,14 +152,14 @@ export default async function AdminLeadsPage({
               lead: selectedLeadId,
               q: search,
             })}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#123524]/15 bg-white text-lg font-semibold sm:h-10 sm:w-10 sm:rounded-full"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#123524]/15 bg-white text-base font-semibold sm:h-10 sm:w-10 sm:rounded-full sm:text-lg"
             aria-label="Sonraki"
           >
             →
           </Link>
         </div>
         <div className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold capitalize text-[#123524]">
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold capitalize text-[#123524] sm:text-sm">
             {heading}
           </span>
           <Link
@@ -197,14 +169,14 @@ export default async function AdminLeadsPage({
               lead: selectedLeadId,
               q: search,
             })}
-            className="inline-flex h-10 shrink-0 items-center rounded-full border border-[#0b6b45]/25 bg-white px-4 text-sm font-semibold text-[#0b6b45]"
+            className="inline-flex h-9 shrink-0 items-center rounded-full border border-[#0b6b45]/25 bg-white px-3 text-xs font-semibold text-[#0b6b45] sm:h-10 sm:px-4 sm:text-sm"
           >
             Bugün
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-1 rounded-2xl bg-white p-1 ring-1 ring-[#123524]/10">
+      <div className="grid grid-cols-4 gap-0.5 rounded-xl bg-white p-0.5 ring-1 ring-[#123524]/10 sm:gap-1 sm:rounded-2xl sm:p-1">
         {(
           [
             ["day", "Gün"],
@@ -221,7 +193,7 @@ export default async function AdminLeadsPage({
               lead: selectedLeadId,
               q: search,
             })}
-            className={`flex min-h-11 items-center justify-center rounded-xl px-2 text-sm font-semibold ${
+            className={`flex min-h-9 items-center justify-center rounded-lg px-1 text-xs font-semibold sm:min-h-11 sm:rounded-xl sm:px-2 sm:text-sm ${
               view === key
                 ? "bg-[#123524] text-white"
                 : "text-[#466254]"
@@ -231,12 +203,6 @@ export default async function AdminLeadsPage({
           </Link>
         ))}
       </div>
-
-      {error ? (
-        <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
-          {error.message}
-        </p>
-      ) : null}
 
       {view === "day" ? (
         <section className="rounded-2xl border border-[#123524]/10 bg-white p-3 sm:p-4">
@@ -248,97 +214,23 @@ export default async function AdminLeadsPage({
                   : formatDateLongTr(`${date}T12:00:00+03:00`)}
               </h2>
               <p className="mt-1 hidden text-xs text-[#466254] sm:block">
-                08:00–20:00. Soluk kutular boş; yeşil kutularda hasta adı ve tür
-                görünür.
+                08:00–20:00 zaman çizelgesi. Blok yüksekliği süreye göre;
+                boş saate tıklayınca randevu formu açılır.
               </p>
             </div>
           </div>
 
-          {leadsError ? (
-            <p className="mt-3 rounded-xl bg-red-50 p-4 text-sm text-red-700">
-              {leadsError.message}
-            </p>
-          ) : null}
-
-          <div className="mt-3">
-            <AppointmentQuickForm
-              leads={visibleLeads}
-              selectedLeadId={selectedLeadId}
-              date={date}
-              time={
-                activeSlot ??
-                `${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`
-              }
-              view={view}
-              error={query.error}
-              defaultOpen={formDefaultOpen}
-            />
-          </div>
-
-          <DayAppointments
-            date={date}
-            todayYmd={todayYmd}
-            appointments={items}
-            emptyText="Bu tarihte randevu yok. + Randevu ekle ile yeni kayıt açın."
-          />
+          <div className="mt-3">{quickForm}</div>
+          <div className="mt-3">{appointments}</div>
         </section>
       ) : (
-        <section className="rounded-2xl border border-[#123524]/10 bg-white p-3 sm:p-4">
-          {view === "week" ? (
-            <WeekList
-              weekStart={weekStart}
-              todayYmd={todayYmd}
-              date={date}
-              appointments={items}
-              selectedLeadId={selectedLeadId}
-              stage={stage}
-              search={search}
-            />
-          ) : view === "month" ? (
-            <MonthCalendar
-              year={year}
-              month={month}
-              date={date}
-              todayYmd={todayYmd}
-              appointments={items}
-              selectedLeadId={selectedLeadId}
-              stage={stage}
-              search={search}
-            />
-          ) : (
-            <YearCalendar
-              year={year}
-              todayYmd={todayYmd}
-              appointments={items}
-              selectedLeadId={selectedLeadId}
-              stage={stage}
-              search={search}
-            />
-          )}
-        </section>
-      )}
-
-      {view !== "day" ? (
         <>
-          {leadsError ? (
-            <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
-              {leadsError.message}
-            </p>
-          ) : null}
-          <AppointmentQuickForm
-            leads={visibleLeads}
-            selectedLeadId={selectedLeadId}
-            date={date}
-            time={
-              activeSlot ??
-              `${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`
-            }
-            view={view}
-            error={query.error}
-            defaultOpen={formDefaultOpen}
-          />
+          <section className="rounded-2xl border border-[#123524]/10 bg-white p-3 sm:p-4">
+            {appointments}
+          </section>
+          {quickForm}
         </>
-      ) : null}
+      )}
     </div>
   );
 }

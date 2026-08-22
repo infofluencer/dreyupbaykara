@@ -50,6 +50,7 @@ export type InboxConversation = {
   unread_count: number;
   assigned_to: string | null;
   lead_id: string | null;
+  contact_id: string;
   patient_id: string | null;
   lead?: {
     id: string;
@@ -127,6 +128,7 @@ const CONVERSATION_SELECT = `
   unread_count,
   assigned_to,
   lead_id,
+  contact_id,
   patient_id,
   leads (
     id,
@@ -154,6 +156,7 @@ function mapConversation(row: Record<string, unknown>): InboxConversation {
     unread_count: Number(row.unread_count ?? 0),
     assigned_to: (row.assigned_to as string | null) ?? null,
     lead_id: (row.lead_id as string | null) ?? null,
+    contact_id: String(row.contact_id),
     patient_id: (row.patient_id as string | null) ?? null,
     lead: leadRow,
   };
@@ -445,7 +448,7 @@ export function MessagesInbox({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-8.5rem)] flex-col overflow-hidden rounded-2xl border border-[#123524]/10 bg-white lg:h-[calc(100dvh-5.5rem)] lg:flex-row">
+    <div className="flex h-[calc(100dvh-8rem)] flex-col overflow-hidden rounded-2xl border border-[#123524]/10 bg-white lg:h-[calc(100dvh-5.5rem)] lg:flex-row">
       <aside
         className={`flex w-full min-h-0 flex-col border-[#123524]/10 lg:w-[22rem] lg:shrink-0 lg:border-r ${
           selectedId ? "hidden lg:flex" : "flex"
@@ -472,7 +475,7 @@ export function MessagesInbox({
               onChange={(event) => setQuery(event.target.value)}
               placeholder="İsim veya numara ara…"
               aria-label="Konuşmalarda ara"
-              className="w-full rounded-xl border border-[#123524]/15 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#0b6b45]"
+              className="min-h-11 w-full rounded-xl border border-[#123524]/15 py-2.5 pl-9 pr-3 text-base outline-none focus:border-[#0b6b45] sm:text-sm"
             />
           </label>
           <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Konuşma filtreleri">
@@ -483,7 +486,7 @@ export function MessagesInbox({
                 role="tab"
                 aria-selected={filter === item.id}
                 onClick={() => setFilter(item.id)}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                className={`inline-flex min-h-10 items-center rounded-full px-3.5 text-xs font-semibold transition ${
                   filter === item.id
                     ? "bg-[#0b6b45] text-white"
                     : "border border-[#0b6b45]/25 bg-transparent text-[#466254] hover:bg-[#f4f6f5]"
@@ -526,7 +529,7 @@ export function MessagesInbox({
                   aria-selected={active}
                   aria-label={`${label}${row.unread_count ? `, ${row.unread_count} okunmamış` : ""}`}
                   onClick={() => selectConversation(row.id)}
-                  className={`flex w-full items-center gap-3 border-b border-[#123524]/08 px-4 py-3 text-left transition ${
+                  className={`flex min-h-16 w-full items-center gap-3 border-b border-[#123524]/08 px-4 py-3.5 text-left transition ${
                     active ? "bg-[#e7f5ed]" : "hover:bg-[#f7f9f8]"
                   }`}
                 >
@@ -594,10 +597,10 @@ export function MessagesInbox({
                       setSelectedId(null);
                       router.replace("/admin/messages", { scroll: false });
                     }}
-                    className="mb-1 inline-flex items-center gap-1 text-sm font-medium text-[#0b6b45] lg:hidden"
+                    className="mb-1 inline-flex min-h-10 items-center gap-1 rounded-lg pr-2 text-sm font-medium text-[#0b6b45] lg:hidden"
                     aria-label="Konuşma listesine dön"
                   >
-                    <ChevronLeft className="h-4 w-4" aria-hidden />
+                    <ChevronLeft className="h-5 w-5" aria-hidden />
                     Liste
                   </button>
                   <h2 className="truncate font-[family-name:var(--font-instrument-sans)] text-xl font-semibold">
@@ -605,21 +608,21 @@ export function MessagesInbox({
                   </h2>
                   <p className="text-sm text-[#466254]">{selected.wa_phone}</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                   {selected.lead_id ? (
                     <Link
                       href={`/admin/leads/${selected.lead_id}`}
-                      className="rounded-full border border-[#0b6b45]/25 px-3 py-1.5 text-xs font-semibold text-[#0b6b45]"
+                      className="inline-flex min-h-10 items-center rounded-full border border-[#0b6b45]/25 px-3.5 text-xs font-semibold text-[#0b6b45]"
                     >
                       Lead kartı
                     </Link>
                   ) : null}
-                  {selected.patient_id ? (
+                  {(selected.contact_id || selected.patient_id) ? (
                     <Link
-                      href={`/admin/patients/${selected.patient_id}`}
-                      className="rounded-full border border-[#0b6b45]/25 px-3 py-1.5 text-xs font-semibold text-[#0b6b45]"
+                      href={`/admin/patients/${selected.contact_id || selected.patient_id}`}
+                      className="inline-flex min-h-10 items-center rounded-full bg-[#0b6b45] px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#095a3a]"
                     >
-                      Hasta
+                      Hasta kimliğini aç
                     </Link>
                   ) : null}
                 </div>
@@ -658,7 +661,7 @@ export function MessagesInbox({
                         void updateConversationStatus(fd);
                       });
                     }}
-                    className="mt-1 block rounded-xl border border-[#123524]/15 bg-white px-3 py-2 text-sm"
+                    className="mt-1 block min-h-11 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2 text-base sm:w-auto sm:text-sm"
                   >
                     <option value="open">Açık</option>
                     <option value="pending">Beklemede</option>
@@ -688,7 +691,7 @@ export function MessagesInbox({
                           void assignConversationMember(fd);
                         });
                       }}
-                      className="mt-1 block min-w-40 rounded-xl border border-[#123524]/15 bg-white px-3 py-2 text-sm"
+                      className="mt-1 block min-h-11 w-full min-w-0 rounded-xl border border-[#123524]/15 bg-white px-3 py-2 text-base sm:min-w-40 sm:w-auto sm:text-sm"
                     >
                       <option value="">Atanmamış</option>
                       {staff.map((member) => (

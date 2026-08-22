@@ -94,7 +94,7 @@ export default async function NewPatientPage() {
             className={`${input} mt-2`}
           />
         </Field>
-        <button className="rounded-full bg-[#0b6b45] px-6 py-2.5 text-sm font-semibold text-white">
+        <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white">
           Hastayı kaydet
         </button>
       </form>

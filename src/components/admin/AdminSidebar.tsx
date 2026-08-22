@@ -1,33 +1,43 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Bot,
-  CalendarDays,
-  FileText,
-  Gauge,
-  Inbox,
-  ListTodo,
-  Megaphone,
-  UserRound,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import { ADMIN_NAV, isAdminNavActive } from "@/components/admin/admin-nav";
 import { AdminSignOut } from "@/components/admin/AdminSignOut";
 
-const NAV: Array<{ href: string; label: string; icon: LucideIcon }> = [
-  { href: "/admin", label: "Özet", icon: Gauge },
-  { href: "/admin/pipeline", label: "Talepler", icon: ListTodo },
-  { href: "/admin/leads", label: "Takvim", icon: CalendarDays },
-  { href: "/admin/patients", label: "Hastalar", icon: UserRound },
-  { href: "/admin/sources", label: "Kaynaklar", icon: Megaphone },
-  { href: "/admin/messages", label: "WhatsApp", icon: Inbox },
-  { href: "/admin/bot", label: "Bot", icon: Bot },
-  { href: "/admin/content", label: "İçerik", icon: FileText },
-  { href: "/admin/team", label: "Ekip", icon: Users },
-];
+function SidebarBrand() {
+  const [logoFailed, setLogoFailed] = useState(false);
+
+  if (logoFailed) {
+    return (
+      <div className="text-center leading-tight">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#73df68]">
+          Bel Ameliyatı
+        </p>
+        <p className="mt-1 text-sm font-semibold text-white">
+          Op. Dr. Eyüp Baykara
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex w-full items-center justify-center rounded-2xl bg-[#f4f6f5] px-3 py-2.5 ring-1 ring-white/15">
+      <Image
+        src="/hero/endospinelogo.png"
+        alt="Endoskopik Bel Ameliyatı"
+        width={942}
+        height={382}
+        sizes="200px"
+        priority
+        className="h-12 w-auto max-w-full object-contain"
+        onError={() => setLogoFailed(true)}
+      />
+    </div>
+  );
+}
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -36,36 +46,15 @@ export function AdminSidebar() {
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-[#123524] text-white shadow-[12px_0_36px_rgba(18,53,36,0.12)] lg:flex">
       <Link
         href="/admin"
-        className="flex h-24 items-center justify-center border-b border-white/10 px-5"
+        className="flex min-h-24 items-center justify-center border-b border-white/10 px-4 py-4"
         aria-label="Yönetim paneli ana sayfası"
       >
-        <Image
-          src="/hero/endospinelogo.png"
-          alt="Endoskopik Bel Ameliyatı"
-          width={942}
-          height={382}
-          sizes="216px"
-          className="h-14 w-auto max-w-full object-contain"
-        />
+        <SidebarBrand />
       </Link>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {NAV.map((item) => {
-          const active =
-            item.href === "/admin"
-              ? pathname === "/admin"
-              : item.href === "/admin/leads"
-                ? pathname.startsWith("/admin/leads") ||
-                  pathname.startsWith("/admin/calendar")
-                : item.href === "/admin/patients"
-                  ? pathname.startsWith("/admin/patients")
-                  : item.href === "/admin/content"
-                    ? pathname.startsWith("/admin/content") ||
-                      pathname.startsWith("/admin/media")
-                    : item.href === "/admin/messages"
-                      ? pathname.startsWith("/admin/messages") ||
-                        pathname.startsWith("/admin/inbox")
-                      : pathname.startsWith(item.href);
+        {ADMIN_NAV.map((item) => {
+          const active = isAdminNavActive(pathname, item.href);
           const Icon = item.icon;
 
           return (
@@ -99,4 +88,3 @@ export function AdminSidebar() {
     </aside>
   );
 }
-
