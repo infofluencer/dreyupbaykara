@@ -238,6 +238,7 @@ export function MessagesInbox({
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(150);
     if (error) throw error;
+    console.log("[inbox] refetched conversations:", data?.length);
     setConversations((data ?? []).map((row) => mapConversation(row as Record<string, unknown>)));
   }, []);
 
@@ -308,12 +309,15 @@ export function MessagesInbox({
         "postgres_changes",
         { event: "*", schema: "public", table: "conversations" },
         () => {
+          console.log("[inbox] conversations event received");
           void fetchConversations().catch((error: Error) => {
             console.error("[inbox] realtime conversations:", error);
           });
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log("[inbox] conversations channel:", status, err ?? "");
+      });
 
     return () => {
       void supabase.removeChannel(conversationChannel);
@@ -365,7 +369,9 @@ export function MessagesInbox({
           });
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log("[inbox] thread channel:", conversationId, status, err ?? "");
+      });
 
     return () => {
       void supabase.removeChannel(threadChannel);
