@@ -1,3 +1,9 @@
+import {
+  addDaysYmd,
+  formatTimeTr,
+  istanbulYmd,
+} from "@/lib/date/tr";
+
 const AVATAR_COLORS = [
   "#0b6b45",
   "#123524",
@@ -6,6 +12,8 @@ const AVATAR_COLORS = [
   "#40916c",
   "#52796f",
 ];
+
+const TIME_ZONE = "Europe/Istanbul";
 
 export function avatarColor(seed: string): string {
   let hash = 0;
@@ -19,48 +27,49 @@ export function avatarInitial(name: string | null, phone: string | null): string
   return letter || "?";
 }
 
-function startOfDay(date: Date): number {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+function istanbulDayDiff(iso: string): number {
+  const today = istanbulYmd();
+  const day = istanbulYmd(iso);
+  if (day === today) return 0;
+  if (day === addDaysYmd(today, -1)) return 1;
+  const todayMs = new Date(`${today}T12:00:00+03:00`).getTime();
+  const dayMs = new Date(`${day}T12:00:00+03:00`).getTime();
+  return Math.round((todayMs - dayMs) / 86_400_000);
 }
 
 export function listTimeLabel(iso: string | null): string {
   if (!iso) return "";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  const today = startOfDay(new Date());
-  const day = startOfDay(date);
-  const diffDays = Math.round((today - day) / 86_400_000);
-  if (diffDays === 0) {
-    return date.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-  }
+  const diffDays = istanbulDayDiff(iso);
+  if (diffDays === 0) return formatTimeTr(date);
   if (diffDays === 1) return "Dün";
-  return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+  return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+  }).format(date);
 }
 
 export function threadDayLabel(iso: string): string {
   const date = new Date(iso);
-  const today = startOfDay(new Date());
-  const day = startOfDay(date);
-  const diffDays = Math.round((today - day) / 86_400_000);
+  const diffDays = istanbulDayDiff(iso);
   if (diffDays === 0) return "Bugün";
   if (diffDays === 1) return "Dün";
-  return date.toLocaleDateString("tr-TR", {
+  return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: TIME_ZONE,
     day: "numeric",
     month: "long",
     year: "numeric",
-  });
+  }).format(date);
 }
 
 export function dayKey(iso: string): string {
-  const date = new Date(iso);
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  return istanbulYmd(iso);
 }
 
 export function clockLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString("tr-TR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatTimeTr(iso);
 }
 
 export function isWithin24hFromMessages(

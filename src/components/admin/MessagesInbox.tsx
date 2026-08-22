@@ -193,6 +193,8 @@ export function MessagesInbox({
   const threadRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
+  /** Last conversation id whose server `initialMessages` were applied — skip soft-nav echoes. */
+  const appliedServerMessagesForRef = useRef<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -241,11 +243,14 @@ export function MessagesInbox({
     console.log("[inbox] refetched conversations:", data?.length);
     setConversations((data ?? []).map((row) => mapConversation(row as Record<string, unknown>)));
   }, []);
+  const fetchConversationsRef = useRef(fetchConversations);
+  fetchConversationsRef.current = fetchConversations;
 
   const selectConversation = useCallback(
     (id: string) => {
       setSelectedId(id);
       setLoadError(null);
+      appliedServerMessagesForRef.current = id;
       setConversations((rows) =>
         rows.map((row) =>
           row.id === id ? { ...row, unread_count: 0 } : row,
@@ -277,15 +282,20 @@ export function MessagesInbox({
     [fetchMessages, router],
   );
 
-  useEffect(() => {
-    setConversations(initialConversations);
-  }, [initialConversations]);
+  // Conversations list is owned by client/realtime after mount — do not re-apply
+  // server snapshots on soft nav (they overwrite fresher realtime state).
 
   useEffect(() => {
-    if (initialSelectedId && initialSelectedId === selectedId) {
+    // Apply server messages only when the URL conversation id changes (e.g. back/forward),
+    // not when the same ?c= soft-nav refreshes initialMessages.
+    if (initialSelectedId === appliedServerMessagesForRef.current) return;
+    appliedServerMessagesForRef.current = initialSelectedId;
+    if (initialSelectedId) {
       setMessages(initialMessages);
+    } else {
+      setMessages([]);
     }
-  }, [initialMessages, initialSelectedId, selectedId]);
+  }, [initialSelectedId, initialMessages]);
 
   useEffect(() => {
     if (initialSelectedId && initialSelectedId !== selectedId) {
@@ -310,7 +320,7 @@ export function MessagesInbox({
         { event: "*", schema: "public", table: "conversations" },
         () => {
           console.log("[inbox] conversations event received");
-          void fetchConversations().catch((error: Error) => {
+          void fetchConversationsRef.current().catch((error: Error) => {
             console.error("[inbox] realtime conversations:", error);
           });
         },
@@ -322,7 +332,9 @@ export function MessagesInbox({
     return () => {
       void supabase.removeChannel(conversationChannel);
     };
-  }, [fetchConversations]);
+    // Mount once — soft nav must not tear down this channel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -364,7 +376,7 @@ export function MessagesInbox({
             });
             return sortMessages([...withoutOptimistic, incoming]);
           });
-          void fetchConversations().catch((error: Error) => {
+          void fetchConversationsRef.current().catch((error: Error) => {
             console.error("[inbox] realtime conversations:", error);
           });
         },
@@ -376,7 +388,7 @@ export function MessagesInbox({
     return () => {
       void supabase.removeChannel(threadChannel);
     };
-  }, [selectedId, fetchConversations]);
+  }, [selectedId]);
 
   async function handleSend() {
     if (!selected || !draft.trim() || sending) return;
@@ -601,6 +613,8 @@ export function MessagesInbox({
                     type="button"
                     onClick={() => {
                       setSelectedId(null);
+                      appliedServerMessagesForRef.current = null;
+                      setMessages([]);
                       router.replace("/admin/messages", { scroll: false });
                     }}
                     className="mb-1 inline-flex min-h-10 items-center gap-1 rounded-lg pr-2 text-sm font-medium text-[#0b6b45] lg:hidden"
