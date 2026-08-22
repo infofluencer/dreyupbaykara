@@ -56,9 +56,23 @@ type WebhookPayload = {
   }>;
 };
 
+let signatureSkipWarned = false;
+
 function verifySignature(rawBody: string, signature: string | null): boolean {
   const secret = getWhatsAppConfig().appSecret;
-  if (!secret || !signature?.startsWith("sha256=")) return false;
+
+  // Coexistence: Dualhook signs with its own secret; skip until we have it.
+  if (!secret) {
+    if (!signatureSkipWarned) {
+      signatureSkipWarned = true;
+      console.warn(
+        "[whatsapp] signature check skipped: WHATSAPP_APP_SECRET not set (coexistence mode)",
+      );
+    }
+    return true;
+  }
+
+  if (!signature?.startsWith("sha256=")) return false;
 
   const expectedHex = createHmac("sha256", secret).update(rawBody).digest("hex");
   const actualHex = signature.slice("sha256=".length);
