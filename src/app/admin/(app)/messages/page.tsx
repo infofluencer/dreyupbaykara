@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { MessagesInbox } from "@/components/admin/MessagesInbox";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
+import { pickActiveLead } from "@/lib/crm/lead-status";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AdminMessagesPage({
@@ -9,7 +10,7 @@ export default async function AdminMessagesPage({
 }: {
   searchParams: Promise<{ c?: string; lead?: string }>;
 }) {
-  const session = await requireAdminSession([
+  await requireAdminSession([
     "admin",
     "doctor",
     "assistant",
@@ -28,11 +29,10 @@ export default async function AdminMessagesPage({
 
   const selectedId = query.c ?? null;
 
-  const [{ data: conversations, error }, { data: staff }] = await Promise.all([
-    supabase
-      .from("conversations")
-      .select(
-        `
+  const { data: conversations, error } = await supabase
+    .from("conversations")
+    .select(
+      `
         id,
         wa_phone,
         contact_name,
@@ -54,15 +54,9 @@ export default async function AdminMessagesPage({
           site
         )
       `,
-      )
-      .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(150),
-    supabase
-      .from("profiles")
-      .select("id, full_name, role")
-      .in("role", ["admin", "doctor", "assistant"])
-      .order("full_name"),
-  ]);
+    )
+    .order("last_message_at", { ascending: false, nullsFirst: false })
+    .limit(150);
 
   if (error) {
     return (
@@ -75,8 +69,66 @@ export default async function AdminMessagesPage({
     );
   }
 
+  const contactIds = [
+    ...new Set(
+      (conversations ?? [])
+        .map((row) => row.contact_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const [{ data: contactLeads }, { data: contactRows }] = await Promise.all([
+    contactIds.length
+      ? supabase
+          .from("leads")
+          .select(
+            "id, contact_id, status, stage, created_at, lost_reason, needs_followup",
+          )
+          .in("contact_id", contactIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({
+          data: [] as Array<{
+            id: string;
+            contact_id: string;
+            status: string | null;
+            stage: string;
+            created_at: string;
+            lost_reason: string | null;
+            needs_followup: boolean | null;
+          }>,
+        }),
+    contactIds.length
+      ? supabase.from("contacts").select("id, is_patient").in("id", contactIds)
+      : Promise.resolve({
+          data: [] as Array<{ id: string; is_patient: boolean | null }>,
+        }),
+  ]);
+
+  const isPatientByContact = new Map(
+    (contactRows ?? []).map((row) => [row.id, Boolean(row.is_patient)]),
+  );
+
+  const leadsByContact = new Map<
+    string,
+    Array<{
+      id: string;
+      contact_id: string;
+      status: string | null;
+      stage: string;
+      created_at: string;
+      lost_reason: string | null;
+      needs_followup: boolean | null;
+    }>
+  >();
+  for (const lead of contactLeads ?? []) {
+    const list = leadsByContact.get(lead.contact_id) ?? [];
+    list.push(lead);
+    leadsByContact.set(lead.contact_id, list);
+  }
+
   const normalized = (conversations ?? []).map((row) => {
     const lead = Array.isArray(row.leads) ? row.leads[0] : row.leads;
+    const active = pickActiveLead(leadsByContact.get(row.contact_id) ?? []);
     return {
       id: row.id,
       wa_phone: row.wa_phone,
@@ -90,6 +142,7 @@ export default async function AdminMessagesPage({
       lead_id: row.lead_id,
       contact_id: row.contact_id,
       patient_id: row.patient_id,
+      is_patient: isPatientByContact.get(row.contact_id) ?? false,
       lead: lead
         ? {
             id: lead.id,
@@ -98,6 +151,14 @@ export default async function AdminMessagesPage({
             gclid: lead.gclid,
             channel: lead.channel,
             site: lead.site,
+          }
+        : null,
+      pipelineLead: active
+        ? {
+            id: active.id,
+            status: active.status,
+            lost_reason: active.lost_reason,
+            needs_followup: active.needs_followup ?? false,
           }
         : null,
     };
@@ -140,12 +201,6 @@ export default async function AdminMessagesPage({
       conversations={normalized}
       selectedId={selectedId}
       messages={messages}
-      staff={(staff ?? []).map((member) => ({
-        id: member.id,
-        full_name: member.full_name,
-      }))}
-      currentUserId={session.userId}
-      role={session.role}
       apiEnabled={isWhatsAppEnabled()}
     />
   );

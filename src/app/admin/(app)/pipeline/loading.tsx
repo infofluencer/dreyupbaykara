@@ -1,5 +1,5 @@
 import { AdminListSkeleton } from "@/components/admin/AdminSkeleton";
 
-export default function Loading() {
-  return <AdminListSkeleton label="Talepler yükleniyor" />;
+export default function PipelineLoading() {
+  return <AdminListSkeleton label="Durum panosu yükleniyor" />;
 }

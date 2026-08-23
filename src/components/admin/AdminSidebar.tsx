@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ADMIN_NAV, isAdminNavActive } from "@/components/admin/admin-nav";
 import { AdminSignOut } from "@/components/admin/AdminSignOut";
+import { WhatsAppUnreadBadge } from "@/components/admin/WhatsAppUnreadBadge";
 
 function SidebarBrand() {
   const [logoFailed, setLogoFailed] = useState(false);
@@ -77,6 +78,7 @@ export function AdminSidebar() {
                 aria-hidden
               />
               <span className="ml-3">{item.label}</span>
+              {item.href === "/admin/messages" ? <WhatsAppUnreadBadge /> : null}
             </Link>
           );
         })}

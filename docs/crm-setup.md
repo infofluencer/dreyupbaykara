@@ -17,6 +17,7 @@ Path: `/admin` · DB: Supabase · WhatsApp: Cloud API (sonraki sprint)
    - `supabase/migrations/20260808180000_appointment_no_overlap.sql`
    - `supabase/migrations/20260817120000_whatsapp_inbox_tracking.sql`
    - `supabase/migrations/20260818120000_lead_status_machine.sql`
+   - `supabase/migrations/20260824120000_simplify_lead_statuses.sql` (4 durum)
 4. Authentication → Users → Add user (email/password).
    Ardından Table Editor → `profiles` tablosunda kullanıcının `role`
    değerini `admin` yapın.
@@ -38,11 +39,11 @@ Yönetim ekranları:
 - Mevcut `public` görsellerini medya kütüphanesine almak için:
   `node scripts/import-site-media.mjs`
   veya İçerik → Medya → “Var olan fotoğrafları aktar”
-- `/admin/pipeline`: talep durum takibi (yeni / aranacak / randevulu / kayıp)
+- `/admin/pipeline`: Durum Panosu — yeni / arandı / randevulu / bitti
 - `/admin/patients`: hasta kimliği, klinik notlar ve dosya
 - `/admin/leads`: takvim (randevu ekle / sil)
 - `/admin/calendar`: randevu detayı
-- `/admin/messages`: WhatsApp konuşmaları (iki panelli inbox)
+- `/admin/messages`: WhatsApp konuşmaları (günlük durum takibi burada)
 - `/admin/bot`: mesai dışı ve SSS otomatik cevapları
 
 ## UTM / kaynak takibi
@@ -103,17 +104,33 @@ Abonelik alanları: `messages` ve Coexistence kullanılıyorsa
 Cloud API bilgileri girilmeden inbox geçmiş veriyi gösterir; gönderim DB’ye
 kaydolur ama Meta’ya gitmez.
 
-### Randevu hatırlatması
+### Randevu / ameliyat hatırlatması (otomatik)
 
-Meta’da değişkensiz, Türkçe bir randevu hatırlatma şablonu onaylatın ve adını
-`WHATSAPP_APPOINTMENT_TEMPLATE` olarak girin. VPS cron servisi aşağıdaki
-endpoint’i saatte bir çağırmalıdır:
+Meta’da üç UTILITY şablon onaylatın (Türkçe, body `{{1}}` ad, `{{2}}` tarih,
+`{{3}}` saat):
+
+| Seed adı | Kullanım |
+|----------|----------|
+| `randevu_1_gun` | Muayene vb. — 1 gün önce |
+| `randevu_1_saat` | Muayene vb. — 1 saat önce |
+| `ameliyat_gunu` | `procedure` — ameliyat günü ~08:00 Istanbul |
+
+Panel: `/admin/automations` — kural aç/kapa, şablon adı, gönderim logu, opt-out.
+Kurallar varsayılan **kapalıdır**. Migration:
+`20260823200000_wa_message_automations.sql`.
+
+Cron (15 dakika; Vercel `vercel.json` veya VPS):
 
 ```text
 POST https://ALAN-ADINIZ/api/cron/reminders
 Authorization: Bearer <CRON_SECRET>
 ```
 
-Endpoint yaklaşık 24 saat sonraki planlanmış/onaylanmış randevulara şablon
-gönderir ve `reminder_sent_at` alanıyla tekrar gönderimi önler. Açık iletişim
-izni ve KVKK süreci doğrulanmadan bu cron etkinleştirilmemelidir.
+Idempotency: `message_dispatches (appointment_id, rule_key)`. Opt-out:
+`wa_message_opt_outs` veya hasta mesajı `DUR` / `STOP` / `IPTAL`.
+
+Açık iletişim izni ve KVKK süreci doğrulanmadan kuralları açmayın / cron’u
+canlıda çalıştırmayın.
+
+Eski tek şablon env’si `WHATSAPP_APPOINTMENT_TEMPLATE` artık zorunlu değil;
+adlar DB `message_rules.template_name` üzerinden gelir.

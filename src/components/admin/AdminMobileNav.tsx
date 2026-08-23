@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { ADMIN_NAV, isAdminNavActive } from "@/components/admin/admin-nav";
 import { AdminSignOut } from "@/components/admin/AdminSignOut";
+import { WhatsAppUnreadBadge } from "@/components/admin/WhatsAppUnreadBadge";
 
 export function AdminMobileNav() {
   const pathname = usePathname();
@@ -46,6 +47,14 @@ export function AdminMobileNav() {
           className="min-w-0 flex-1 truncate text-sm font-semibold text-white"
         >
           Yönetim paneli
+        </Link>
+        <Link
+          href="/admin/messages"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-white hover:bg-white/10"
+          aria-label="WhatsApp mesajları"
+        >
+          <span className="text-xs font-semibold">WA</span>
+          <WhatsAppUnreadBadge />
         </Link>
       </header>
 
@@ -101,6 +110,9 @@ export function AdminMobileNav() {
                       aria-hidden
                     />
                     <span className="ml-3">{item.label}</span>
+                    {item.href === "/admin/messages" ? (
+                      <WhatsAppUnreadBadge />
+                    ) : null}
                   </Link>
                 );
               })}

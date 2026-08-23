@@ -5,8 +5,27 @@ import { requireAdminSession } from "@/lib/admin/auth";
 const input =
   "mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/15 bg-white px-3.5 py-3 text-base outline-none focus:border-[#0b6b45]";
 
-export default async function NewPatientPage() {
+function digitsOnly(value: string | undefined): string {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+function prefillName(name: string | undefined, phoneDigits: string): string {
+  if (!name?.trim()) return "";
+  const nameDigits = digitsOnly(name);
+  if (nameDigits && nameDigits === phoneDigits) return "";
+  return name.trim();
+}
+
+export default async function NewPatientPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ phone?: string; name?: string }>;
+}) {
   await requireAdminSession(["admin", "doctor", "assistant"]);
+  const params = await searchParams;
+  const phoneDigits = digitsOnly(params.phone);
+  const defaultName = prefillName(params.name, phoneDigits);
+  const defaultPhone = phoneDigits || "";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -32,7 +51,12 @@ export default async function NewPatientPage() {
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Ad soyad">
-            <input name="name" required className={input} />
+            <input
+              name="name"
+              required
+              defaultValue={defaultName}
+              className={input}
+            />
           </Field>
           <Field label="Telefon">
             <input
@@ -40,6 +64,7 @@ export default async function NewPatientPage() {
               type="tel"
               inputMode="tel"
               required
+              defaultValue={defaultPhone}
               placeholder="0530 123 45 67"
               className={input}
             />

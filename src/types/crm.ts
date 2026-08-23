@@ -57,6 +57,7 @@ export type Lead = {
   next_action_at?: string | null;
   next_action_note?: string | null;
   lost_reason?: string | null;
+  needs_followup?: boolean;
   assigned_to: string | null;
   site: string | null;
   channel: string | null;

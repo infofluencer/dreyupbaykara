@@ -2,9 +2,11 @@ import Link from "next/link";
 import { planHref } from "@/components/admin/schedule/href";
 import {
   AgendaCardList,
+  AppointmentActions,
   MiniAppointmentCard,
   ScheduleAddBanner,
   StatusLegend,
+  resolveAppointmentVisual,
   sortByStart,
 } from "@/components/admin/schedule/schedule-visuals";
 import type { ScheduleAppointment } from "@/components/admin/schedule/types";
@@ -38,6 +40,7 @@ export function WeekList({
   const days = Array.from({ length: 7 }, (_, index) =>
     addDaysYmd(weekStart, index),
   );
+  const weekEnd = days[6];
 
   const byDay = new Map<string, ScheduleAppointment[]>();
   for (const day of days) byDay.set(day, []);
@@ -53,6 +56,7 @@ export function WeekList({
   const selectedItems = byDay.get(date) ?? [];
   const selectedIso = `${date}T12:00:00+03:00`;
   const weekEmpty = appointments.length === 0;
+  const weekListHeading = `${formatDateLongTr(`${weekStart}T12:00:00+03:00`)} — ${formatDateLongTr(`${weekEnd}T12:00:00+03:00`)} randevu listesi`;
 
   return (
     <div className="space-y-4">
@@ -134,7 +138,6 @@ export function WeekList({
             const items = byDay.get(ymd) ?? [];
             const selected = ymd === date;
             const today = ymd === todayYmd;
-            const iso = `${ymd}T12:00:00+03:00`;
             const preview = items.slice(0, PREVIEW);
             const rest = items.length - preview.length;
             const dayHref = planHref({
@@ -208,7 +211,65 @@ export function WeekList({
             );
           })}
         </div>
-        <StatusLegend className="mt-3" />
+      </div>
+
+      {/* Full-week list — desktop only (same pattern as month) */}
+      <div className="hidden sm:block">
+        <h3 className="font-semibold capitalize text-[#123524]">
+          {weekListHeading}
+        </h3>
+        {!appointments.length ? (
+          <p className="mt-3 text-sm text-[#466254]">Bu haftada randevu yok.</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {sortByStart(appointments).map((appointment) => {
+              const { info, status, type } =
+                resolveAppointmentVisual(appointment);
+              const TypeIcon = type.Icon;
+              return (
+                <article
+                  key={appointment.id}
+                  className={`flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-[#123524]/08 border-l-[3px] px-4 py-3 ${status.rail} ${status.surface}`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
+                      {info.dateLong}
+                    </p>
+                    <p className="mt-1 font-semibold">
+                      <span className="font-mono tabular-nums">
+                        {info.timeRange}
+                      </span>{" "}
+                      · {info.name}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-[#123524] ring-1 ring-[#123524]/08">
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${type.dot}`}
+                        />
+                        <TypeIcon className="h-3 w-3 opacity-70" aria-hidden />
+                        {type.label}
+                      </span>
+                      <span className="text-xs opacity-70">
+                        {info.duration}
+                        {info.phone ? ` · ${info.phone}` : ""}
+                      </span>
+                    </div>
+                    {info.notes ? (
+                      <p className="mt-1 truncate text-xs opacity-70">
+                        {info.notes}
+                      </p>
+                    ) : null}
+                  </div>
+                  <AppointmentActions
+                    appointmentId={appointment.id}
+                    contactId={info.contactId}
+                  />
+                </article>
+              );
+            })}
+          </div>
+        )}
+        <StatusLegend className="mt-4" />
       </div>
     </div>
   );

@@ -116,8 +116,8 @@ function QuickLinks() {
     <div className="grid gap-3 sm:grid-cols-2">
       <QuickLink
         href="/admin/pipeline"
-        title="Talepler"
-        desc="Durum takibi, bugün aranacaklar"
+        title="Durum Panosu"
+        desc="Dört durumun genel görünümü"
       />
       <QuickLink
         href="/admin/patients"

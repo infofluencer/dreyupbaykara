@@ -22,11 +22,16 @@ import {
   Search,
   Send,
 } from "lucide-react";
+import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
+import { LeadStatusControl } from "@/components/admin/LeadStatusControl";
 import {
-  assignConversationMember,
+  LEAD_STATUS_FILTERS,
+  statusesForFilter,
+  type LeadStatusFilter,
+} from "@/lib/crm/lead-status";
+import {
   markConversationRead,
   sendConversationMessage,
-  updateConversationStatus,
 } from "@/app/admin/actions";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -52,6 +57,7 @@ export type InboxConversation = {
   lead_id: string | null;
   contact_id: string;
   patient_id: string | null;
+  is_patient: boolean;
   lead?: {
     id: string;
     utm_source: string | null;
@@ -59,6 +65,12 @@ export type InboxConversation = {
     gclid: string | null;
     channel: string | null;
     site: string | null;
+  } | null;
+  pipelineLead?: {
+    id: string;
+    status: string | null;
+    lost_reason?: string | null;
+    needs_followup?: boolean | null;
   } | null;
 };
 
@@ -74,18 +86,12 @@ export type InboxMessage = {
   source: string | null;
 };
 
-export type StaffMember = {
-  id: string;
-  full_name: string | null;
-};
-
-type FilterKey = "all" | "open" | "awaiting" | "mine";
+type FilterKey = "all" | "open" | "awaiting";
 
 const FILTERS: Array<{ id: FilterKey; label: string }> = [
   { id: "all", label: "Tümü" },
   { id: "open", label: "Açık" },
   { id: "awaiting", label: "Yanıt bekleyen" },
-  { id: "mine", label: "Bana atanan" },
 ];
 
 const MESSAGE_SELECT =
@@ -130,6 +136,9 @@ const CONVERSATION_SELECT = `
   lead_id,
   contact_id,
   patient_id,
+  contacts (
+    is_patient
+  ),
   leads (
     id,
     utm_source,
@@ -140,10 +149,19 @@ const CONVERSATION_SELECT = `
   )
 `;
 
-function mapConversation(row: Record<string, unknown>): InboxConversation {
+function mapConversation(
+  row: Record<string, unknown>,
+  previous?: InboxConversation | null,
+): InboxConversation {
   const leadRaw = row.leads;
   const lead = Array.isArray(leadRaw) ? leadRaw[0] : leadRaw;
   const leadRow = (lead ?? null) as InboxConversation["lead"];
+  const pipelineFromRow = row.pipelineLead as InboxConversation["pipelineLead"];
+  const contactRaw = row.contacts;
+  const contact = Array.isArray(contactRaw) ? contactRaw[0] : contactRaw;
+  const contactPatient = Boolean(
+    (contact as { is_patient?: boolean } | null)?.is_patient,
+  );
   return {
     id: String(row.id),
     wa_phone: (row.wa_phone as string | null) ?? null,
@@ -158,7 +176,12 @@ function mapConversation(row: Record<string, unknown>): InboxConversation {
     lead_id: (row.lead_id as string | null) ?? null,
     contact_id: String(row.contact_id),
     patient_id: (row.patient_id as string | null) ?? null,
+    is_patient:
+      typeof row.is_patient === "boolean"
+        ? row.is_patient
+        : contactPatient || previous?.is_patient || false,
     lead: leadRow,
+    pipelineLead: pipelineFromRow ?? previous?.pipelineLead ?? null,
   };
 }
 
@@ -166,21 +189,17 @@ export function MessagesInbox({
   conversations: initialConversations,
   selectedId: initialSelectedId,
   messages: initialMessages,
-  staff,
-  currentUserId,
-  role,
   apiEnabled,
 }: {
   conversations: InboxConversation[];
   selectedId: string | null;
   messages: InboxMessage[];
-  staff: StaffMember[];
-  currentUserId: string;
-  role: string;
   apiEnabled: boolean;
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [leadStatusFilter, setLeadStatusFilter] =
+    useState<LeadStatusFilter>("all");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [conversations, setConversations] = useState(initialConversations);
@@ -198,6 +217,7 @@ export function MessagesInbox({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const allowedStatuses = statusesForFilter(leadStatusFilter);
     return conversations.filter((row) => {
       if (filter === "open" && row.status !== "open") return false;
       if (
@@ -206,12 +226,17 @@ export function MessagesInbox({
       ) {
         return false;
       }
-      if (filter === "mine" && row.assigned_to !== currentUserId) return false;
+      if (allowedStatuses) {
+        const leadStatus = row.pipelineLead?.status;
+        if (!leadStatus || !allowedStatuses.includes(leadStatus as never)) {
+          return false;
+        }
+      }
       if (!q) return true;
       const hay = `${row.contact_name ?? ""} ${row.wa_phone ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [conversations, filter, query, currentUserId]);
+  }, [conversations, filter, leadStatusFilter, query]);
 
   const selected =
     conversations.find((row) => row.id === selectedId) ??
@@ -241,7 +266,24 @@ export function MessagesInbox({
       .limit(150);
     if (error) throw error;
     console.log("[inbox] refetched conversations:", data?.length);
-    setConversations((data ?? []).map((row) => mapConversation(row as Record<string, unknown>)));
+    setConversations((prev) => {
+      const byContact = new Map(
+        prev
+          .filter((row) => row.pipelineLead)
+          .map((row) => [row.contact_id, row.pipelineLead] as const),
+      );
+      return (data ?? []).map((row) => {
+        const previous = prev.find((item) => item.id === String(row.id));
+        const mapped = mapConversation(
+          row as Record<string, unknown>,
+          previous,
+        );
+        const preserved = byContact.get(mapped.contact_id);
+        return preserved
+          ? { ...mapped, pipelineLead: preserved }
+          : mapped;
+      });
+    });
   }, []);
   const fetchConversationsRef = useRef(fetchConversations);
   fetchConversationsRef.current = fetchConversations;
@@ -496,23 +538,48 @@ export function MessagesInbox({
               className="min-h-11 w-full rounded-xl border border-[#123524]/15 py-2.5 pl-9 pr-3 text-base outline-none focus:border-[#0b6b45] sm:text-sm"
             />
           </label>
-          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Konuşma filtreleri">
-            {FILTERS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={filter === item.id}
-                onClick={() => setFilter(item.id)}
-                className={`inline-flex min-h-10 items-center rounded-full px-3.5 text-xs font-semibold transition ${
-                  filter === item.id
-                    ? "bg-[#0b6b45] text-white"
-                    : "border border-[#0b6b45]/25 bg-transparent text-[#466254] hover:bg-[#f4f6f5]"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Konuşma durumu">
+              {FILTERS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === item.id}
+                  onClick={() => setFilter(item.id)}
+                  className={`inline-flex min-h-10 items-center rounded-full px-3.5 text-xs font-semibold transition ${
+                    filter === item.id
+                      ? "bg-[#0b6b45] text-white"
+                      : "border border-[#0b6b45]/25 bg-transparent text-[#466254] hover:bg-[#f4f6f5]"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div>
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#6b7d73]">
+                Hasta durumu
+              </p>
+              <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Hasta talep durumu">
+                {LEAD_STATUS_FILTERS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={leadStatusFilter === item.id}
+                    onClick={() => setLeadStatusFilter(item.id)}
+                    className={`inline-flex min-h-9 items-center rounded-full px-3 text-[11px] font-semibold transition ${
+                      leadStatusFilter === item.id
+                        ? "bg-[#123524] text-white"
+                        : "border border-[#123524]/15 bg-[#f7f9f8] text-[#466254] hover:bg-[#eef2f0]"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
         <div
@@ -529,8 +596,8 @@ export function MessagesInbox({
               </span>
               <p className="text-sm font-semibold text-[#123524]">Konuşma yok</p>
               <p className="max-w-xs text-sm leading-6 text-[#466254]">
-                Cloud API bağlanınca gelen mesajlar burada listelenir. API
-                kapalıyken test için DB’ye kayıt düşebilirsiniz.
+                Henüz WhatsApp mesajı yok. Hastalar yazdığında konuşmalar burada
+                görünecek.
               </p>
             </div>
           ) : (
@@ -545,7 +612,7 @@ export function MessagesInbox({
                   type="button"
                   role="option"
                   aria-selected={active}
-                  aria-label={`${label}${row.unread_count ? `, ${row.unread_count} okunmamış` : ""}`}
+                  aria-label={`${label}${row.pipelineLead?.status ? `, ${row.pipelineLead.status}` : ""}${row.unread_count ? `, ${row.unread_count} okunmamış` : ""}`}
                   onClick={() => selectConversation(row.id)}
                   className={`flex min-h-16 w-full items-center gap-3 border-b border-[#123524]/08 px-4 py-3.5 text-left transition ${
                     active ? "bg-[#e7f5ed]" : "hover:bg-[#f7f9f8]"
@@ -567,6 +634,14 @@ export function MessagesInbox({
                         {listTimeLabel(row.last_message_at)}
                       </span>
                     </div>
+                    {row.pipelineLead?.status ? (
+                      <div className="mt-1">
+                        <LeadStatusBadge
+                          status={row.pipelineLead.status}
+                          needsFollowup={row.pipelineLead.needs_followup}
+                        />
+                      </div>
+                    ) : null}
                     <div className="mt-0.5 flex items-center gap-2">
                       {awaiting ? (
                         <span
@@ -637,14 +712,30 @@ export function MessagesInbox({
                       Lead kartı
                     </Link>
                   ) : null}
-                  {(selected.contact_id || selected.patient_id) ? (
+                  {selected.is_patient ? (
                     <Link
                       href={`/admin/patients/${selected.contact_id || selected.patient_id}`}
                       className="inline-flex min-h-10 items-center rounded-full bg-[#0b6b45] px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#095a3a]"
                     >
                       Hasta kimliğini aç
                     </Link>
-                  ) : null}
+                  ) : (
+                    <Link
+                      href={`/admin/patients/new?${new URLSearchParams({
+                        ...(selected.wa_phone
+                          ? { phone: selected.wa_phone }
+                          : {}),
+                        ...(selected.contact_name &&
+                        selected.contact_name.replace(/\D/g, "") !==
+                          (selected.wa_phone ?? "").replace(/\D/g, "")
+                          ? { name: selected.contact_name }
+                          : {}),
+                      }).toString()}`}
+                      className="inline-flex min-h-10 items-center rounded-full bg-[#0b6b45] px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#095a3a]"
+                    >
+                      Hastayı ekle
+                    </Link>
+                  )}
                 </div>
               </div>
 
@@ -661,68 +752,41 @@ export function MessagesInbox({
                 </div>
               ) : null}
 
-              <div className="flex flex-wrap items-end gap-3">
-                <label className="text-xs font-medium text-[#466254]">
-                  Durum
-                  <select
-                    value={selected.status}
-                    aria-label="Konuşma durumu"
-                    onChange={(event) => {
-                      const status = event.target.value;
+              {selected.pipelineLead ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-[#466254]">
+                    Talep durumu
+                  </span>
+                  <LeadStatusControl
+                    leadId={selected.pipelineLead.id}
+                    status={selected.pipelineLead.status}
+                    lostReason={selected.pipelineLead.lost_reason}
+                    needsFollowup={selected.pipelineLead.needs_followup}
+                    size="sm"
+                    onOptimisticChange={(next) => {
                       setConversations((rows) =>
                         rows.map((row) =>
-                          row.id === selected.id ? { ...row, status } : row,
+                          row.id === selected.id && row.pipelineLead
+                            ? {
+                                ...row,
+                                pipelineLead: {
+                                  ...row.pipelineLead,
+                                  status: next,
+                                  needs_followup:
+                                    next === "arandi"
+                                      ? row.pipelineLead.needs_followup
+                                      : false,
+                                },
+                              }
+                            : row,
                         ),
                       );
-                      const fd = new FormData();
-                      fd.set("conversation_id", selected.id);
-                      fd.set("status", status);
-                      startTransition(() => {
-                        void updateConversationStatus(fd);
-                      });
                     }}
-                    className="mt-1 block min-h-11 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2 text-base sm:w-auto sm:text-sm"
-                  >
-                    <option value="open">Açık</option>
-                    <option value="pending">Beklemede</option>
-                    <option value="closed">Kapalı</option>
-                  </select>
-                </label>
-
-                {role === "admin" || role === "assistant" ? (
-                  <label className="text-xs font-medium text-[#466254]">
-                    Ata
-                    <select
-                      value={selected.assigned_to ?? ""}
-                      aria-label="Ekip üyesine ata"
-                      onChange={(event) => {
-                        const assignedTo = event.target.value;
-                        setConversations((rows) =>
-                          rows.map((row) =>
-                            row.id === selected.id
-                              ? { ...row, assigned_to: assignedTo || null }
-                              : row,
-                          ),
-                        );
-                        const fd = new FormData();
-                        fd.set("conversation_id", selected.id);
-                        fd.set("assigned_to", assignedTo);
-                        startTransition(() => {
-                          void assignConversationMember(fd);
-                        });
-                      }}
-                      className="mt-1 block min-h-11 w-full min-w-0 rounded-xl border border-[#123524]/15 bg-white px-3 py-2 text-base sm:min-w-40 sm:w-auto sm:text-sm"
-                    >
-                      <option value="">Atanmamış</option>
-                      {staff.map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {member.full_name || member.id.slice(0, 8)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-              </div>
+                  />
+                </div>
+              ) : (
+                <p className="text-xs text-[#466254]">Aktif talep yok.</p>
+              )}
             </header>
 
             <div

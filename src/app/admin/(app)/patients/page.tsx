@@ -1,43 +1,92 @@
 import Link from "next/link";
 import { UserPlus } from "lucide-react";
+import {
+  PatientsList,
+  type PatientsListRow,
+} from "@/components/admin/PatientsList";
 import { requireAdminSession } from "@/lib/admin/auth";
-import { formatPatientNo, patientAge } from "@/lib/crm/patient";
+import { pickActiveLead } from "@/lib/crm/lead-status";
+import {
+  LEAD_STATUS_FILTERS,
+  type LeadStatusFilter,
+} from "@/lib/crm/lead-status";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function PatientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; status?: string }>;
 }) {
   await requireAdminSession(["admin", "doctor", "assistant"]);
-  const { q } = await searchParams;
-  const search = q?.trim() || "";
+  const params = await searchParams;
+  const initialQuery = params.q?.trim() || "";
+  const initialFilter: LeadStatusFilter = LEAD_STATUS_FILTERS.some(
+    (item) => item.id === params.status,
+  )
+    ? (params.status as LeadStatusFilter)
+    : "all";
   const supabase = await createClient();
 
-  let query = supabase
+  const { data: patients, error } = await supabase
     .from("contacts")
     .select(
       "id, name, phone, patient_no, birth_date, national_id, city, updated_at",
     )
+    .eq("is_patient", true)
     .order("updated_at", { ascending: false })
     .limit(200);
 
-  if (search) {
-    const safe = search.replace(/[%(),]/g, " ").trim();
-    const digits = safe.replace(/\D/g, "");
-    const filters = [`name.ilike.%${safe}%`, `phone.ilike.%${safe}%`];
-    if (digits) {
-      filters.push(`phone.ilike.%${digits}%`);
-      filters.push(`national_id.eq.${digits}`);
-      if (/^\d+$/.test(digits)) filters.push(`patient_no.eq.${Number(digits)}`);
-    }
-    query = query.or(filters.join(","));
+  const contactIds = (patients ?? []).map((patient) => patient.id);
+  const { data: leadRows } = contactIds.length
+    ? await supabase
+        .from("leads")
+        .select(
+          "id, contact_id, stage, status, lost_reason, needs_followup, created_at",
+        )
+        .in("contact_id", contactIds)
+        .order("created_at", { ascending: false })
+    : { data: [] as never[] };
+
+  const leadsByContact = new Map<
+    string,
+    Array<{
+      id: string;
+      stage: string;
+      status: string;
+      lost_reason: string | null;
+      needs_followup: boolean | null;
+      created_at: string;
+    }>
+  >();
+  for (const lead of leadRows ?? []) {
+    if (!lead.contact_id) continue;
+    const list = leadsByContact.get(lead.contact_id) ?? [];
+    list.push(lead);
+    leadsByContact.set(lead.contact_id, list);
   }
 
-  const { data: patients, error } = await query;
+  const rows: PatientsListRow[] = (patients ?? []).map((patient) => {
+    const activeLead = pickActiveLead(leadsByContact.get(patient.id) ?? []);
+    return {
+      id: patient.id,
+      name: patient.name,
+      phone: patient.phone,
+      patient_no: patient.patient_no,
+      birth_date: patient.birth_date,
+      city: patient.city,
+      activeLead: activeLead
+        ? {
+            id: activeLead.id,
+            status: activeLead.status,
+            lost_reason: activeLead.lost_reason,
+            needs_followup: activeLead.needs_followup ?? false,
+          }
+        : null,
+    };
+  });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h1 className="font-[family-name:var(--font-instrument-sans)] text-xl font-semibold sm:text-2xl">
@@ -56,65 +105,24 @@ export default async function PatientsPage({
         </Link>
       </div>
 
-      <form className="flex flex-col gap-2 sm:flex-row">
-        <input
-          name="q"
-          defaultValue={search}
-          placeholder="Ad, telefon, TC veya hasta no"
-          className="min-h-12 min-w-0 flex-1 rounded-xl border border-[#123524]/15 px-3 py-3 text-base"
-        />
-        <button className="min-h-12 rounded-full border border-[#123524]/15 px-4 text-sm font-semibold sm:px-5">
-          Ara
-        </button>
-      </form>
-
       {error ? (
         <div className="space-y-2 rounded-xl bg-red-50 p-4 text-sm text-red-800">
           <p>{error.message}</p>
           <p>
             Hasta kolonları yoksa Supabase SQL Editor’da{" "}
-            <code>supabase/migrations/20260808160000_patients.sql</code>{" "}
-            dosyasını çalıştırın.
+            <code>supabase/migrations/20260808160000_patients.sql</code> ve{" "}
+            <code>
+              supabase/migrations/20260823190000_contacts_is_patient.sql
+            </code>{" "}
+            dosyalarını çalıştırın.
           </p>
         </div>
-      ) : null}
-
-      {!patients?.length ? (
-        <p className="rounded-2xl border border-[#123524]/10 bg-white p-5 text-sm text-[#466254]">
-          {search
-            ? "Eşleşen hasta yok."
-            : "Henüz hasta yok. Yeni hasta ekleyin veya takvimden randevu yazın."}
-        </p>
       ) : (
-        <div className="space-y-3 sm:space-y-0 sm:overflow-hidden sm:rounded-2xl sm:border sm:border-[#123524]/10 sm:bg-white sm:divide-y sm:divide-[#123524]/08">
-          {patients.map((patient) => {
-            const age = patientAge(patient.birth_date);
-            return (
-              <Link
-                key={patient.id}
-                href={`/admin/patients/${patient.id}`}
-                className="flex min-h-16 flex-col gap-2 rounded-2xl border border-[#123524]/10 bg-white px-4 py-4 active:bg-[#f7f9f8] sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:rounded-none sm:border-0 sm:px-5"
-              >
-                <div className="min-w-0">
-                  <p className="text-base font-semibold sm:text-sm">
-                    {patient.name || "İsimsiz"}{" "}
-                    <span className="text-xs font-semibold text-[#0b6b45]">
-                      {formatPatientNo(patient.patient_no)}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-sm text-[#466254]">
-                    {patient.phone || "Telefon yok"}
-                    {age ? ` · ${age} yaş` : ""}
-                    {patient.city ? ` · ${patient.city}` : ""}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs font-semibold text-[#0b6b45]">
-                  Kimliği aç →
-                </span>
-              </Link>
-            );
-          })}
-        </div>
+        <PatientsList
+          rows={rows}
+          initialFilter={initialFilter}
+          initialQuery={initialQuery}
+        />
       )}
     </div>
   );

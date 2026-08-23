@@ -1,6 +1,8 @@
 import type { Viewport } from "next";
 import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminWhatsAppNotifications } from "@/components/admin/AdminWhatsAppNotifications";
+import { WhatsAppUnreadProvider } from "@/components/admin/whatsapp-unread-context";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -16,12 +18,15 @@ export default function AdminAppLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="admin-shell min-h-screen lg:pl-64">
-      <AdminSidebar />
-      <AdminMobileNav />
-      <main className="mx-auto max-w-[92rem] px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-10">
-        {children}
-      </main>
-    </div>
+    <WhatsAppUnreadProvider>
+      <div className="admin-shell min-h-screen lg:pl-64">
+        <AdminSidebar />
+        <AdminMobileNav />
+        <main className="mx-auto max-w-[92rem] px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-10">
+          {children}
+        </main>
+      </div>
+      <AdminWhatsAppNotifications />
+    </WhatsAppUnreadProvider>
   );
 }

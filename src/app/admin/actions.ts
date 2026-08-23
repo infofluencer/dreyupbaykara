@@ -25,7 +25,7 @@ import {
   isWithin24hWindow,
 } from "@/lib/whatsapp/service-window";
 import {
-  isLostLikeStatus,
+  isDoneStatus,
   LEAD_STATUSES,
   type LeadPipelineStatus,
 } from "@/lib/crm/lead-status";
@@ -118,7 +118,10 @@ export async function createManualLead(formData: FormData) {
 
   const { data: contact, error: contactError } = await supabase
     .from("contacts")
-    .upsert({ phone, name: name || phone }, { onConflict: "phone" })
+    .upsert(
+      { phone, name: name || phone, is_patient: true },
+      { onConflict: "phone" },
+    )
     .select("id")
     .single();
   if (contactError || !contact) {
@@ -176,6 +179,7 @@ export async function createPatient(formData: FormData) {
         address: optionalText(formData, "address"),
         allergies: optionalText(formData, "allergies"),
         summary: optionalText(formData, "summary"),
+        is_patient: true,
       },
       { onConflict: "phone" },
     )
@@ -214,8 +218,14 @@ export async function createPatient(formData: FormData) {
     if (leadError) throw new Error(leadError.message);
   }
 
+  await supabase
+    .from("conversations")
+    .update({ patient_id: contact.id })
+    .eq("contact_id", contact.id);
+
   revalidatePath("/admin/patients");
   revalidatePath("/admin/leads");
+  revalidatePath("/admin/messages");
   redirect(`/admin/patients/${contact.id}`);
 }
 
@@ -227,19 +237,17 @@ export async function updatePatient(formData: FormData) {
   const phone = normalizePhone(text(formData, "phone"));
   const name = text(formData, "name");
   if (!name) throw new Error("Ad soyad zorunludur.");
+  if (!phone) throw new Error("Telefon zorunludur.");
 
+  // Sadece kimlik kartı alanları — birth_date/gender/address/allergies/summary dokunulmaz
   const { error } = await supabase
     .from("contacts")
     .update({
       phone,
       name,
-      birth_date: optionalText(formData, "birth_date"),
       national_id: optionalText(formData, "national_id"),
-      gender: optionalText(formData, "gender"),
       city: optionalText(formData, "city"),
-      address: optionalText(formData, "address"),
-      allergies: optionalText(formData, "allergies"),
-      summary: optionalText(formData, "summary"),
+      is_patient: true,
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
@@ -275,6 +283,44 @@ export async function deletePatientNote(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/patients");
   if (contactId) revalidatePath(`/admin/patients/${contactId}`);
+}
+
+/**
+ * Hastayı listeden kaldırır (is_patient = false).
+ * Contact / WhatsApp / randevu kayıtları silinmez — kalıcı silme cascade riski yüksek.
+ */
+export async function deletePatient(formData: FormData) {
+  await requireAdminSession(["admin", "doctor", "assistant"]);
+  const supabase = await createClient();
+  const id = text(formData, "contact_id");
+  if (!id) throw new Error("Hasta bulunamadı.");
+
+  const { data: existing, error: lookupError } = await supabase
+    .from("contacts")
+    .select("id, is_patient")
+    .eq("id", id)
+    .maybeSingle();
+  if (lookupError) throw new Error(lookupError.message);
+  if (!existing) throw new Error("Hasta bulunamadı.");
+
+  const { error } = await supabase
+    .from("contacts")
+    .update({ is_patient: false })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+
+  await supabase
+    .from("conversations")
+    .update({ patient_id: null })
+    .eq("contact_id", id);
+
+  revalidatePath("/admin/patients");
+  revalidatePath(`/admin/patients/${id}`);
+  revalidatePath("/admin/messages");
+  revalidatePath("/admin/leads");
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/admin");
+  redirect("/admin/patients");
 }
 
 export async function saveContentPage(formData: FormData) {
@@ -702,51 +748,100 @@ export async function updateLead(formData: FormData) {
   revalidatePath("/admin");
 }
 
-function revalidatePipeline(leadId?: string) {
+function revalidatePipeline(leadId?: string, contactId?: string | null) {
   revalidatePath("/admin/pipeline");
+  revalidatePath("/admin/messages");
+  revalidatePath("/admin/patients");
   revalidatePath("/admin");
   if (leadId) {
     revalidatePath(`/admin/pipeline?lead=${leadId}`);
     revalidatePath(`/admin/leads/${leadId}`);
   }
+  if (contactId) {
+    revalidatePath(`/admin/patients/${contactId}`);
+  }
 }
 
-export async function updateLeadPipeline(formData: FormData) {
+type SetLeadStatusOpts = {
+  lostReason?: string | null;
+  /** true = arandı ama ulaşılamadı, tekrar aranacak */
+  needsFollowup?: boolean;
+};
+
+/**
+ * Tek yardımcı: leads.status (+ opsiyonel lost_reason / needs_followup).
+ * History trigger'ı status değişiminde çalışır. Sebep zorunlu değil.
+ */
+export async function setLeadStatus(
+  leadId: string,
+  status: LeadPipelineStatus,
+  opts: SetLeadStatusOpts = {},
+) {
   await requireAdminSession(["admin", "doctor", "assistant"]);
-  const supabase = await createClient();
-  const leadId = text(formData, "lead_id");
-  const status = text(formData, "status") as LeadPipelineStatus;
   if (!LEAD_STATUSES.includes(status)) {
     throw new Error("Geçersiz durum.");
   }
-  const lostReason = optionalText(formData, "lost_reason");
-  if (isLostLikeStatus(status) && !lostReason) {
-    throw new Error("Kayıp veya iptal için sebep zorunludur.");
-  }
 
-  const patch: Record<string, string | null> = {
+  const supabase = await createClient();
+  const { data: leadRow } = await supabase
+    .from("leads")
+    .select("contact_id")
+    .eq("id", leadId)
+    .maybeSingle();
+
+  const patch: Record<string, string | boolean | null> = {
     status,
-    assigned_to: optionalText(formData, "assigned_to"),
-    next_action_at: optionalText(formData, "next_action_at"),
-    next_action_note: optionalText(formData, "next_action_note"),
-    lost_reason: isLostLikeStatus(status) ? lostReason : null,
+    needs_followup: status === "arandi" ? Boolean(opts.needsFollowup) : false,
+    lost_reason: isDoneStatus(status)
+      ? opts.lostReason?.trim() || null
+      : null,
   };
 
   const { error } = await supabase.from("leads").update(patch).eq("id", leadId);
   if (error) throw new Error(error.message);
-  revalidatePipeline(leadId);
+  revalidatePipeline(leadId, leadRow?.contact_id);
+}
+
+/** FormData sarmalayıcı — setLeadStatus. */
+export async function updateLeadStatus(formData: FormData) {
+  const leadId = text(formData, "lead_id");
+  const status = text(formData, "status") as LeadPipelineStatus;
+  const followupRaw = text(formData, "needs_followup");
+  await setLeadStatus(leadId, status, {
+    lostReason: optionalText(formData, "lost_reason"),
+    needsFollowup:
+      followupRaw === "1" || followupRaw === "true" || followupRaw === "on",
+  });
+}
+
+export async function updateLeadPipeline(formData: FormData) {
+  const leadId = text(formData, "lead_id");
+  const status = text(formData, "status") as LeadPipelineStatus;
+  const followupRaw = text(formData, "needs_followup");
+  await setLeadStatus(leadId, status, {
+    lostReason: optionalText(formData, "lost_reason"),
+    needsFollowup:
+      followupRaw === "1" || followupRaw === "true" || followupRaw === "on",
+  });
+
+  if (formData.has("assigned_to")) {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("leads")
+      .update({ assigned_to: optionalText(formData, "assigned_to") })
+      .eq("id", leadId);
+    if (error) throw new Error(error.message);
+    revalidatePipeline(leadId);
+  }
 }
 
 export async function markLeadContacted(formData: FormData) {
-  await requireAdminSession(["admin", "doctor", "assistant"]);
-  const supabase = await createClient();
   const leadId = text(formData, "lead_id");
+  await setLeadStatus(leadId, "arandi");
+  const supabase = await createClient();
   const { error } = await supabase
     .from("leads")
-    .update({
-      status: "arandi",
-      last_contacted_at: new Date().toISOString(),
-    })
+    .update({ last_contacted_at: new Date().toISOString() })
     .eq("id", leadId);
   if (error) throw new Error(error.message);
   revalidatePipeline(leadId);
@@ -765,15 +860,8 @@ export async function stampLeadContacted(formData: FormData) {
 }
 
 export async function markLeadAppointmentStatus(formData: FormData) {
-  await requireAdminSession(["admin", "doctor", "assistant"]);
-  const supabase = await createClient();
   const leadId = text(formData, "lead_id");
-  const { error } = await supabase
-    .from("leads")
-    .update({ status: "muayene_randevusu" })
-    .eq("id", leadId);
-  if (error) throw new Error(error.message);
-  revalidatePipeline(leadId);
+  await setLeadStatus(leadId, "randevulu");
 }
 
 export async function createTask(formData: FormData) {
@@ -827,7 +915,7 @@ async function ensureLeadId(
 
   const { data: contact, error: contactError } = await supabase
     .from("contacts")
-    .upsert({ phone, name }, { onConflict: "phone" })
+    .upsert({ phone, name, is_patient: true }, { onConflict: "phone" })
     .select("id")
     .single();
   if (contactError || !contact) {
@@ -992,12 +1080,17 @@ export async function createAppointment(formData: FormData): Promise<{
     }
     await supabase
       .from("leads")
-      .update({ stage: "appointment" })
-      .eq("id", leadId)
-      .in("stage", ["new", "contacted", "qualified"]);
+      .update({
+        stage: "appointment",
+        status: "randevulu",
+        needs_followup: false,
+      })
+      .eq("id", leadId);
     revalidatePath(`/admin/leads/${leadId}`);
     revalidatePath("/admin/leads");
     revalidatePath("/admin/calendar");
+    revalidatePath("/admin/pipeline");
+    revalidatePath("/admin/patients");
     return { ok: true, date: istanbulYmd(startsAt) };
   } catch (error) {
     unstable_rethrow(error);
@@ -1389,5 +1482,63 @@ export async function deleteBotFaq(formData: FormData) {
     .eq("id", text(formData, "id"));
   if (error) throw new Error(error.message);
   revalidatePath("/admin/bot");
+}
+
+export async function updateMessageRule(formData: FormData) {
+  await requireAdminSession(["admin"]);
+  const supabase = await createClient();
+  const key = text(formData, "key");
+  if (!key) throw new Error("Kural bulunamadı.");
+
+  const templateName = text(formData, "template_name");
+  if (!templateName) throw new Error("Şablon adı zorunlu.");
+
+  const sendAtRaw = optionalText(formData, "send_at_local_time");
+  const offset = Number(text(formData, "offset_minutes") || "0");
+  if (!Number.isFinite(offset) || offset < 0) {
+    throw new Error("Geçersiz offset.");
+  }
+
+  const { error } = await supabase
+    .from("message_rules")
+    .update({
+      enabled: checked(formData, "enabled"),
+      template_name: templateName,
+      language: text(formData, "language") || "tr",
+      offset_minutes: offset,
+      send_at_local_time: sendAtRaw || null,
+      include_body_params: checked(formData, "include_body_params"),
+    })
+    .eq("key", key);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/automations");
+}
+
+export async function addWaMessageOptOut(formData: FormData) {
+  await requireAdminSession(["admin"]);
+  const supabase = await createClient();
+  const phone = text(formData, "phone").replace(/\D/g, "");
+  if (phone.length < 10) throw new Error("Geçerli telefon girin.");
+  const { error } = await supabase.from("wa_message_opt_outs").upsert(
+    {
+      phone,
+      reason: optionalText(formData, "reason") || "manual",
+    },
+    { onConflict: "phone" },
+  );
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/automations");
+}
+
+export async function removeWaMessageOptOut(formData: FormData) {
+  await requireAdminSession(["admin"]);
+  const supabase = await createClient();
+  const phone = text(formData, "phone").replace(/\D/g, "");
+  const { error } = await supabase
+    .from("wa_message_opt_outs")
+    .delete()
+    .eq("phone", phone);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/automations");
 }
 

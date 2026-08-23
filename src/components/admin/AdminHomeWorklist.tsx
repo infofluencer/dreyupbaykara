@@ -1,9 +1,7 @@
 import Link from "next/link";
-import {
-  markLeadAppointmentStatus,
-  markLeadContacted,
-} from "@/app/admin/actions";
+import { markLeadContacted } from "@/app/admin/actions";
 import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
+import { planHref } from "@/components/admin/schedule/href";
 import type { TodayLeadRow } from "@/components/admin/TodayLeadWorklist";
 import { Skeleton } from "@/components/admin/AdminSkeleton";
 import { loadTodayLeadWorklist } from "@/lib/crm/today-leads";
@@ -47,14 +45,14 @@ export async function AdminHomeWorklist() {
             Bugün aranacaklar
           </h2>
           <p className="mt-1 text-sm text-[#466254]">
-            Gecikenler üstte. Ara veya randevu olarak işaretleyin.
+            Gecikenler üstte. Ara veya takvimden randevu verin.
           </p>
         </div>
         <Link
           href="/admin/pipeline"
           className="text-sm font-semibold text-[#0b6b45]"
         >
-          Tüm talepler →
+          Durum panosu →
         </Link>
       </div>
       {!callList.length ? (
@@ -71,7 +69,7 @@ export async function AdminHomeWorklist() {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
-                    href={`/admin/pipeline?lead=${row.id}`}
+                    href={`/admin/messages?lead=${row.id}`}
                     className="font-semibold text-[#123524] hover:text-[#0b6b45]"
                   >
                     {row.contact_name || row.phone || "İsimsiz"}
@@ -95,15 +93,12 @@ export async function AdminHomeWorklist() {
                     Ara / işaretle
                   </button>
                 </form>
-                <form
-                  action={markLeadAppointmentStatus}
-                  className="flex-1 sm:flex-none"
+                <Link
+                  href={planHref({ date: todayYmd, lead: row.id })}
+                  className="inline-flex min-h-10 flex-1 items-center justify-center rounded-full border border-[#0b6b45]/25 px-3.5 text-xs font-semibold text-[#0b6b45] sm:flex-none sm:w-auto"
                 >
-                  <input type="hidden" name="lead_id" value={row.id} />
-                  <button className="inline-flex min-h-10 w-full items-center justify-center rounded-full border border-[#0b6b45]/25 px-3.5 text-xs font-semibold text-[#0b6b45] sm:w-auto">
-                    Randevu ver
-                  </button>
-                </form>
+                  Randevu ver
+                </Link>
               </div>
             </li>
           ))}

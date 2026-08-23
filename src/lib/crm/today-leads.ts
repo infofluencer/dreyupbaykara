@@ -32,14 +32,20 @@ export async function loadTodayLeadWorklist(todayYmd: string) {
   const [{ data: yeniRows }, { data: dueRows }] = await Promise.all([
     supabase
       .from("leads")
-      .select("id, status, next_action_at, next_action_note, contacts(name, phone)")
+      .select(
+        "id, status, next_action_at, next_action_note, contacts!inner(name, phone, is_patient)",
+      )
+      .eq("contacts.is_patient", true)
       .eq("status", "yeni")
       .is("last_contacted_at", null)
       .order("created_at", { ascending: false })
       .limit(30),
     supabase
       .from("leads")
-      .select("id, status, next_action_at, next_action_note, contacts(name, phone)")
+      .select(
+        "id, status, next_action_at, next_action_note, contacts!inner(name, phone, is_patient)",
+      )
+      .eq("contacts.is_patient", true)
       .lte("next_action_at", todayYmd)
       .not("status", "in", `(${closed})`)
       .order("next_action_at")

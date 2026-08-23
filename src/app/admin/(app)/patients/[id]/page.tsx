@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPatientNote, updatePatient } from "@/app/admin/actions";
+import { ClinicalFileCard } from "@/components/admin/ClinicalFileCard";
+import { DeletePatientButton } from "@/components/admin/DeletePatientButton";
 import { DeletePatientNoteButton } from "@/components/admin/DeletePatientNoteButton";
+import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
 import { PatientSourceCard } from "@/components/admin/PatientSourceCard";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
@@ -9,15 +12,11 @@ import {
   APPOINTMENT_TYPE_LABEL,
 } from "@/lib/crm/labels";
 import { durationMinutes, formatDurationTr } from "@/lib/crm/duration";
-import {
-  PATIENT_GENDER_LABEL,
-  PATIENT_NOTE_KIND_LABEL,
-  formatPatientNo,
-  patientAge,
-} from "@/lib/crm/patient";
+import { PATIENT_NOTE_KIND_LABEL, formatPatientNo } from "@/lib/crm/patient";
 import { appointmentEndIso } from "@/lib/crm/schedule";
 import { getIstanbulTodayYmd } from "@/lib/date/now";
 import { formatDateLongTr, formatTimeTr } from "@/lib/date/tr";
+import { pickActiveLead } from "@/lib/crm/lead-status";
 import { createClient } from "@/lib/supabase/server";
 
 const input =
@@ -44,7 +43,7 @@ export default async function PatientDetailPage({
       supabase
         .from("leads")
         .select(
-          "id, stage, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, lead_ref, created_at",
+          "id, stage, status, lost_reason, needs_followup, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, lead_ref, created_at",
         )
         .eq("contact_id", id)
         .order("created_at", { ascending: false }),
@@ -56,10 +55,7 @@ export default async function PatientDetailPage({
   const leadRefs = (leads ?? [])
     .map((lead) => lead.lead_ref)
     .filter((ref): ref is string => Boolean(ref));
-  const activeLead =
-    (leads ?? []).find(
-      (lead) => !["won", "lost", "spam"].includes(lead.stage),
-    ) ?? leads?.[0];
+  const activeLead = pickActiveLead(leads ?? []);
 
   const [{ data: appointments }, { data: sourceClicks }] = await Promise.all([
     leadIds.length
@@ -89,11 +85,12 @@ export default async function PatientDetailPage({
       : Promise.resolve({ data: [] as never[] }),
   ]);
 
-  const age = patientAge(patient.birth_date);
+  const noteRows = notes ?? [];
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+    <div className="space-y-6">
+      {/* 1 — Başlık şeridi */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <Link
             href="/admin/patients"
@@ -101,198 +98,152 @@ export default async function PatientDetailPage({
           >
             ← Hastalar
           </Link>
-          <h1 className="mt-3 font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold">
+          <h1 className="mt-3 font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold text-[#123524]">
             {patient.name || "İsimsiz hasta"}
           </h1>
           <p className="mt-1 text-sm text-[#466254]">
             {formatPatientNo(patient.patient_no)} · {patient.phone}
-            {age ? ` · ${age} yaş` : ""}
-            {patient.gender
-              ? ` · ${PATIENT_GENDER_LABEL[patient.gender] ?? patient.gender}`
-              : ""}
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           {activeLead ? (
-            <Link
-              href={`/admin/leads?lead=${activeLead.id}&date=${todayYmd}`}
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#0b6b45] px-4 text-sm font-semibold text-white sm:w-auto sm:min-h-10"
-            >
-              Takvime randevu yaz
-            </Link>
-          ) : null}
+            <LeadStatusBadge
+              status={activeLead.status}
+              needsFollowup={activeLead.needs_followup}
+            />
+          ) : (
+            <span className="text-xs text-[#466254]">Aktif talep yok</span>
+          )}
           <Link
             href={`/admin/messages?lead=${activeLead?.id ?? ""}`}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-[#0b6b45]/25 px-4 text-sm font-semibold text-[#0b6b45] sm:w-auto sm:min-h-10"
+            className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#0b6b45]/25 px-4 text-sm font-semibold text-[#0b6b45]"
           >
             WhatsApp
           </Link>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_.9fr]">
-        <section className="rounded-2xl border border-[#123524]/10 bg-white p-5">
-          <h2 className="text-lg font-semibold">Hasta kimliği</h2>
-          <p className="mt-1 text-sm text-[#466254]">
-            Kimlik bilgisi takvim randevularına bağlıdır. Aynı telefon = aynı
-            hasta.
-          </p>
-          <form action={updatePatient} className="mt-5 space-y-4">
-            <input type="hidden" name="contact_id" value={patient.id} />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Ad soyad">
-                <input
-                  name="name"
-                  required
-                  defaultValue={patient.name ?? ""}
-                  className={input}
-                />
-              </Field>
-              <Field label="Telefon">
-                <input
-                  name="phone"
-                  type="tel"
-                  required
-                  defaultValue={patient.phone}
-                  className={input}
-                />
-              </Field>
-              <Field label="T.C. kimlik no">
-                <input
-                  name="national_id"
-                  defaultValue={patient.national_id ?? ""}
-                  className={input}
-                />
-              </Field>
-              <Field label="Doğum tarihi">
-                <input
-                  name="birth_date"
-                  type="date"
-                  defaultValue={patient.birth_date ?? ""}
-                  className={input}
-                />
-              </Field>
-              <Field label="Cinsiyet">
-                <select
-                  name="gender"
-                  defaultValue={patient.gender ?? ""}
-                  className={input}
-                >
-                  <option value="">Belirtilmedi</option>
-                  <option value="female">Kadın</option>
-                  <option value="male">Erkek</option>
-                  <option value="other">Diğer</option>
-                </select>
-              </Field>
-              <Field label="Şehir">
-                <input
-                  name="city"
-                  defaultValue={patient.city ?? ""}
-                  className={input}
-                />
-              </Field>
-            </div>
-            <Field label="Adres">
+      {/* 2 — Kimlik */}
+      <section className="rounded-2xl border border-[#123524]/10 bg-white p-5">
+        <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
+          Kimlik
+        </h2>
+        <p className="mt-1 text-sm text-[#466254]">
+          Asistan hızlı girer. Aynı telefon = aynı hasta.
+        </p>
+        <form action={updatePatient} className="mt-5 space-y-4">
+          <input type="hidden" name="contact_id" value={patient.id} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Ad soyad">
               <input
-                name="address"
-                defaultValue={patient.address ?? ""}
+                name="name"
+                required
+                defaultValue={patient.name ?? ""}
                 className={input}
               />
             </Field>
-            <Field label="Alerji / dikkat">
+            <Field label="Telefon">
               <input
-                name="allergies"
-                defaultValue={patient.allergies ?? ""}
+                name="phone"
+                type="tel"
+                required
+                defaultValue={patient.phone}
                 className={input}
               />
             </Field>
-            <Field label="Klinik özet">
-              <textarea
-                name="summary"
-                rows={4}
-                defaultValue={patient.summary ?? ""}
-                placeholder="Tanı, ameliyat öyküsü, önemli uyarılar"
+            <Field label="T.C. kimlik no">
+              <input
+                name="national_id"
+                inputMode="numeric"
+                defaultValue={patient.national_id ?? ""}
                 className={input}
               />
             </Field>
-            <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white">
-              Kimliği kaydet
-            </button>
-          </form>
-          <PatientSourceCard
-            leads={leads ?? []}
-            clicks={sourceClicks ?? []}
-          />
-        </section>
-
-        <section className="rounded-2xl border border-[#0b6b45]/20 bg-white p-5">
-          <h2 className="text-lg font-semibold">Hasta notları</h2>
-          <p className="mt-1 text-sm text-[#466254]">
-            Klinik / ameliyat notları. Takvim randevu notundan ayrıdır; hasta
-            dosyasında kalır.
-          </p>
-          <form action={createPatientNote} className="mt-4 space-y-3">
-            <input type="hidden" name="contact_id" value={patient.id} />
-            <select name="kind" defaultValue="clinical" className={input}>
-              <option value="clinical">Klinik not</option>
-              <option value="surgery">Ameliyat notu</option>
-              <option value="followup">Kontrol notu</option>
-              <option value="admin">İdari not</option>
-            </select>
-            <textarea
-              name="body"
-              required
-              rows={4}
-              placeholder="Muayene bulgusu, ameliyat notu, kontrol planı..."
-              className={input}
-            />
-            <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#123524] px-5 text-sm font-semibold text-white">
-              Not ekle
-            </button>
-          </form>
-
-          <div className="mt-5 space-y-3">
-            {!notes?.length ? (
-              <p className="rounded-xl bg-[#f4f6f5] px-4 py-3 text-sm text-[#466254]">
-                Henüz not yok.
-              </p>
-            ) : (
-              notes.map((note) => {
-                const author = Array.isArray(note.profiles)
-                  ? note.profiles[0]
-                  : note.profiles;
-                return (
-                  <article
-                    key={note.id}
-                    className="rounded-2xl border border-[#123524]/08 bg-[#f7f9f8] p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-[#0b6b45]">
-                          {PATIENT_NOTE_KIND_LABEL[note.kind] ?? note.kind}
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-[#123524]">
-                          {note.body}
-                        </p>
-                        <p className="mt-2 text-xs text-[#6b7d73]">
-                          {new Date(note.created_at).toLocaleString("tr-TR", {
-                            timeZone: "Europe/Istanbul",
-                          })}
-                          {author?.full_name ? ` · ${author.full_name}` : ""}
-                        </p>
-                      </div>
-                      <DeletePatientNoteButton
-                        id={note.id}
-                        contactId={patient.id}
-                      />
-                    </div>
-                  </article>
-                );
-              })
-            )}
+            <Field label="Şehir">
+              <input
+                name="city"
+                defaultValue={patient.city ?? ""}
+                placeholder="İstanbul"
+                className={input}
+              />
+            </Field>
           </div>
-        </section>
-      </div>
+          <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white">
+            Kimliği kaydet
+          </button>
+        </form>
+        <div className="mt-6 border-t border-[#123524]/08 pt-5">
+          <PatientSourceCard leads={leads ?? []} clicks={sourceClicks ?? []} />
+        </div>
+      </section>
+
+      {/* 3 — Klinik dosya (kapalı başlar) */}
+      <ClinicalFileCard noteCount={noteRows.length}>
+        <p className="mb-4 text-sm text-[#466254]">
+          Tarihli klinik notlar. Alerji veya özet için ayrı kutu yok — not
+          olarak yazın.
+        </p>
+        <form action={createPatientNote} className="space-y-3">
+          <input type="hidden" name="contact_id" value={patient.id} />
+          <select name="kind" defaultValue="clinical" className={input}>
+            <option value="clinical">Klinik not</option>
+            <option value="surgery">Ameliyat notu</option>
+            <option value="followup">Kontrol notu</option>
+            <option value="admin">İdari not</option>
+          </select>
+          <textarea
+            name="body"
+            required
+            rows={4}
+            placeholder="Örn. alerji: penisilin · muayene bulgusu · ameliyat öyküsü"
+            className={input}
+          />
+          <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#123524] px-5 text-sm font-semibold text-white">
+            Not ekle
+          </button>
+        </form>
+
+        <div className="mt-5 space-y-3">
+          {!noteRows.length ? (
+            <p className="rounded-xl bg-[#f4f6f5] px-4 py-3 text-sm text-[#466254]">
+              Henüz not yok.
+            </p>
+          ) : (
+            noteRows.map((note) => {
+              const author = Array.isArray(note.profiles)
+                ? note.profiles[0]
+                : note.profiles;
+              return (
+                <article
+                  key={note.id}
+                  className="rounded-2xl border border-[#123524]/08 bg-[#f7f9f8] p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#0b6b45]">
+                        {PATIENT_NOTE_KIND_LABEL[note.kind] ?? note.kind}
+                      </p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-[#123524]">
+                        {note.body}
+                      </p>
+                      <p className="mt-2 text-xs text-[#6b7d73]">
+                        {new Date(note.created_at).toLocaleString("tr-TR", {
+                          timeZone: "Europe/Istanbul",
+                        })}
+                        {author?.full_name ? ` · ${author.full_name}` : ""}
+                      </p>
+                    </div>
+                    <DeletePatientNoteButton
+                      id={note.id}
+                      contactId={patient.id}
+                    />
+                  </div>
+                </article>
+              );
+            })
+          )}
+        </div>
+      </ClinicalFileCard>
 
       <section className="rounded-2xl border border-[#123524]/10 bg-white p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -359,6 +310,21 @@ export default async function PatientDetailPage({
             })}
           </div>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-red-200 bg-red-50/60 p-5">
+        <h2 className="text-lg font-semibold text-red-900">Hastayı sil</h2>
+        <p className="mt-1 max-w-xl text-sm text-red-900/80">
+          Hastalar listesinden kaldırır. WhatsApp konuşması, talepler ve
+          randevular silinmez; aynı telefonla yeniden hasta eklenebilir.
+        </p>
+        <div className="mt-4">
+          <DeletePatientButton
+            contactId={patient.id}
+            patientName={patient.name}
+            variant="danger"
+          />
+        </div>
       </section>
     </div>
   );

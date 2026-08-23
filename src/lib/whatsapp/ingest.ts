@@ -72,9 +72,15 @@ async function resolveLeadFromRef(
 
 async function findOrCreateConversation(
   supabase: SupabaseClient,
-  contact: { id: string; phone: string; name: string | null },
+  contact: {
+    id: string;
+    phone: string;
+    name: string | null;
+    is_patient?: boolean | null;
+  },
   leadId: string | null,
 ) {
+  const patientId = contact.is_patient ? contact.id : null;
   const { data: existing } = await supabase
     .from("conversations")
     .select("id, status")
@@ -88,7 +94,8 @@ async function findOrCreateConversation(
         wa_phone: contact.phone,
         contact_name: contact.name,
         status: "open",
-        ...(leadId ? { lead_id: leadId, patient_id: contact.id } : {}),
+        ...(leadId ? { lead_id: leadId } : {}),
+        ...(patientId ? { patient_id: patientId } : {}),
       })
       .eq("id", existing.id)
       .select("id")
@@ -105,7 +112,7 @@ async function findOrCreateConversation(
     .from("conversations")
     .insert({
       contact_id: contact.id,
-      patient_id: leadId ? contact.id : null,
+      patient_id: patientId,
       lead_id: leadId,
       wa_phone: contact.phone,
       contact_name: contact.name,
@@ -147,6 +154,7 @@ export async function ingestInboundWhatsAppMessage(
   const phone = options.phone.replace(/\D/g, "");
   if (!phone) return null;
 
+  // Stub contact only — is_patient stays false until staff registers them.
   const { data: contact, error: contactError } = await supabase
     .from("contacts")
     .upsert(
@@ -156,7 +164,7 @@ export async function ingestInboundWhatsAppMessage(
       },
       { onConflict: "phone" },
     )
-    .select("id, name, phone")
+    .select("id, name, phone, is_patient")
     .single();
 
   if (contactError || !contact) {
@@ -217,11 +225,35 @@ export async function ingestInboundWhatsAppMessage(
     return null;
   }
 
+  const created = (inserted?.length ?? 0) > 0;
+  if (created && options.body) {
+    await maybeRecordOptOut(supabase, phone, options.body);
+  }
+
   return {
     conversationId,
     leadId,
-    created: (inserted?.length ?? 0) > 0,
+    created,
   };
+}
+
+const OPT_OUT_RE = /^\s*(dur|stop|iptal|vazgeç|vazgec)\s*$/i;
+
+async function maybeRecordOptOut(
+  supabase: SupabaseClient,
+  phone: string,
+  body: string,
+) {
+  if (!OPT_OUT_RE.test(body.trim())) return;
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return;
+  const { error } = await supabase.from("wa_message_opt_outs").upsert(
+    { phone: digits, reason: "inbound_keyword" },
+    { onConflict: "phone" },
+  );
+  if (error) {
+    console.error("[whatsapp] opt-out:", error.message);
+  }
 }
 
 /**
@@ -245,7 +277,7 @@ export async function ingestWhatsAppAppEcho(
   const { data: contact, error: contactError } = await supabase
     .from("contacts")
     .upsert({ phone }, { onConflict: "phone" })
-    .select("id, name, phone")
+    .select("id, name, phone, is_patient")
     .single();
 
   if (contactError || !contact) {

@@ -4,6 +4,7 @@ import {
   postWhatsAppCloudPayload,
   sendMessage,
   sendTemplateMessage,
+  type WhatsAppTemplateComponent,
 } from "@/lib/whatsapp/send-message";
 
 /** Used by cron reminders — no conversation row context. */
@@ -26,17 +27,23 @@ export async function sendWhatsAppTemplate(
   to: string,
   templateName: string,
   languageCode = "tr",
+  components?: WhatsAppTemplateComponent[],
 ): Promise<{ messageId: string }> {
+  const template: Record<string, unknown> = {
+    name: templateName,
+    language: { code: languageCode },
+  };
+  if (components?.length) {
+    template.components = components;
+  }
   const result = await postWhatsAppCloudPayload({
     messaging_product: "whatsapp",
     to: to.replace(/\D/g, ""),
     type: "template",
-    template: {
-      name: templateName,
-      language: { code: languageCode },
-    },
+    template,
   });
   return { messageId: result.messageId };
 }
 
 export { sendMessage, sendTemplateMessage };
+export type { WhatsAppTemplateComponent };
