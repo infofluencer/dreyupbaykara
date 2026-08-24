@@ -15,7 +15,7 @@ export async function sendWhatsAppText(
   const result = await postWhatsAppCloudPayload({
     messaging_product: "whatsapp",
     recipient_type: "individual",
-    to: to.replace(/\D/g, ""),
+    to: (to ?? "").replace(/\D/g, ""),
     type: "text",
     text: { preview_url: false, body },
   });
@@ -38,7 +38,7 @@ export async function sendWhatsAppTemplate(
   }
   const result = await postWhatsAppCloudPayload({
     messaging_product: "whatsapp",
-    to: to.replace(/\D/g, ""),
+    to: (to ?? "").replace(/\D/g, ""),
     type: "template",
     template,
   });

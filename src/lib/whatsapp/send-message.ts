@@ -53,8 +53,8 @@ export type OutboundContext = {
   extraPayload?: Record<string, unknown>;
 };
 
-function normalizePhone(to: string): string {
-  return to.replace(/\D/g, "");
+function normalizePhone(to: string | null | undefined): string {
+  return (to ?? "").replace(/\D/g, "");
 }
 
 function parseResponseBody(text: string): CloudSendResponse {

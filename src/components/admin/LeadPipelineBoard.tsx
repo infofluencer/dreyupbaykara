@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { setLeadStatus } from "@/app/admin/actions";
 import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
 import {
@@ -22,6 +22,12 @@ export type PipelineLead = {
   phone: string | null;
 };
 
+function leadsSnapshotKey(leads: PipelineLead[]) {
+  return leads
+    .map((row) => `${row.id}:${row.status}:${row.needs_followup ? 1 : 0}`)
+    .join("|");
+}
+
 /**
  * Salt genel bakış: 4 kolonlu kanban.
  * Günlük iş akışı WhatsApp'ta; burası sürükle-bırak ile durum günceller.
@@ -35,10 +41,13 @@ export function LeadPipelineBoard({
   const [dragId, setDragId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const initialLeadsRef = useRef(initialLeads);
+  initialLeadsRef.current = initialLeads;
+  const snapshotKey = leadsSnapshotKey(initialLeads);
 
   useEffect(() => {
-    setLeads(initialLeads);
-  }, [initialLeads]);
+    setLeads(initialLeadsRef.current);
+  }, [snapshotKey]);
 
   const byStatus = useMemo(() => {
     const map: Record<LeadPipelineStatus, PipelineLead[]> = {

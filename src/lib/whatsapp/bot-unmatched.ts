@@ -10,8 +10,8 @@ const DEFAULT_COOLDOWN_MS = 30 * 60 * 1000;
 
 /**
  * SSS tutmadığında ne gönderilir.
- * FAQ cevabından sonra eşleşmeyen soru → fallback (asistan).
- * Welcome’dan sonra gerçek soru → fallback (sessiz kalmaz).
+ * Production bot mesai dışı kilitli: always afterHours=true → after_hours_message.
+ * Welcome / fallback yolları test ve geriye dönük uyumluluk için durur.
  * Fallback / mesai dışı tekrarı 30 dk içinde spamlenmez.
  */
 export function resolveUnmatchedReply(options: {

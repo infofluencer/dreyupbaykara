@@ -132,10 +132,14 @@ async function findOrCreateConversation(
  * Inbound webhook: contact upsert, optional Ref → lead, conversation, message.
  * Conversation preview / unread_count are maintained by DB trigger on insert.
  */
+function digitsOnly(phone: string | null | undefined): string {
+  return (phone ?? "").replace(/\D/g, "");
+}
+
 export async function ingestInboundWhatsAppMessage(
   supabase: SupabaseClient,
   options: {
-    phone: string;
+    phone: string | null | undefined;
     contactName?: string | null;
     body: string | null;
     waMessageId: string;
@@ -151,8 +155,8 @@ export async function ingestInboundWhatsAppMessage(
   leadId: string | null;
   created: boolean;
 } | null> {
-  const phone = options.phone.replace(/\D/g, "");
-  if (!phone) return null;
+  const phone = digitsOnly(options.phone);
+  if (!phone || !options.waMessageId) return null;
 
   // Stub contact only — is_patient stays false until staff registers them.
   const { data: contact, error: contactError } = await supabase
@@ -245,7 +249,7 @@ async function maybeRecordOptOut(
   body: string,
 ) {
   if (!OPT_OUT_RE.test(body.trim())) return;
-  const digits = phone.replace(/\D/g, "");
+  const digits = digitsOnly(phone);
   if (!digits) return;
   const { error } = await supabase.from("wa_message_opt_outs").upsert(
     { phone: digits, reason: "inbound_keyword" },
@@ -262,7 +266,7 @@ async function maybeRecordOptOut(
 export async function ingestWhatsAppAppEcho(
   supabase: SupabaseClient,
   options: {
-    phone: string;
+    phone: string | null | undefined;
     body: string | null;
     waMessageId: string;
     timestamp?: string;
@@ -271,7 +275,7 @@ export async function ingestWhatsAppAppEcho(
     rawPayload?: unknown;
   },
 ): Promise<{ conversationId: string; created: boolean } | null> {
-  const phone = options.phone.replace(/\D/g, "");
+  const phone = digitsOnly(options.phone);
   if (!phone || !options.waMessageId) return null;
 
   const { data: contact, error: contactError } = await supabase

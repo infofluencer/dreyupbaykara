@@ -127,8 +127,8 @@ export function buildTemplateBodyComponents(
   ];
 }
 
-export function normalizePhoneDigits(phone: string): string {
-  return phone.replace(/\D/g, "");
+export function normalizePhoneDigits(phone: string | null | undefined): string {
+  return (phone ?? "").replace(/\D/g, "");
 }
 
 export function previewAutomationBody(

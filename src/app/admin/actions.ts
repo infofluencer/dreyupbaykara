@@ -1430,10 +1430,14 @@ export async function saveBotSettings(formData: FormData) {
     .map((value) => Number(value))
     .filter((value) => Number.isInteger(value));
 
+  const timezone =
+    text(formData, "timezone") || "Europe/Istanbul";
+
   const { error } = await supabase
     .from("bot_settings")
     .update({
       enabled: checked(formData, "enabled"),
+      timezone,
       business_days: days,
       business_start: text(formData, "business_start"),
       business_end: text(formData, "business_end"),

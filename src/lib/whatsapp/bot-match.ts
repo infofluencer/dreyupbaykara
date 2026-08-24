@@ -17,7 +17,8 @@ export type BotLang = "tr" | "en" | "ar" | "unknown";
 const ARABIC_LETTER = /[\u0600-\u06FF]/;
 
 /** TR / EN / AR karşılaştırma: İ/ı, ş… ve Arapça hareke/elif birleşir. */
-export function foldForMatch(value: string): string {
+export function foldForMatch(value: string | null | undefined): string {
+  if (!value) return "";
   return value
     .toLocaleLowerCase("tr-TR")
     .replace(/[\u064B-\u065F\u0670\u0640]/g, "")

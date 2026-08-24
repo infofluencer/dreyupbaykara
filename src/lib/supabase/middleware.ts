@@ -44,6 +44,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isLogin && user) {
+    // Profili olmayan kullanıcıyı /admin ↔ /login döngüsüne sokma
+    if (request.nextUrl.searchParams.get("error") === "yetkisiz") {
+      return supabaseResponse;
+    }
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/admin";
     redirectUrl.search = "";

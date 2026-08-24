@@ -8,10 +8,15 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/admin";
+  const authError = searchParams.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    authError === "yetkisiz"
+      ? "Bu hesap için panel yetkisi yok. Yöneticiden rol tanımlamasını isteyin."
+      : null,
+  );
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
@@ -33,6 +38,13 @@ export function LoginForm() {
     }
 
     router.push(next.startsWith("/admin") ? next : "/admin");
+    router.refresh();
+  };
+
+  const onSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/admin/login");
     router.refresh();
   };
 
@@ -65,6 +77,16 @@ export function LoginForm() {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
+      ) : null}
+
+      {authError === "yetkisiz" ? (
+        <button
+          type="button"
+          onClick={() => void onSignOut()}
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-[#123524]/15 px-5 text-sm font-semibold text-[#123524]"
+        >
+          Çıkış yap
+        </button>
       ) : null}
 
       <button

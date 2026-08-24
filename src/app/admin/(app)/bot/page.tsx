@@ -44,9 +44,10 @@ export default async function BotPage() {
           Otomatik yanıt botu
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#466254]">
-          Hastalar Türkçe, İngilizce veya Arapça (bazen Latin Arabizi: wein,
-          se3r) yazar. SSS tutarsa aynı dilde sabit cevap gider. Tutmazsa
-          ChatGPT uydurmaz; asistan kuyruğuna düşer. Tıbbi teşhis yok.
+          Bot yalnızca mesai saatleri DIŞINDA otomatik cevap verir. Mesai içinde
+          ekip yanıtlar — bot susar, çakışma olmaz. Mesai dışında SSS tutarsa
+          sabit cevap gider; tutmazsa “mesai dışındayız” mesajı gönderilir.
+          Hastalar TR / EN / AR (Arabizi: wein, se3r) yazar. Tıbbi teşhis yok.
         </p>
       </div>
 
@@ -62,8 +63,21 @@ export default async function BotPage() {
           />
           Bot aktif
         </label>
+        <p className="text-xs leading-5 text-[#466254]">
+          Kapalıysa bot hiç çalışmaz (mesai dışı olsa bile). Açıkken yalnızca
+          aşağıdaki mesai saatlerinin dışında yanıt verir.
+        </p>
+        <Field label="Saat dilimi (IANA)">
+          <input
+            name="timezone"
+            required
+            defaultValue={settings.timezone || "Europe/Istanbul"}
+            placeholder="Europe/Istanbul"
+            className={input}
+          />
+        </Field>
         <div>
-          <p className="text-sm font-medium">Çalışma günleri</p>
+          <p className="text-sm font-medium">Mesai günleri (bot bu günlerde saat aralığında susar)</p>
           <div className="mt-2 flex flex-wrap gap-3">
             {DAYS.map(([value, label]) => (
               <label key={value} className="flex items-center gap-1.5 text-sm">
@@ -96,15 +110,7 @@ export default async function BotPage() {
             />
           </Field>
         </div>
-        <Field label="Karşılama (ilk mesaj, SSS yok)">
-          <textarea
-            name="welcome_message"
-            rows={6}
-            defaultValue={settings.welcome_message}
-            className={input}
-          />
-        </Field>
-        <Field label="Mesai dışı (SSS yok)">
+        <Field label="Mesai dışı (SSS yok — birincil otomatik mesaj)">
           <textarea
             name="after_hours_message"
             rows={5}
@@ -112,7 +118,15 @@ export default async function BotPage() {
             className={input}
           />
         </Field>
-        <Field label="Eşleşmeyen soru → asistan (fallback)">
+        <Field label="Karşılama (saklanır; mesai dışı modunda kullanılmaz)">
+          <textarea
+            name="welcome_message"
+            rows={6}
+            defaultValue={settings.welcome_message}
+            className={input}
+          />
+        </Field>
+        <Field label="Fallback (saklanır; mesai dışı modunda kullanılmaz)">
           <textarea
             name="fallback_message"
             rows={6}
@@ -121,9 +135,9 @@ export default async function BotPage() {
           />
         </Field>
         <p className="text-xs leading-5 text-[#466254]">
-          Fallback, hoş geldinden sonra gelen eşleşmeyen soruda da gider; hasta
-          sessiz bırakılmaz. Aynı fallback 30 dk içinde tekrarlanmaz — asistan
-          Inbox’tan devam eder.
+          Mesai dışı SSS tekrarı 10 dk, “mesai dışındayız” tekrarı 30 dk içinde
+          spamlenmez. Asistan Inbox’tan son 30 dk içinde yazdıysa bot yine
+          susar.
         </p>
         <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white">
           Bot ayarlarını kaydet

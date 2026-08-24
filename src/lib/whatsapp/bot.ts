@@ -3,7 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { composeBotReply, matchBotFaqs } from "@/lib/whatsapp/bot-match";
 import { resolveUnmatchedReply } from "@/lib/whatsapp/bot-unmatched";
-import { sendMessage, sendTemplateMessage } from "@/lib/whatsapp/send-message";
+import { sendMessage } from "@/lib/whatsapp/send-message";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 
 type BotSettings = {
@@ -16,6 +16,11 @@ type BotSettings = {
   after_hours_message: string;
   fallback_message: string;
 };
+
+/** Asistan panelden yazdıysa bot bu süre karışmaz. */
+const ASSISTANT_QUIET_MS = 30 * 60 * 1000;
+/** Aynı konuşmada otomatik SSS tekrarı. */
+const FAQ_COOLDOWN_MS = 10 * 60 * 1000;
 
 function localParts(timezone: string) {
   const formatter = new Intl.DateTimeFormat("en-GB", {
@@ -70,18 +75,24 @@ export async function maybeReplyWithBot(options: {
 
   if (!settings?.enabled || !inboundText.trim()) return;
 
-  const { data: faqs } = await supabase
-    .from("bot_faqs")
-    .select("question, answer, keywords, sort_order")
-    .eq("enabled", true)
-    .order("sort_order");
+  // Kapı: mesai içinde bot tamamen susar — asistan cevaplar.
+  if (isBusinessHours(settings)) return;
 
-  let reply = composeBotReply(
-    matchBotFaqs(inboundText, faqs ?? [], 2),
-  );
+  const assistantSince = new Date(Date.now() - ASSISTANT_QUIET_MS).toISOString();
 
-  if (!reply) {
-    const [{ data: recentAutomated }, { count }] = await Promise.all([
+  const [{ data: recentAssistant }, { data: recentAutomated }, { data: faqs }] =
+    await Promise.all([
+      supabase
+        .from("messages")
+        .select("created_at")
+        .eq("conversation_id", conversationId)
+        .eq("direction", "outbound")
+        .eq("source", "panel")
+        .eq("automated", false)
+        .gte("created_at", assistantSince)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
       supabase
         .from("messages")
         .select("body, created_at")
@@ -91,19 +102,37 @@ export async function maybeReplyWithBot(options: {
         .limit(1)
         .maybeSingle(),
       supabase
-        .from("messages")
-        .select("*", { count: "exact", head: true })
-        .eq("conversation_id", conversationId)
-        .eq("direction", "inbound"),
+        .from("bot_faqs")
+        .select("question, answer, keywords, sort_order")
+        .eq("enabled", true)
+        .order("sort_order"),
     ]);
 
+  // Mesai dışı olsa bile asistan son 30 dk’da yazdıysa karışma.
+  if (recentAssistant) return;
+
+  const lastAutomatedAt = recentAutomated
+    ? new Date(recentAutomated.created_at).getTime()
+    : null;
+
+  let reply = composeBotReply(
+    matchBotFaqs(inboundText, faqs ?? [], 2),
+  );
+
+  if (reply) {
+    if (
+      lastAutomatedAt != null &&
+      Date.now() - lastAutomatedAt < FAQ_COOLDOWN_MS
+    ) {
+      return;
+    }
+  } else {
+    // Mesai dışı + SSS yok → yalnızca after_hours (welcome/fallback bu kapıda kullanılmaz).
     const unmatched = resolveUnmatchedReply({
-      afterHours: !isBusinessHours(settings),
-      inboundCount: count ?? 0,
+      afterHours: true,
+      inboundCount: 2,
       lastAutomatedBody: recentAutomated?.body ?? null,
-      lastAutomatedAt: recentAutomated
-        ? new Date(recentAutomated.created_at).getTime()
-        : null,
+      lastAutomatedAt,
       welcome: settings.welcome_message,
       fallback: settings.fallback_message,
       afterHoursMessage: settings.after_hours_message,
@@ -138,4 +167,3 @@ export async function maybeReplyWithBot(options: {
     source: "bot",
   });
 }
-

@@ -134,6 +134,13 @@ async function handleSmbMessageEchoes(
   change: WebhookChange,
 ) {
   for (const echo of change.value?.message_echoes ?? []) {
+    if (!echo?.to || !echo?.id) {
+      console.warn("[whatsapp] echo skipped: missing to/id", {
+        id: echo?.id,
+        keys: echo ? Object.keys(echo) : [],
+      });
+      continue;
+    }
     const media = mediaInfo(echo);
     await ingestWhatsAppAppEcho(supabase, {
       phone: echo.to,
@@ -152,6 +159,14 @@ async function handleInboundMessages(
   value: WebhookChangeValue,
 ) {
   for (const message of value.messages ?? []) {
+    if (!message?.from || !message?.id) {
+      console.warn("[whatsapp] inbound skipped: missing from/id", {
+        id: message?.id,
+        type: message?.type,
+        keys: message ? Object.keys(message) : [],
+      });
+      continue;
+    }
     const phone = message.from;
     const profileName = value.contacts?.find(
       (contact) => contact.wa_id === phone,
@@ -230,34 +245,45 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
-  for (const entry of payload.entry ?? []) {
-    for (const change of entry.changes ?? []) {
-      const field = change.field ?? "";
-      const value = change.value;
+  try {
+    for (const entry of payload.entry ?? []) {
+      for (const change of entry.changes ?? []) {
+        const field = change.field ?? "";
+        const value = change.value;
 
-      if (field === "history") {
-        stubCoexistenceSync("history", change);
-        continue;
-      }
-      if (field === "smb_app_state_sync") {
-        stubCoexistenceSync("smb_app_state_sync", change);
-        continue;
-      }
-      if (field === "smb_message_echoes") {
-        await handleSmbMessageEchoes(supabase, change);
-        continue;
-      }
-      if (field === "messages" || (!field && value)) {
-        await handleStatuses(supabase, value?.statuses ?? []);
-        await handleInboundMessages(supabase, value ?? {});
-        if (value?.message_echoes?.length) {
-          await handleSmbMessageEchoes(supabase, change);
+        try {
+          if (field === "history") {
+            stubCoexistenceSync("history", change);
+            continue;
+          }
+          if (field === "smb_app_state_sync") {
+            stubCoexistenceSync("smb_app_state_sync", change);
+            continue;
+          }
+          if (field === "smb_message_echoes") {
+            await handleSmbMessageEchoes(supabase, change);
+            continue;
+          }
+          if (field === "messages" || (!field && value)) {
+            await handleStatuses(supabase, value?.statuses ?? []);
+            await handleInboundMessages(supabase, value ?? {});
+            if (value?.message_echoes?.length) {
+              await handleSmbMessageEchoes(supabase, change);
+            }
+            continue;
+          }
+
+          console.warn("[whatsapp] unhandled webhook field", field || "(empty)");
+        } catch (error) {
+          console.error("[whatsapp] change failed", {
+            field: field || "(empty)",
+            error,
+          });
         }
-        continue;
       }
-
-      console.warn("[whatsapp] unhandled webhook field", field || "(empty)");
     }
+  } catch (error) {
+    console.error("[whatsapp] webhook processing failed:", error);
   }
 
   return NextResponse.json({ received: true });

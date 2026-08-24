@@ -34,7 +34,7 @@ const readAdminSession = cache(async (): Promise<AdminSession> => {
 
   const role = profile?.role as UserRole | undefined;
   if (!role) {
-    redirect("/admin?error=yetkisiz");
+    redirect("/admin/login?error=yetkisiz");
   }
 
   return {
