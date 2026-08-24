@@ -12,8 +12,12 @@ export type MessageRule = {
   language: string;
   offset_minutes: number;
   send_at_local_time: string | null;
+  /** before_start = randevu öncesi; calendar_day = aynı gün yerel saat */
+  timing_mode: "before_start" | "calendar_day";
   appointment_types: string[];
   appointment_statuses: string[];
+  /** Durum Panosu: yeni | arandi | randevulu | bitti */
+  lead_statuses: string[];
   include_body_params: boolean;
   sort_order: number;
 };
@@ -66,6 +70,15 @@ function parseLocalTime(value: string | null): { hour: number; minute: number } 
   return { hour: Number(match[1]), minute: Number(match[2]) };
 }
 
+/** Istanbul gününün UTC aralığı (cron aday sorgusu). */
+export function istanbulDayBoundsUtc(now = new Date()): { from: Date; to: Date } {
+  const ymd = istanbulYmd(now);
+  // Europe/Istanbul yıl boyu UTC+3 (DST yok)
+  const from = new Date(`${ymd}T00:00:00+03:00`);
+  const to = new Date(`${ymd}T23:59:59.999+03:00`);
+  return { from, to };
+}
+
 /** Randevu başlangıcından offset kadar önce (UTC ms). */
 export function offsetDueAtMs(startsAt: string, offsetMinutes: number): number {
   return new Date(startsAt).getTime() - offsetMinutes * 60 * 1000;
@@ -74,17 +87,32 @@ export function offsetDueAtMs(startsAt: string, offsetMinutes: number): number {
 /**
  * Kural şu an gönderilmeli mi?
  * Idempotency `message_dispatches` ile; burada sadece due zamanı.
- * - offset > 0: starts_at - offset ≤ now < starts_at
- * - surgery_day: aynı Istanbul günü, local saat ≥ send_at, randevu başlamadan önce
+ * - before_start + offset > 0: starts_at - offset ≤ now < starts_at
+ * - calendar_day: aynı Istanbul günü, local saat ≥ send_at (randevu sonrası da OK)
  */
 export function isRuleDueNow(
-  rule: Pick<MessageRule, "offset_minutes" | "send_at_local_time">,
+  rule: Pick<
+    MessageRule,
+    "offset_minutes" | "send_at_local_time" | "timing_mode"
+  >,
   startsAt: string,
   now = new Date(),
 ): boolean {
   const start = new Date(startsAt);
   if (Number.isNaN(start.getTime())) return false;
   const t = now.getTime();
+  const mode = rule.timing_mode || "before_start";
+
+  if (mode === "calendar_day") {
+    const local = parseLocalTime(rule.send_at_local_time);
+    if (!local) return false;
+    if (istanbulYmd(now) !== istanbulYmd(start)) return false;
+    const { hour, minute } = istanbulHm(now);
+    const nowMinutes = hour * 60 + minute;
+    const sendMinutes = local.hour * 60 + local.minute;
+    return nowMinutes >= sendMinutes;
+  }
+
   if (t >= start.getTime()) return false;
 
   if (rule.offset_minutes > 0) {
@@ -145,7 +173,7 @@ export async function loadEnabledRules(
   const { data, error } = await supabase
     .from("message_rules")
     .select(
-      "key, label, enabled, template_name, language, offset_minutes, send_at_local_time, appointment_types, appointment_statuses, include_body_params, sort_order",
+      "key, label, enabled, template_name, language, offset_minutes, send_at_local_time, timing_mode, appointment_types, appointment_statuses, lead_statuses, include_body_params, sort_order",
     )
     .eq("enabled", true)
     .order("sort_order");
@@ -174,14 +202,26 @@ export async function loadCandidateAppointments(
 ): Promise<AppointmentForAutomation[]> {
   const statuses = rule.appointment_statuses?.length
     ? rule.appointment_statuses
-    : ["scheduled", "confirmed"];
+    : rule.timing_mode === "calendar_day"
+      ? ["scheduled", "confirmed", "completed"]
+      : ["scheduled", "confirmed"];
   const types = rule.appointment_types?.length
     ? rule.appointment_types
     : ["consultation"];
+  const leadStatuses = rule.lead_statuses?.length
+    ? rule.lead_statuses
+    : rule.timing_mode === "calendar_day"
+      ? ["randevulu", "bitti"]
+      : ["randevulu"];
 
-  // Geniş pencere: 1 gün kuralı için gelecek 2 gün; ameliyat günü için bugün±1
-  const from = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-  const to = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const { from, to } =
+    rule.timing_mode === "calendar_day"
+      ? istanbulDayBoundsUtc(now)
+      : {
+          // 1 gün kuralı için gelecek ~2 gün; biraz geçmiş tampon
+          from: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+          to: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
+        };
 
   const { data, error } = await supabase
     .from("appointments")
@@ -192,14 +232,16 @@ export async function loadCandidateAppointments(
       starts_at,
       appointment_type,
       status,
-      leads (
+      leads!inner (
         contact_id,
+        status,
         contacts ( id, phone, name )
       )
     `,
     )
     .in("status", statuses)
     .in("appointment_type", types)
+    .in("leads.status", leadStatuses)
     .gte("starts_at", from.toISOString())
     .lte("starts_at", to.toISOString())
     .limit(200);

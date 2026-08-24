@@ -1503,6 +1503,16 @@ export async function updateMessageRule(formData: FormData) {
     throw new Error("Geçersiz offset.");
   }
 
+  const leadStatuses = formData
+    .getAll("lead_statuses")
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter((value): value is LeadPipelineStatus =>
+      LEAD_STATUSES.includes(value as LeadPipelineStatus),
+    );
+  if (!leadStatuses.length) {
+    throw new Error("En az bir hasta durumu seçin.");
+  }
+
   const { error } = await supabase
     .from("message_rules")
     .update({
@@ -1512,6 +1522,7 @@ export async function updateMessageRule(formData: FormData) {
       offset_minutes: offset,
       send_at_local_time: sendAtRaw || null,
       include_body_params: checked(formData, "include_body_params"),
+      lead_statuses: leadStatuses,
     })
     .eq("key", key);
   if (error) throw new Error(error.message);

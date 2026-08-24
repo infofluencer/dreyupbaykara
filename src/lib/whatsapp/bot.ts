@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isWithinBusinessHours } from "@/lib/whatsapp/bot-hours";
 import { composeBotReply, matchBotFaqs } from "@/lib/whatsapp/bot-match";
 import { resolveUnmatchedReply } from "@/lib/whatsapp/bot-unmatched";
 import { sendMessage } from "@/lib/whatsapp/send-message";
@@ -22,44 +23,6 @@ const ASSISTANT_QUIET_MS = 30 * 60 * 1000;
 /** Aynı konuşmada otomatik SSS tekrarı. */
 const FAQ_COOLDOWN_MS = 10 * 60 * 1000;
 
-function localParts(timezone: string) {
-  const formatter = new Intl.DateTimeFormat("en-GB", {
-    timeZone: timezone,
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  });
-  const parts = Object.fromEntries(
-    formatter
-      .formatToParts(new Date())
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value]),
-  );
-  const weekdayMap: Record<string, number> = {
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-    Sun: 7,
-  };
-  return {
-    day: weekdayMap[parts.weekday] ?? 1,
-    time: `${parts.hour}:${parts.minute}`,
-  };
-}
-
-function isBusinessHours(settings: BotSettings): boolean {
-  const local = localParts(settings.timezone);
-  return (
-    settings.business_days.includes(local.day) &&
-    local.time >= settings.business_start.slice(0, 5) &&
-    local.time < settings.business_end.slice(0, 5)
-  );
-}
-
 export async function maybeReplyWithBot(options: {
   supabase: SupabaseClient;
   conversationId: string;
@@ -76,7 +39,7 @@ export async function maybeReplyWithBot(options: {
   if (!settings?.enabled || !inboundText.trim()) return;
 
   // Kapı: mesai içinde bot tamamen susar — asistan cevaplar.
-  if (isBusinessHours(settings)) return;
+  if (isWithinBusinessHours(settings)) return;
 
   const assistantSince = new Date(Date.now() - ASSISTANT_QUIET_MS).toISOString();
 
