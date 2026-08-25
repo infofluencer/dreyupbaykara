@@ -6,6 +6,7 @@ import {
   type AdPlatform,
   type SourceEvent,
 } from "@/lib/crm/source-kind";
+import { getIstanbulTodayYmd } from "@/lib/date/now";
 import { createClient } from "@/lib/supabase/server";
 
 export type AdminHomeWaStats = {
@@ -33,24 +34,31 @@ const emptyEvents = (): Record<SourceEvent, number> => ({
   form: 0,
 });
 
-/** Bugün aralığı — önceki Özet sayfası ile aynı (sunucu yerel gece yarısı). */
-export function adminHomeDayBounds() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return { todayIso: today.toISOString(), tomorrowIso: tomorrow.toISOString() };
+/** Bugün (İstanbul) UTC aralığı — randevu sayacı. */
+export async function adminHomeDayBounds() {
+  const ymd = await getIstanbulTodayYmd();
+  return {
+    todayIso: new Date(`${ymd}T00:00:00+03:00`).toISOString(),
+    tomorrowIso: new Date(`${ymd}T24:00:00+03:00`).toISOString(),
+    todayYmd: ymd,
+  };
 }
 
+/**
+ * Özet başlık: bugünkü randevu + “yeni talep”.
+ * Yeni talep = Durum Panosu / Bugün aranacaklar ile aynı:
+ * status=yeni, is_patient=true.
+ */
 export async function loadAdminHomeHeaderCounts() {
   const supabase = await createClient();
-  const { todayIso, tomorrowIso } = adminHomeDayBounds();
+  const { todayIso, tomorrowIso } = await adminHomeDayBounds();
 
   const [{ count: fresh }, { count: appointments }] = await Promise.all([
     supabase
       .from("leads")
-      .select("*", { count: "exact", head: true })
-      .eq("stage", "new"),
+      .select("id, contacts!inner(is_patient)", { count: "exact", head: true })
+      .eq("contacts.is_patient", true)
+      .eq("status", "yeni"),
     supabase
       .from("appointments")
       .select("*", { count: "exact", head: true })
@@ -67,7 +75,7 @@ export async function loadAdminHomeHeaderCounts() {
 
 export async function loadAdminHomeWaStats(): Promise<AdminHomeWaStats> {
   const supabase = await createClient();
-  const { todayIso, tomorrowIso } = adminHomeDayBounds();
+  const { todayIso, tomorrowIso } = await adminHomeDayBounds();
 
   const [rpcResult, inboundResult] = await Promise.all([
     supabase.rpc("admin_dashboard_wa_stats"),

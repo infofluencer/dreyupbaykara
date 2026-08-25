@@ -44,7 +44,9 @@ export default async function LeadDetailPage({
   ] = await Promise.all([
     supabase
       .from("leads")
-      .select("*, contacts(id, phone, name)")
+      .select(
+        "id, stage, status, lost_reason, needs_followup, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, lead_ref, notes, assigned_to, created_at, updated_at, contacts(id, phone, name)",
+      )
       .eq("id", id)
       .single(),
     supabase
@@ -54,19 +56,28 @@ export default async function LeadDetailPage({
       .order("full_name"),
     supabase
       .from("tasks")
-      .select("*, profiles:assigned_to(full_name)")
+      .select(
+        "id, title, due_at, completed_at, assigned_to, profiles:assigned_to(full_name)",
+      )
       .eq("lead_id", id)
-      .order("due_at"),
+      .order("due_at")
+      .limit(50),
     supabase
       .from("appointments")
-      .select("*")
+      .select(
+        "id, title, starts_at, ends_at, status, appointment_type, location, notes",
+      )
       .eq("lead_id", id)
-      .order("starts_at", { ascending: false }),
+      .order("starts_at", { ascending: false })
+      .limit(50),
     supabase
       .from("lead_status_history")
-      .select("*, profiles:changed_by(full_name)")
+      .select(
+        "id, from_stage, to_stage, from_status, to_status, note, created_at, profiles:changed_by(full_name)",
+      )
       .eq("lead_id", id)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(40),
   ]);
 
   if (!lead) notFound();

@@ -26,46 +26,24 @@ async function loadYearOverview(year: number): Promise<YearMonthSummary[]> {
   const yearFrom = new Date(`${year}-01-01T00:00:00+03:00`).toISOString();
   const yearTo = new Date(`${year + 1}-01-01T00:00:00+03:00`).toISOString();
 
-  const [statusResult, ...previewResults] = await Promise.all([
-    // One light scan for accurate monthly counts + status mix (2 columns, no joins)
-    supabase
-      .from("appointments")
-      .select("starts_at, status")
-      .gte("starts_at", yearFrom)
-      .lt("starts_at", yearTo)
-      .neq("status", "cancelled"),
-    // 12× max 4 preview rows — titles only, no lead/contact embed
-    ...Array.from({ length: 12 }, (_, month) => {
-      const monthStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-      const nextMonthStart =
-        month === 11
-          ? `${year + 1}-01-01`
-          : `${year}-${String(month + 2).padStart(2, "0")}-01`;
-      return supabase
-        .from("appointments")
-        .select(YEAR_LIGHT_SELECT)
-        .gte(
-          "starts_at",
-          new Date(`${monthStart}T00:00:00+03:00`).toISOString(),
-        )
-        .lt(
-          "starts_at",
-          new Date(`${nextMonthStart}T00:00:00+03:00`).toISOString(),
-        )
-        .neq("status", "cancelled")
-        .order("starts_at")
-        .limit(YEAR_MONTH_PREVIEW_LIMIT);
-    }),
-  ]);
+  // Tek sorgu: aylık sayılar + ay başına önizleme (12 ekstra round-trip yok)
+  const { data: rows } = await supabase
+    .from("appointments")
+    .select(YEAR_LIGHT_SELECT)
+    .gte("starts_at", yearFrom)
+    .lt("starts_at", yearTo)
+    .neq("status", "cancelled")
+    .order("starts_at")
+    .limit(2500);
 
   const months: YearMonthSummary[] = Array.from({ length: 12 }, (_, month) => ({
     month,
     count: 0,
     byStatus: { scheduled: 0, confirmed: 0, completed: 0 },
-    preview: (previewResults[month]?.data ?? []) as YearMonthPreview[],
+    preview: [] as YearMonthPreview[],
   }));
 
-  for (const row of statusResult.data ?? []) {
+  for (const row of rows ?? []) {
     const ymd = istanbulYmd(row.starts_at as string);
     if (!ymd.startsWith(`${year}-`)) continue;
     const m = Number(ymd.slice(5, 7)) - 1;
@@ -74,6 +52,9 @@ async function loadYearOverview(year: number): Promise<YearMonthSummary[]> {
     if (row.status === "scheduled") months[m].byStatus.scheduled += 1;
     else if (row.status === "confirmed") months[m].byStatus.confirmed += 1;
     else if (row.status === "completed") months[m].byStatus.completed += 1;
+    if (months[m].preview.length < YEAR_MONTH_PREVIEW_LIMIT) {
+      months[m].preview.push(row as YearMonthPreview);
+    }
   }
 
   return months;
@@ -166,7 +147,8 @@ export async function CalendarAppointments({
     .gte("starts_at", new Date(rangeStart).toISOString())
     .lt("starts_at", new Date(rangeEnd).toISOString())
     .neq("status", "cancelled")
-    .order("starts_at");
+    .order("starts_at")
+    .limit(view === "month" ? 400 : 200);
 
   const items = (appointments ?? []) as ScheduleAppointment[];
 

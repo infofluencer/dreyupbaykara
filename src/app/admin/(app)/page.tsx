@@ -97,7 +97,7 @@ function Header({
       ) : counts ? (
         <p className="mt-2 text-sm text-[#466254]">
           Bugün: {counts.appointmentCount} randevu · {counts.newLeadCount} yeni
-          talep
+          hasta
           {email ? (
             <span className="hidden sm:inline"> · {email}</span>
           ) : null}

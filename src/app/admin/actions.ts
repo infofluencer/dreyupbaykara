@@ -1078,6 +1078,20 @@ export async function createAppointment(formData: FormData): Promise<{
       }
       return { ok: false, error: error.message };
     }
+
+    // Durum Panosu is_patient=true ister — randevu açınca hasta olarak işaretle
+    const { data: leadRow } = await supabase
+      .from("leads")
+      .select("contact_id")
+      .eq("id", leadId)
+      .maybeSingle();
+    if (leadRow?.contact_id) {
+      await supabase
+        .from("contacts")
+        .update({ is_patient: true })
+        .eq("id", leadRow.contact_id);
+    }
+
     await supabase
       .from("leads")
       .update({
@@ -1188,7 +1202,8 @@ export async function deleteAppointment(formData: FormData) {
   revalidatePath("/admin/calendar");
   revalidatePath(`/admin/calendar/${id}`);
   revalidatePath("/admin/leads");
-  redirect("/admin/leads");
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/admin/patients");
 }
 
 export async function sendConversationMessage(formData: FormData) {

@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createAppointment } from "@/app/admin/actions";
 import { loadScheduleLeads } from "@/app/admin/schedule-actions";
-import { AppointmentStatusDialog } from "@/components/admin/schedule/AppointmentStatusDialog";
+import {
+  AdminConfirmDialog,
+  type AdminDialogStatus,
+} from "@/components/admin/AdminConfirmDialog";
 import { TypeAndDurationFields } from "@/components/admin/schedule/TypeAndDurationFields";
 import { planHref, type PlanView } from "@/components/admin/schedule/href";
 import type { ScheduleLead } from "@/components/admin/schedule/types";
@@ -38,6 +41,7 @@ export function AppointmentQuickForm({
   hideToggleUnlessOpen?: boolean;
 }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(defaultOpen);
   const [patientMode, setPatientMode] = useState<PatientMode>(
     selectedLeadId ? "existing" : "new",
@@ -45,19 +49,19 @@ export function AppointmentQuickForm({
   const [leads, setLeads] = useState<ScheduleLead[]>([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [leadsError, setLeadsError] = useState<string | null>(null);
-  const [leadsLoaded, setLeadsLoaded] = useState(false);
   const [leadId, setLeadId] = useState(selectedLeadId ?? "");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [status, setStatus] = useState<"loading" | "success" | "error" | null>(
+  const [dialog, setDialog] = useState<AdminDialogStatus>(
     error ? "error" : null,
   );
   const [message, setMessage] = useState<string | null>(error ?? null);
   const [createdDate, setCreatedDate] = useState<string | null>(null);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
 
   useEffect(() => {
     if (!error) return;
-    setStatus("error");
+    setDialog("error");
     setMessage(error);
     setOpen(true);
   }, [error]);
@@ -67,21 +71,15 @@ export function AppointmentQuickForm({
   }, [defaultOpen]);
 
   useEffect(() => {
-    setLeadsLoaded(false);
-    setLeads([]);
-    setLeadsError(null);
-  }, [stage, search]);
-
-  useEffect(() => {
     if (selectedLeadId) {
       setPatientMode("existing");
       setLeadId(selectedLeadId);
     }
   }, [selectedLeadId]);
 
-  // Kayıtlı hasta modunda listeyi yükle (leadsLoading dependency yok — sonsuz yükleme yarışı olmasın)
+  // Form her açıldığında taze çek — client cache ile silinmiş hasta kalmasın
   useEffect(() => {
-    if (!open || patientMode !== "existing" || leadsLoaded) return;
+    if (!open || patientMode !== "existing") return;
 
     let cancelled = false;
     setLeadsLoading(true);
@@ -96,23 +94,30 @@ export function AppointmentQuickForm({
         return;
       }
       setLeads(result.leads);
-      setLeadsLoaded(true);
+      if (
+        selectedLeadId &&
+        !result.leads.some((lead) => lead.id === selectedLeadId)
+      ) {
+        setLeadId("");
+        setName("");
+        setPhone("");
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [open, patientMode, leadsLoaded, stage, search]);
+  }, [open, patientMode, stage, search, selectedLeadId]);
 
   useEffect(() => {
-    if (patientMode !== "existing" || !leadsLoaded || !selectedLeadId) return;
-    const contact = firstRelation(
-      leads.find((lead) => lead.id === selectedLeadId)?.contacts,
-    );
+    if (patientMode !== "existing" || !selectedLeadId || !leads.length) return;
+    const match = leads.find((lead) => lead.id === selectedLeadId);
+    if (!match) return;
+    const contact = firstRelation(match.contacts);
     setLeadId(selectedLeadId);
     setName(contact?.name ?? "");
     setPhone(contact?.phone ?? "");
-  }, [patientMode, leadsLoaded, selectedLeadId, leads]);
+  }, [patientMode, selectedLeadId, leads]);
 
   function switchMode(mode: PatientMode) {
     setPatientMode(mode);
@@ -144,22 +149,44 @@ export function AppointmentQuickForm({
     setPhone(contact?.phone ?? "");
   }
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = event.currentTarget;
-    setStatus("loading");
+    if (!formRef.current?.checkValidity()) {
+      formRef.current?.reportValidity();
+      return;
+    }
+    const who =
+      patientMode === "existing"
+        ? name || "seçili hasta"
+        : name || "yeni hasta";
+    setMessage(
+      `${who} için ${date} tarihinde randevu oluşturulsun mu?\n\nKayıt sonrası Durum Panosu’nda “Randevulu” görünür.`,
+    );
+    setPendingSubmit(true);
+    setDialog("confirm");
+  }
+
+  async function runCreate() {
+    const form = formRef.current;
+    if (!form) return;
+    setDialog("loading");
     setMessage(null);
+    setPendingSubmit(false);
     try {
       const result = await createAppointment(new FormData(form));
       if (result.ok) {
         setCreatedDate(result.date ?? date);
-        setStatus("success");
+        setMessage(
+          "Randevu kaydedildi. Hasta listesi ve Durum Panosu güncellendi.",
+        );
+        setDialog("success");
+        router.refresh();
         return;
       }
-      setStatus("error");
+      setDialog("error");
       setMessage(result.error || "Randevu eklenemedi.");
     } catch (caught) {
-      setStatus("error");
+      setDialog("error");
       setMessage(
         caught instanceof Error ? caught.message : "Randevu eklenemedi.",
       );
@@ -167,11 +194,14 @@ export function AppointmentQuickForm({
   }
 
   function onDialogClose() {
+    if (dialog === "loading") return;
     const nextDate = createdDate;
-    setStatus(null);
+    const wasSuccess = dialog === "success";
+    setDialog(null);
     setMessage(null);
+    setPendingSubmit(false);
     setCreatedDate(null);
-    if (nextDate) {
+    if (wasSuccess && nextDate) {
       router.push(
         planHref({ view: "day", date: nextDate, lead: leadId || undefined }),
       );
@@ -187,6 +217,7 @@ export function AppointmentQuickForm({
     : [{ hour: 0, minute: 0, label: time }, ...TIME_SLOTS];
 
   const usingExisting = patientMode === "existing";
+  const busy = dialog === "loading" || dialog === "confirm";
 
   return (
     <>
@@ -205,6 +236,7 @@ export function AppointmentQuickForm({
 
       {open ? (
         <form
+          ref={formRef}
           key={`${selectedLeadId ?? "new"}-${date}-${time}-${patientMode}`}
           onSubmit={onSubmit}
           className="mb-4 grid gap-3 rounded-2xl border border-[#123524]/10 bg-[#f7f9f8] p-4 sm:grid-cols-2 lg:grid-cols-4 xl:items-end"
@@ -275,9 +307,10 @@ export function AppointmentQuickForm({
                   {leadsError}
                 </span>
               ) : null}
-              {!leadsLoading && leadsLoaded && leads.length === 0 ? (
+              {!leadsLoading && leads.length === 0 ? (
                 <span className="mt-1 block text-xs text-[#466254]">
-                  Kayıtlı hasta bulunamadı. Yeni hasta ile devam edin.
+                  Kayıtlı hasta yok (Hastalar listesinde olanlar burada
+                  görünür). Yeni hasta ile devam edin.
                 </span>
               ) : null}
             </label>
@@ -361,16 +394,25 @@ export function AppointmentQuickForm({
             />
           </label>
           <button
-            disabled={status === "loading" || (usingExisting && leadsLoading)}
+            disabled={busy || (usingExisting && leadsLoading)}
             className="min-h-12 rounded-full bg-[#0b6b45] px-5 text-base font-semibold text-white disabled:opacity-60 sm:col-span-2 sm:text-sm lg:col-span-4"
           >
             Randevu ekle
           </button>
         </form>
       ) : null}
-      <AppointmentStatusDialog
-        status={status}
+      <AdminConfirmDialog
+        status={dialog}
+        title="Randevu oluşturulsun mu?"
         message={message}
+        confirmLabel="Evet, kaydet"
+        loadingTitle="Randevu kaydediliyor"
+        loadingMessage="Hasta ve Durum Panosu güncelleniyor…"
+        successTitle="Randevu eklendi"
+        errorTitle="Randevu eklenemedi"
+        onConfirm={() => {
+          if (pendingSubmit) void runCreate();
+        }}
         onClose={onDialogClose}
       />
     </>

@@ -1,7 +1,11 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { deletePatient } from "@/app/admin/actions";
+import {
+  AdminConfirmDialog,
+  type AdminDialogStatus,
+} from "@/components/admin/AdminConfirmDialog";
 
 export function DeletePatientButton({
   contactId,
@@ -12,12 +16,41 @@ export function DeletePatientButton({
   patientName?: string | null;
   variant?: "button" | "danger" | "link";
 }) {
+  const [dialog, setDialog] = useState<AdminDialogStatus>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const who = patientName?.trim() || "bu hasta";
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
-    const who = patientName?.trim() || "bu hasta";
-    const ok = window.confirm(
+    event.preventDefault();
+    setMessage(
       `${who} hastalardan kaldırılsın mı?\n\nListeden çıkar; WhatsApp konuşması ve randevular silinmez.`,
     );
-    if (!ok) event.preventDefault();
+    setDialog("confirm");
+  }
+
+  async function runDelete() {
+    setDialog("loading");
+    setMessage(null);
+    try {
+      const formData = new FormData();
+      formData.set("contact_id", contactId);
+      await deletePatient(formData);
+      // redirect in action — loading kalır, navigasyon olur
+    } catch (caught) {
+      // Next.js redirect() throws; let it propagate
+      if (
+        caught &&
+        typeof caught === "object" &&
+        "digest" in caught &&
+        String((caught as { digest?: string }).digest).startsWith("NEXT_REDIRECT")
+      ) {
+        throw caught;
+      }
+      setDialog("error");
+      setMessage(
+        caught instanceof Error ? caught.message : "Hasta kaldırılamadı.",
+      );
+    }
   }
 
   const className =
@@ -28,11 +61,26 @@ export function DeletePatientButton({
         : "inline-flex min-h-10 w-full items-center justify-center rounded-full border border-red-200 bg-white px-4 text-xs font-semibold text-red-700 transition hover:bg-red-50 lg:w-auto";
 
   return (
-    <form action={deletePatient} onSubmit={onSubmit}>
-      <input type="hidden" name="contact_id" value={contactId} />
-      <button type="submit" className={className}>
-        Hastayı sil
-      </button>
-    </form>
+    <>
+      <form onSubmit={onSubmit}>
+        <button type="submit" className={className}>
+          Hastayı sil
+        </button>
+      </form>
+      <AdminConfirmDialog
+        status={dialog}
+        title="Hastayı kaldır?"
+        message={message}
+        confirmLabel="Evet, kaldır"
+        loadingTitle="Hasta kaldırılıyor"
+        errorTitle="Kaldırılamadı"
+        onConfirm={() => void runDelete()}
+        onClose={() => {
+          if (dialog === "loading") return;
+          setDialog(null);
+          setMessage(null);
+        }}
+      />
+    </>
   );
 }

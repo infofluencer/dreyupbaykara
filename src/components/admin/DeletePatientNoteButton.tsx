@@ -1,7 +1,12 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { deletePatientNote } from "@/app/admin/actions";
+import {
+  AdminConfirmDialog,
+  type AdminDialogStatus,
+} from "@/components/admin/AdminConfirmDialog";
 
 export function DeletePatientNoteButton({
   id,
@@ -10,19 +15,58 @@ export function DeletePatientNoteButton({
   id: string;
   contactId: string;
 }) {
+  const router = useRouter();
+  const [dialog, setDialog] = useState<AdminDialogStatus>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
-    if (!window.confirm("Bu hasta notu silinsin mi?")) {
-      event.preventDefault();
+    event.preventDefault();
+    setMessage("Bu hasta notu silinsin mi?");
+    setDialog("confirm");
+  }
+
+  async function runDelete() {
+    setDialog("loading");
+    setMessage(null);
+    try {
+      const formData = new FormData();
+      formData.set("id", id);
+      formData.set("contact_id", contactId);
+      await deletePatientNote(formData);
+      setMessage("Not silindi.");
+      setDialog("success");
+      router.refresh();
+    } catch (caught) {
+      setDialog("error");
+      setMessage(caught instanceof Error ? caught.message : "Not silinemedi.");
     }
   }
 
   return (
-    <form action={deletePatientNote} onSubmit={onSubmit}>
-      <input type="hidden" name="id" value={id} />
-      <input type="hidden" name="contact_id" value={contactId} />
-      <button type="submit" className="text-xs font-semibold text-red-700 hover:underline">
-        Sil
-      </button>
-    </form>
+    <>
+      <form onSubmit={onSubmit}>
+        <button
+          type="submit"
+          className="text-xs font-semibold text-red-700 hover:underline"
+        >
+          Sil
+        </button>
+      </form>
+      <AdminConfirmDialog
+        status={dialog}
+        title="Not silinsin mi?"
+        message={message}
+        confirmLabel="Evet, sil"
+        loadingTitle="Not siliniyor"
+        successTitle="Silindi"
+        errorTitle="Silinemedi"
+        onConfirm={() => void runDelete()}
+        onClose={() => {
+          if (dialog === "loading") return;
+          setDialog(null);
+          setMessage(null);
+        }}
+      />
+    </>
   );
 }

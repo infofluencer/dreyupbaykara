@@ -34,19 +34,29 @@ export default async function PatientDetailPage({
 
   const [{ data: patient, error }, { data: notes }, { data: leads }] =
     await Promise.all([
-      supabase.from("contacts").select("*").eq("id", id).single(),
+      supabase
+        .from("contacts")
+        .select(
+          "id, name, phone, email, patient_no, birth_date, national_id, city, address, notes, is_patient, created_at, updated_at",
+        )
+        .eq("id", id)
+        .single(),
       supabase
         .from("patient_notes")
-        .select("*, profiles:created_by(full_name)")
+        .select(
+          "id, kind, body, created_at, created_by, profiles:created_by(full_name)",
+        )
         .eq("contact_id", id)
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false })
+        .limit(100),
       supabase
         .from("leads")
         .select(
           "id, stage, status, lost_reason, needs_followup, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, lead_ref, created_at",
         )
         .eq("contact_id", id)
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
   if (error || !patient) notFound();
@@ -65,6 +75,7 @@ export default async function PatientDetailPage({
           .in("lead_id", leadIds)
           .neq("status", "cancelled")
           .order("starts_at", { ascending: false })
+          .limit(100)
       : Promise.resolve({ data: [] as never[] }),
     leadIds.length || leadRefs.length
       ? (() => {

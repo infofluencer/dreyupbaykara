@@ -1,14 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, Poppins } from "next/font/google";
-import {
-  GoogleAnalytics,
-  GoogleConsentModeScript,
-  MetaPixel,
-  MicrosoftClarity,
-  TikTokPixel,
-} from "@/components/analytics";
-import { ClientOnly } from "@/components/layouts/client-only";
-import { CookieConsentBanner } from "@/components/layouts/cookie-consent-banner";
 import { PAGE_SEO } from "@/data/seo";
 import "./globals.css";
 
@@ -68,7 +59,6 @@ export default function RootLayout({
       <head>
         {/* Bağlantı kurulumu ilk isteği beklemesin: TLS el sıkışması peşin yapılır. */}
         <link rel="preconnect" href="https://i.ytimg.com" crossOrigin="" />
-        <link rel="preconnect" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://endospineistanbul.com" />
         <link rel="dns-prefetch" href="https://www.youtube.com" />
         {supabaseOrigin ? (
@@ -76,15 +66,7 @@ export default function RootLayout({
         ) : null}
       </head>
       <body className="min-h-full bg-bg text-text" suppressHydrationWarning>
-        <GoogleConsentModeScript />
-        <GoogleAnalytics initialConsent={null} />
-        <MicrosoftClarity initialConsent={null} />
-        <MetaPixel initialConsent={null} />
-        <TikTokPixel initialConsent={null} />
         {children}
-        <ClientOnly>
-          <CookieConsentBanner initialConsent={null} />
-        </ClientOnly>
       </body>
     </html>
   );

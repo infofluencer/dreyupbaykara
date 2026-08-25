@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { DeletePatientButton } from "@/components/admin/DeletePatientButton";
-import { LeadStatusControl } from "@/components/admin/LeadStatusControl";
 import { formatPatientNo, patientAge } from "@/lib/crm/patient";
 import {
   asLeadStatus,
@@ -12,6 +12,14 @@ import {
   statusesForFilter,
   type LeadStatusFilter,
 } from "@/lib/crm/lead-status";
+
+const LeadStatusControl = dynamic(
+  () =>
+    import("@/components/admin/LeadStatusControl").then(
+      (m) => m.LeadStatusControl,
+    ),
+  { ssr: false },
+);
 
 export type PatientsListRow = {
   id: string;

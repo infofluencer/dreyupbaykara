@@ -23,7 +23,6 @@ import {
   Send,
 } from "lucide-react";
 import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
-import { LeadStatusControl } from "@/components/admin/LeadStatusControl";
 import {
   LEAD_STATUS_FILTERS,
   statusesForFilter,
@@ -34,6 +33,7 @@ import {
   sendConversationMessage,
 } from "@/app/admin/actions";
 import { createClient } from "@/lib/supabase/client";
+import dynamic from "next/dynamic";
 import {
   avatarColor,
   avatarInitial,
@@ -44,6 +44,13 @@ import {
   threadDayLabel,
 } from "@/lib/whatsapp/inbox-format";
 
+const LeadStatusControl = dynamic(
+  () =>
+    import("@/components/admin/LeadStatusControl").then(
+      (m) => m.LeadStatusControl,
+    ),
+  { ssr: false },
+);
 export type InboxConversation = {
   id: string;
   wa_phone: string | null;

@@ -29,9 +29,7 @@ export default async function PatientsPage({
 
   const { data: patients, error } = await supabase
     .from("contacts")
-    .select(
-      "id, name, phone, patient_no, birth_date, national_id, city, updated_at",
-    )
+    .select("id, name, phone, patient_no, birth_date, city, updated_at")
     .eq("is_patient", true)
     .order("updated_at", { ascending: false })
     .limit(200);
@@ -45,6 +43,7 @@ export default async function PatientsPage({
         )
         .in("contact_id", contactIds)
         .order("created_at", { ascending: false })
+        .limit(500)
     : { data: [] as never[] };
 
   const leadsByContact = new Map<

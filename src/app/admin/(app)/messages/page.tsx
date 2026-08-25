@@ -10,11 +10,7 @@ export default async function AdminMessagesPage({
 }: {
   searchParams: Promise<{ c?: string; lead?: string }>;
 }) {
-  await requireAdminSession([
-    "admin",
-    "doctor",
-    "assistant",
-  ]);
+  await requireAdminSession(["admin", "doctor", "assistant"]);
   const query = await searchParams;
   const supabase = await createClient();
 
@@ -77,49 +73,69 @@ export default async function AdminMessagesPage({
     ),
   ];
 
-  const [{ data: contactLeads }, { data: contactRows }] = await Promise.all([
-    contactIds.length
-      ? supabase
-          .from("leads")
-          .select(
-            "id, contact_id, status, stage, created_at, lost_reason, needs_followup",
-          )
-          .in("contact_id", contactIds)
-          .order("created_at", { ascending: false })
-      : Promise.resolve({
-          data: [] as Array<{
-            id: string;
-            contact_id: string;
-            status: string | null;
-            stage: string;
-            created_at: string;
-            lost_reason: string | null;
-            needs_followup: boolean | null;
-          }>,
-        }),
-    contactIds.length
-      ? supabase.from("contacts").select("id, is_patient").in("id", contactIds)
-      : Promise.resolve({
-          data: [] as Array<{ id: string; is_patient: boolean | null }>,
-        }),
-  ]);
+  type LeadRow = {
+    id: string;
+    contact_id: string;
+    status: string | null;
+    stage: string;
+    created_at: string;
+    lost_reason: string | null;
+    needs_followup: boolean | null;
+  };
+
+  const emptyLeads = Promise.resolve({ data: [] as LeadRow[] });
+  const emptyContacts = Promise.resolve({
+    data: [] as Array<{ id: string; is_patient: boolean | null }>,
+  });
+  const emptyMessages = Promise.resolve({
+    data: [] as Array<{
+      id: string;
+      direction: string;
+      body: string | null;
+      status: string;
+      automated: boolean | null;
+      created_at: string;
+      media_type: string | null;
+      media_url: string | null;
+      source: string | null;
+    }>,
+  });
+
+  const [{ data: contactLeads }, { data: contactRows }, { data: messageRows }] =
+    await Promise.all([
+      contactIds.length
+        ? supabase
+            .from("leads")
+            .select(
+              "id, contact_id, status, stage, created_at, lost_reason, needs_followup",
+            )
+            .in("contact_id", contactIds)
+            .order("created_at", { ascending: false })
+            .limit(400)
+        : emptyLeads,
+      contactIds.length
+        ? supabase
+            .from("contacts")
+            .select("id, is_patient")
+            .in("id", contactIds)
+        : emptyContacts,
+      selectedId
+        ? supabase
+            .from("messages")
+            .select(
+              "id, direction, body, status, automated, created_at, media_type, media_url, source",
+            )
+            .eq("conversation_id", selectedId)
+            .order("created_at")
+            .limit(500)
+        : emptyMessages,
+    ]);
 
   const isPatientByContact = new Map(
     (contactRows ?? []).map((row) => [row.id, Boolean(row.is_patient)]),
   );
 
-  const leadsByContact = new Map<
-    string,
-    Array<{
-      id: string;
-      contact_id: string;
-      status: string | null;
-      stage: string;
-      created_at: string;
-      lost_reason: string | null;
-      needs_followup: boolean | null;
-    }>
-  >();
+  const leadsByContact = new Map<string, LeadRow[]>();
   for (const lead of contactLeads ?? []) {
     const list = leadsByContact.get(lead.contact_id) ?? [];
     list.push(lead);
@@ -168,33 +184,11 @@ export default async function AdminMessagesPage({
     redirect("/admin/messages");
   }
 
-  let messages: Array<{
-    id: string;
-    direction: "inbound" | "outbound";
-    body: string | null;
-    status: string;
-    automated: boolean | null;
-    created_at: string;
-    media_type: string | null;
-    media_url: string | null;
-    source: string | null;
-  }> = [];
-
-  if (selectedId) {
-    const { data } = await supabase
-      .from("messages")
-      .select(
-        "id, direction, body, status, automated, created_at, media_type, media_url, source",
-      )
-      .eq("conversation_id", selectedId)
-      .order("created_at")
-      .limit(500);
-    messages = (data ?? []).map((message) => ({
-      ...message,
-      direction: message.direction as "inbound" | "outbound",
-      source: message.source ?? null,
-    }));
-  }
+  const messages = (messageRows ?? []).map((message) => ({
+    ...message,
+    direction: message.direction as "inbound" | "outbound",
+    source: message.source ?? null,
+  }));
 
   return (
     <MessagesInbox

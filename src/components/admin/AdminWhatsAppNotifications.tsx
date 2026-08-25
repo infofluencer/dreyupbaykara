@@ -122,11 +122,12 @@ export function AdminWhatsAppNotifications() {
 
     void (async () => {
       const [{ data: seed }, unread] = await Promise.all([
+        // Toast isimleri için yeterli; eksik kalanlar realtime INSERT ile dolar.
         supabase
           .from("conversations")
           .select("id, contact_name, wa_phone, unread_count")
           .order("last_message_at", { ascending: false, nullsFirst: false })
-          .limit(200),
+          .limit(40),
         countUnreadConversations(supabase),
       ]);
       if (cancelled) return;
