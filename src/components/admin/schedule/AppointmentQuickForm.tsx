@@ -9,6 +9,7 @@ import {
   type AdminDialogStatus,
 } from "@/components/admin/AdminConfirmDialog";
 import { TypeAndDurationFields } from "@/components/admin/schedule/TypeAndDurationFields";
+import { Spinner } from "@/components/admin/Spinner";
 import { planHref, type PlanView } from "@/components/admin/schedule/href";
 import type { ScheduleLead } from "@/components/admin/schedule/types";
 import { clinicSlots } from "@/lib/crm/schedule";
@@ -58,6 +59,20 @@ export function AppointmentQuickForm({
   const [message, setMessage] = useState<string | null>(error ?? null);
   const [createdDate, setCreatedDate] = useState<string | null>(null);
   const [pendingSubmit, setPendingSubmit] = useState(false);
+  const [formVersion, setFormVersion] = useState(0);
+
+  function resetFormAfterCreate() {
+    setFormVersion((value) => value + 1);
+    if (selectedLeadId) {
+      setPatientMode("existing");
+      setLeadId(selectedLeadId);
+    } else {
+      setPatientMode("new");
+      setLeadId("");
+      setName("");
+      setPhone("");
+    }
+  }
 
   useEffect(() => {
     if (!error) return;
@@ -175,6 +190,7 @@ export function AppointmentQuickForm({
     try {
       const result = await createAppointment(new FormData(form));
       if (result.ok) {
+        resetFormAfterCreate();
         setCreatedDate(result.date ?? date);
         setMessage(
           "Randevu kaydedildi. Hasta listesi ve Durum Panosu güncellendi.",
@@ -226,7 +242,7 @@ export function AppointmentQuickForm({
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="inline-flex min-h-10 items-center rounded-full border border-[#0b6b45]/25 bg-white px-4 text-sm font-semibold text-[#0b6b45]"
+            className="inline-flex min-h-10 cursor-pointer items-center rounded-full border border-[#0b6b45]/25 bg-white px-4 text-sm font-semibold text-[#0b6b45]"
             aria-expanded={open}
           >
             {open ? "Formu gizle" : "+ Randevu ekle"}
@@ -237,7 +253,7 @@ export function AppointmentQuickForm({
       {open ? (
         <form
           ref={formRef}
-          key={`${selectedLeadId ?? "new"}-${date}-${time}-${patientMode}`}
+          key={`${formVersion}-${selectedLeadId ?? "new"}-${date}-${time}-${patientMode}`}
           onSubmit={onSubmit}
           className="mb-4 grid gap-3 rounded-2xl border border-[#123524]/10 bg-[#f7f9f8] p-4 sm:grid-cols-2 lg:grid-cols-4 xl:items-end"
         >
@@ -255,7 +271,7 @@ export function AppointmentQuickForm({
               <button
                 type="button"
                 onClick={() => switchMode("existing")}
-                className={`min-h-10 rounded-full px-4 text-sm font-semibold transition ${
+                className={`min-h-10 cursor-pointer rounded-full px-4 text-sm font-semibold transition ${
                   usingExisting
                     ? "bg-[#0b6b45] text-white"
                     : "text-[#466254] hover:bg-[#f4f6f5]"
@@ -266,7 +282,7 @@ export function AppointmentQuickForm({
               <button
                 type="button"
                 onClick={() => switchMode("new")}
-                className={`min-h-10 rounded-full px-4 text-sm font-semibold transition ${
+                className={`min-h-10 cursor-pointer rounded-full px-4 text-sm font-semibold transition ${
                   !usingExisting
                     ? "bg-[#0b6b45] text-white"
                     : "text-[#466254] hover:bg-[#f4f6f5]"
@@ -384,7 +400,7 @@ export function AppointmentQuickForm({
               </select>
             </label>
           </div>
-          <TypeAndDurationFields />
+          <TypeAndDurationFields key={formVersion} />
           <label className="text-sm font-medium sm:col-span-2 lg:col-span-4">
             Not
             <input
@@ -394,10 +410,18 @@ export function AppointmentQuickForm({
             />
           </label>
           <button
+            type="submit"
             disabled={busy || (usingExisting && leadsLoading)}
-            className="min-h-12 rounded-full bg-[#0b6b45] px-5 text-base font-semibold text-white disabled:opacity-60 sm:col-span-2 sm:text-sm lg:col-span-4"
+            className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full bg-[#0b6b45] px-5 text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2 sm:text-sm lg:col-span-4"
           >
-            Randevu ekle
+            {busy ? (
+              <>
+                <Spinner size="sm" className="text-white" label="Randevu kaydediliyor" />
+                Kaydediliyor…
+              </>
+            ) : (
+              "Randevu ekle"
+            )}
           </button>
         </form>
       ) : null}

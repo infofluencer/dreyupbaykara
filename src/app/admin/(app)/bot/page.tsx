@@ -3,6 +3,7 @@ import {
   saveBotFaq,
   saveBotSettings,
 } from "@/app/admin/actions";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { faqLang } from "@/lib/whatsapp/bot-match";
 import { createClient } from "@/lib/supabase/server";
@@ -139,9 +140,9 @@ export default async function BotPage() {
           spamlenmez. Asistan Inbox’tan son 30 dk içinde yazdıysa bot yine
           susar.
         </p>
-        <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white">
+        <SubmitButton pendingLabel="Bot ayarları kaydediliyor…" className="px-6">
           Bot ayarlarını kaydet
-        </button>
+        </SubmitButton>
       </form>
 
       <section className="space-y-4">
@@ -209,15 +210,17 @@ export default async function BotPage() {
                 className="w-20 rounded-lg border border-[#123524]/15 px-2 py-1 text-sm"
                 aria-label="Sıra"
               />
-              <button className="inline-flex min-h-10 items-center justify-center rounded-full bg-[#123524] px-4 text-sm font-semibold text-white">
+              <SubmitButton variant="dark" pendingLabel="SSS kaydediliyor…" className="min-h-10 px-4">
                 Kaydet
-              </button>
-              <button
+              </SubmitButton>
+              <SubmitButton
                 formAction={deleteBotFaq}
-                className="inline-flex min-h-10 items-center justify-center rounded-full border border-red-200 px-4 text-sm font-semibold text-red-700"
+                variant="dangerGhost"
+                pendingLabel="Siliniyor…"
+                className="min-h-10 px-4"
               >
                 Sil
-              </button>
+              </SubmitButton>
             </div>
           </form>
         ))}
@@ -244,9 +247,9 @@ export default async function BotPage() {
             <textarea name="answer" rows={3} required className={input} />
           </Field>
           <input type="hidden" name="enabled" value="true" />
-          <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#123524] px-5 text-sm font-semibold text-white">
+          <SubmitButton variant="dark" pendingLabel="SSS ekleniyor…">
             SSS ekle
-          </button>
+          </SubmitButton>
         </form>
       </section>
     </div>

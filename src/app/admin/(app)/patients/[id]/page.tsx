@@ -4,8 +4,10 @@ import { createPatientNote, updatePatient } from "@/app/admin/actions";
 import { ClinicalFileCard } from "@/components/admin/ClinicalFileCard";
 import { DeletePatientButton } from "@/components/admin/DeletePatientButton";
 import { DeletePatientNoteButton } from "@/components/admin/DeletePatientNoteButton";
+import { FormPendingShell } from "@/components/admin/FormPendingShell";
 import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
 import { PatientSourceCard } from "@/components/admin/PatientSourceCard";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
   APPOINTMENT_STATUS_LABEL,
@@ -37,7 +39,7 @@ export default async function PatientDetailPage({
       supabase
         .from("contacts")
         .select(
-          "id, name, phone, email, patient_no, birth_date, national_id, city, address, notes, is_patient, created_at, updated_at",
+          "id, name, phone, patient_no, birth_date, national_id, gender, city, address, allergies, summary, is_patient, created_at, updated_at",
         )
         .eq("id", id)
         .single(),
@@ -143,6 +145,7 @@ export default async function PatientDetailPage({
           Asistan hızlı girer. Aynı telefon = aynı hasta.
         </p>
         <form action={updatePatient} className="mt-5 space-y-4">
+          <FormPendingShell className="space-y-4">
           <input type="hidden" name="contact_id" value={patient.id} />
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Ad soyad">
@@ -179,9 +182,10 @@ export default async function PatientDetailPage({
               />
             </Field>
           </div>
-          <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white">
+          </FormPendingShell>
+          <SubmitButton pendingLabel="Kimlik kaydediliyor…" className="px-6">
             Kimliği kaydet
-          </button>
+          </SubmitButton>
         </form>
         <div className="mt-6 border-t border-[#123524]/08 pt-5">
           <PatientSourceCard leads={leads ?? []} clicks={sourceClicks ?? []} />
@@ -195,6 +199,7 @@ export default async function PatientDetailPage({
           olarak yazın.
         </p>
         <form action={createPatientNote} className="space-y-3">
+          <FormPendingShell className="space-y-3">
           <input type="hidden" name="contact_id" value={patient.id} />
           <select name="kind" defaultValue="clinical" className={input}>
             <option value="clinical">Klinik not</option>
@@ -209,9 +214,10 @@ export default async function PatientDetailPage({
             placeholder="Örn. alerji: penisilin · muayene bulgusu · ameliyat öyküsü"
             className={input}
           />
-          <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#123524] px-5 text-sm font-semibold text-white">
+          </FormPendingShell>
+          <SubmitButton variant="dark" pendingLabel="Not ekleniyor…">
             Not ekle
-          </button>
+          </SubmitButton>
         </form>
 
         <div className="mt-5 space-y-3">

@@ -1,4 +1,5 @@
 import { updateProfileRole } from "@/app/admin/actions";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -54,9 +55,9 @@ export default async function TeamPage() {
                   <option value="agency">Ajans</option>
                   <option value="editor">Editör</option>
                 </select>
-                <button className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#123524] px-4 text-sm font-semibold text-white sm:w-auto">
+                <SubmitButton variant="dark" pendingLabel="Rol kaydediliyor…" className="w-full sm:w-auto">
                   Kaydet
-                </button>
+                </SubmitButton>
               </div>
             </form>
           ))}

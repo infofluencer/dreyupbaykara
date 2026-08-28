@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Spinner } from "@/components/admin/Spinner";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
@@ -92,9 +93,16 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[#0b6b45] px-5 text-base font-semibold text-white transition hover:bg-[#085436] disabled:opacity-60"
+        className="inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#0b6b45] px-5 text-base font-semibold text-white transition hover:bg-[#085436] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {loading ? "Giriş yapılıyor…" : "Giriş yap"}
+        {loading ? (
+          <>
+            <Spinner size="sm" className="text-white" label="Giriş yapılıyor" />
+            Giriş yapılıyor…
+          </>
+        ) : (
+          "Giriş yap"
+        )}
       </button>
     </form>
   );

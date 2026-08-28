@@ -2,6 +2,7 @@ import {
   deleteContentPage,
   saveContentPage,
 } from "@/app/admin/actions";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 
 type ContentPageValue = {
   id?: string;
@@ -141,20 +142,17 @@ export function ContentPageForm({
       </Field>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <button
-          type="submit"
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white"
-        >
+        <SubmitButton pendingLabel="Sayfa kaydediliyor…" className="px-6">
           Kaydet
-        </button>
+        </SubmitButton>
         {page?.id ? (
-          <button
-            type="submit"
+          <SubmitButton
             formAction={deleteContentPage}
-            className="inline-flex min-h-11 items-center justify-center rounded-full border border-red-200 px-5 text-sm font-semibold text-red-700"
+            variant="dangerGhost"
+            pendingLabel="Siliniyor…"
           >
             Sayfayı sil
-          </button>
+          </SubmitButton>
         ) : null}
       </div>
     </form>

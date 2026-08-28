@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { saveHomeSection, saveSiteSettings } from "@/app/admin/actions";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { HOME_FALLBACK, type HomeSections } from "@/lib/cms/home";
 import { getHomeSections } from "@/lib/cms/home-server";
@@ -130,9 +131,9 @@ export default async function AdminContentPage({
               className={input}
             />
           </Field>
-          <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white sm:col-span-2 sm:justify-self-start">
+          <SubmitButton pendingLabel="Ayarlar kaydediliyor…" className="px-6 sm:col-span-2 sm:justify-self-start">
             Ayarları kaydet
-          </button>
+          </SubmitButton>
         </form>
       ) : null}
 
@@ -218,9 +219,9 @@ function Field({
 
 function SaveButton() {
   return (
-    <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white">
+    <SubmitButton pendingLabel="Section kaydediliyor…">
       Bu section’ı kaydet
-    </button>
+    </SubmitButton>
   );
 }
 

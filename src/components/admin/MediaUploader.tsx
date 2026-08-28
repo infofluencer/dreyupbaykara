@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Spinner } from "@/components/admin/Spinner";
 import { createClient } from "@/lib/supabase/client";
 
 const ALLOWED_TYPES = new Set([
@@ -113,9 +114,16 @@ export function MediaUploader() {
       <button
         type="submit"
         disabled={busy}
-        className="rounded-full bg-[#0b6b45] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0b6b45] px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {busy ? "Yükleniyor…" : "Yükle"}
+        {busy ? (
+          <>
+            <Spinner size="sm" className="text-white" label="Yükleniyor" />
+            Yükleniyor…
+          </>
+        ) : (
+          "Yükle"
+        )}
       </button>
       {message ? (
         <p className="text-sm text-[#466254] sm:col-span-3">{message}</p>

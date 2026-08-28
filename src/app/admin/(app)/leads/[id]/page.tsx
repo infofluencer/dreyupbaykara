@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createTask, toggleTask, updateLead } from "@/app/admin/actions";
+import { FormPendingShell } from "@/components/admin/FormPendingShell";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
   APPOINTMENT_STATUS_LABEL,
@@ -168,6 +170,7 @@ export default async function LeadDetailPage({
                 <p>Ref: {lead.lead_ref || "—"}</p>
               </div>
             </div>
+            <FormPendingShell>
             <Field label="Notlar">
               <textarea
                 name="notes"
@@ -176,9 +179,10 @@ export default async function LeadDetailPage({
                 className={input}
               />
             </Field>
-            <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white">
+            </FormPendingShell>
+            <SubmitButton pendingLabel="Kaydediliyor…" className="px-6">
               Değişiklikleri kaydet
-            </button>
+            </SubmitButton>
           </form>
         </section>
 
@@ -286,9 +290,9 @@ export default async function LeadDetailPage({
                   </option>
                 ))}
               </select>
-              <button className="inline-flex min-h-10 items-center justify-center rounded-full bg-[#123524] px-5 text-sm font-semibold text-white">
+              <SubmitButton variant="dark" pendingLabel="Görev ekleniyor…" className="min-h-10">
                 Not ekle
-              </button>
+              </SubmitButton>
             </form>
             <div className="mt-4 space-y-2">
               {tasks?.map((task) => (

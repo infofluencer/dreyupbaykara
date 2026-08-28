@@ -4,6 +4,7 @@ import {
   removeWaMessageOptOut,
   updateMessageRule,
 } from "@/app/admin/actions";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { APPOINTMENT_TYPE_LABEL } from "@/lib/crm/labels";
 import {
@@ -208,12 +209,9 @@ export default async function AutomationsPage() {
               Sebep
               <input name="reason" placeholder="manual" className={input} />
             </label>
-            <button
-              type="submit"
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white"
-            >
+            <SubmitButton pendingLabel="Ekleniyor…" className="shrink-0">
               Ekle
-            </button>
+            </SubmitButton>
           </form>
         ) : null}
         {!optOuts?.length ? (
@@ -482,12 +480,9 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
             </div>
           </details>
 
-          <button
-            type="submit"
-            className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white"
-          >
+          <SubmitButton pendingLabel="Kural kaydediliyor…">
             Kaydet
-          </button>
+          </SubmitButton>
         </>
       ) : null}
     </>

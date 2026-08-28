@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { createAppointment, updateLeadStatus } from "@/app/admin/actions";
 import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
+import { Spinner } from "@/components/admin/Spinner";
 import {
   asLeadStatus,
   isDoneStatus,
@@ -56,6 +57,7 @@ export function LeadStatusControl({
   const [doneReason, setDoneReason] = useState(lostReason ?? "");
   const [apptOpen, setApptOpen] = useState(false);
   const [apptPending, setApptPending] = useState(false);
+  const [apptFormVersion, setApptFormVersion] = useState(0);
 
   useEffect(() => {
     setDisplay(asLeadStatus(status));
@@ -136,6 +138,7 @@ export function LeadStatusControl({
         setError(result.error || "Randevu eklenemedi.");
         return;
       }
+      setApptFormVersion((value) => value + 1);
       setApptOpen(false);
       setDisplay("randevulu");
       setFollowup(false);
@@ -153,6 +156,9 @@ export function LeadStatusControl({
     >
       {showBadge ? (
         <LeadStatusBadge status={display} needsFollowup={followup} />
+      ) : null}
+      {pending ? (
+        <Spinner size="sm" className="text-[#0b6b45]" label="Durum güncelleniyor" />
       ) : null}
       <label className="sr-only" htmlFor={`lead-status-${leadId}`}>
         Talep durumu
@@ -267,7 +273,11 @@ export function LeadStatusControl({
             <p className="mt-1 text-sm text-[#466254]">
               Takvime randevu yazılır ve durum Randevulu olur.
             </p>
-            <form onSubmit={onAppointmentSubmit} className="mt-4 space-y-3">
+            <form
+              key={apptFormVersion}
+              onSubmit={onAppointmentSubmit}
+              className="mt-4 space-y-3"
+            >
               <input type="hidden" name="lead_id" value={leadId} />
               <input type="hidden" name="appointment_type" value="consultation" />
               <input type="hidden" name="duration_minutes" value="30" />
@@ -300,15 +310,22 @@ export function LeadStatusControl({
                 <button
                   type="submit"
                   disabled={apptPending}
-                  className="inline-flex min-h-10 flex-1 items-center justify-center rounded-full bg-[#0b6b45] px-4 text-sm font-semibold text-white disabled:opacity-60"
+                  className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-[#0b6b45] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {apptPending ? "Kaydediliyor…" : "Randevu oluştur"}
+                  {apptPending ? (
+                    <>
+                      <Spinner size="sm" className="text-white" label="Kaydediliyor" />
+                      Kaydediliyor…
+                    </>
+                  ) : (
+                    "Randevu oluştur"
+                  )}
                 </button>
                 <button
                   type="button"
                   disabled={apptPending}
                   onClick={() => setApptOpen(false)}
-                  className="inline-flex min-h-10 items-center justify-center rounded-full px-3 text-sm font-medium text-[#466254]"
+                  className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded-full px-3 text-sm font-medium text-[#466254] disabled:cursor-not-allowed"
                 >
                   Vazgeç
                 </button>

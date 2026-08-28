@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createPatient } from "@/app/admin/actions";
+import { FormPendingShell } from "@/components/admin/FormPendingShell";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
 
 const input =
@@ -49,6 +51,7 @@ export default async function NewPatientPage({
         action={createPatient}
         className="space-y-5 rounded-2xl border border-[#123524]/10 bg-white p-5 sm:p-7"
       >
+        <FormPendingShell className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Ad soyad">
             <input
@@ -119,9 +122,10 @@ export default async function NewPatientPage({
             className={`${input} mt-2`}
           />
         </Field>
-        <button className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0b6b45] px-6 text-sm font-semibold text-white">
+        </FormPendingShell>
+        <SubmitButton pendingLabel="Hasta kaydediliyor…" className="px-6">
           Hastayı kaydet
-        </button>
+        </SubmitButton>
       </form>
     </div>
   );

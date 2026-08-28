@@ -5,6 +5,7 @@ import {
   saveContentSection,
 } from "@/app/admin/actions";
 import { ContentPageForm } from "@/components/admin/ContentPageForm";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -133,15 +134,17 @@ export default async function EditContentPage({
               Görünür
             </label>
             <div className="flex gap-3">
-              <button className="inline-flex min-h-10 items-center justify-center rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white">
+              <SubmitButton pendingLabel="Bölüm kaydediliyor…" className="min-h-10">
                 Bölümü kaydet
-              </button>
-              <button
+              </SubmitButton>
+              <SubmitButton
                 formAction={deleteContentSection}
-                className="rounded-full border border-red-200 px-5 py-2 text-sm font-semibold text-red-700"
+                variant="dangerGhost"
+                pendingLabel="Siliniyor…"
+                className="min-h-10 rounded-full px-5"
               >
                 Sil
-              </button>
+              </SubmitButton>
             </div>
           </form>
         ))}
@@ -193,9 +196,9 @@ export default async function EditContentPage({
             <input name="is_visible" type="checkbox" defaultChecked />
             Görünür
           </label>
-          <button className="inline-flex min-h-10 items-center justify-center rounded-full bg-[#123524] px-5 text-sm font-semibold text-white">
+          <SubmitButton variant="dark" pendingLabel="Bölüm ekleniyor…" className="min-h-10">
             Bölüm ekle
-          </button>
+          </SubmitButton>
         </form>
       </section>
 

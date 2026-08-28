@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { updateAppointment } from "@/app/admin/actions";
 import { DeleteAppointmentButton } from "@/components/admin/DeleteAppointmentButton";
+import { FormPendingShell } from "@/components/admin/FormPendingShell";
+import { SubmitButton } from "@/components/admin/SubmitButton";
 import { TypeAndDurationFields } from "@/components/admin/schedule/TypeAndDurationFields";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { durationMinutes, formatDurationTr } from "@/lib/crm/duration";
@@ -127,6 +129,7 @@ export default async function AppointmentDetailPage({
         <input type="hidden" name="lead_id" value={appointment.lead_id} />
         <input type="hidden" name="title" value={appointment.title || "Muayene randevusu"} />
         <h2 className="font-semibold">Randevuyu düzenle</h2>
+        <FormPendingShell className="space-y-4">
         {formError ? (
           <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
             {formError}
@@ -197,11 +200,12 @@ export default async function AppointmentDetailPage({
             className={input}
           />
         </Field>
+        </FormPendingShell>
 
         <div className="flex flex-wrap gap-3">
-          <button className="min-h-12 rounded-full bg-[#0b6b45] px-6 text-base font-semibold text-white sm:text-sm">
+          <SubmitButton pendingLabel="Randevu kaydediliyor…" className="min-h-12 px-6 text-base sm:text-sm">
             Kaydet
-          </button>
+          </SubmitButton>
           {contact?.id ? (
             <Link
               href={`/admin/patients/${contact.id}`}

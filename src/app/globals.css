@@ -173,6 +173,15 @@ html {
   touch-action: manipulation;
 }
 
+.admin-shell button:not(:disabled),
+.admin-shell summary {
+  cursor: pointer;
+}
+
+.admin-shell button:disabled {
+  cursor: not-allowed;
+}
+
 @media (max-width: 1023px) {
   .admin-shell input,
   .admin-shell select,

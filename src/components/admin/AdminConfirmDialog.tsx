@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { Spinner } from "@/components/admin/Spinner";
 
 export type AdminDialogStatus =
   | "confirm"
@@ -76,10 +77,7 @@ export function AdminConfirmDialog({
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl">
         {status === "loading" ? (
           <>
-            <div
-              className="mx-auto h-11 w-11 animate-spin rounded-full border-2 border-[#0b6b45]/20 border-t-[#0b6b45]"
-              aria-hidden
-            />
+            <Spinner size="lg" className="mx-auto text-[#0b6b45]" label={loadingMessage} />
             <p
               id={titleId}
               className="mt-4 text-center text-lg font-semibold text-[#123524]"
@@ -111,14 +109,14 @@ export function AdminConfirmDialog({
                 ref={confirmRef}
                 type="button"
                 onClick={onConfirm}
-                className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white"
+                className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white"
               >
                 {confirmLabel}
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-[#123524]/15 bg-white px-5 text-sm font-semibold text-[#123524]"
+                className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center rounded-full border border-[#123524]/15 bg-white px-5 text-sm font-semibold text-[#123524]"
               >
                 {cancelLabel}
               </button>
@@ -140,7 +138,7 @@ export function AdminConfirmDialog({
             <button
               type="button"
               onClick={onClose}
-              className="mt-5 min-h-12 w-full rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white"
+              className="mt-5 min-h-12 w-full cursor-pointer rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white"
             >
               Tamam
             </button>
@@ -161,7 +159,7 @@ export function AdminConfirmDialog({
             <button
               type="button"
               onClick={onClose}
-              className="mt-5 min-h-12 w-full rounded-full border border-red-200 bg-white px-5 text-sm font-semibold text-red-800"
+              className="mt-5 min-h-12 w-full cursor-pointer rounded-full border border-red-200 bg-white px-5 text-sm font-semibold text-red-800"
             >
               Tamam
             </button>
