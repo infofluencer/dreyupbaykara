@@ -32,7 +32,7 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const baseUrl = (
   process.env.BASE_URL ||
   process.env.NEXT_PUBLIC_SITE_URL ||
-  ""
+  "http://localhost:3005"
 ).replace(/\/$/, "");
 
 if (!url || !serviceKey) {
@@ -138,11 +138,50 @@ async function cleanup() {
 }
 
 async function landing(body) {
-  return fetch(`${baseUrl}/api/track/landing`, {
+  const res = await fetch(`${baseUrl}/api/track/landing`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ site: SITE, ...body }),
   });
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const preview = (await res.text()).slice(0, 120).replace(/\s+/g, " ");
+    throw new Error(
+      `${baseUrl}/api/track/landing JSON dönmedi (${res.status}, ${contentType || "no content-type"}). ` +
+        `Dev sunucu npm run dev ile 3005 portunda mı? Yanlış portta başka site açık olabilir. Önizleme: ${preview}`,
+    );
+  }
+  return res;
+}
+
+async function assertSiteReachable() {
+  try {
+    const res = await fetch(`${baseUrl}/api/track/landing`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ site: SITE, page: "/" }),
+    });
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const preview = (await res.text()).slice(0, 120).replace(/\s+/g, " ");
+      fail(
+        "site erişimi",
+        `${baseUrl}/api/track/landing bulunamadı (${res.status}). ` +
+          `Doğru komut: npm run dev (port 3005) ve BASE_URL=http://localhost:3005 npm run test:sources. ` +
+          `Önizleme: ${preview}`,
+      );
+      process.exit(1);
+    }
+    ok(`site erişilebilir (${baseUrl})`);
+  } catch (err) {
+    fail(
+      "site erişimi",
+      err instanceof Error
+        ? err.message
+        : `Sunucuya bağlanılamadı. npm run dev çalışıyor mu? BASE_URL=${baseUrl}`,
+    );
+    process.exit(1);
+  }
 }
 
 async function findBy(field, value) {
@@ -183,13 +222,15 @@ if (!baseUrl) {
 console.log(`Supabase: ${url}`);
 console.log(`Site:     ${baseUrl}\n`);
 
+await step("0. Sunucu kontrolü", assertSiteReachable);
+
 try {
-  await step("0. Temizlik", async () => {
+  await step("1. Temizlik", async () => {
     await cleanup();
     ok("eski kaynak test kayıtları silindi");
   });
 
-  await step("1. Sınıflandırma (Google / Meta / Organik)", async () => {
+  await step("2. Sınıflandırma (Google / Meta / Organik)", async () => {
     const cases = [
       [{ gclid: "G1" }, "google_ads"],
       [{ utm_source: "google" }, "google_ads"],
