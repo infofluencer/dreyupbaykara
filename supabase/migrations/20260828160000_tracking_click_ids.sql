@@ -12,7 +12,11 @@ alter table public.leads
   add column if not exists msclkid text,
   add column if not exists ttclid text;
 
-create or replace view public.lead_source_report
+-- CREATE OR REPLACE VIEW ortadan kolon eklerken PostgreSQL'de hata verir;
+-- önce drop, sonra yeniden oluştur.
+drop view if exists public.lead_source_report;
+
+create view public.lead_source_report
 with (security_invoker = false, security_barrier = true)
 as
 select
