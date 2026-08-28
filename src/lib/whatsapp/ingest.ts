@@ -112,7 +112,7 @@ async function findOrCreateConversation(
     return conversation.id;
   }
 
-  const { data: conversation, error } = await supabase
+  const { data: conversation, error: conversationError } = await supabase
     .from("conversations")
     .insert({
       contact_id: contact.id,
@@ -125,8 +125,17 @@ async function findOrCreateConversation(
     .select("id")
     .single();
 
-  if (error || !conversation) {
-    console.error("[whatsapp] conversation create:", error?.message);
+  if (conversationError?.code === "23505") {
+    const { data: existingAfterRace } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("contact_id", contact.id)
+      .maybeSingle();
+    return existingAfterRace?.id ?? null;
+  }
+
+  if (conversationError || !conversation) {
+    console.error("[whatsapp] conversation create:", conversationError?.message);
     return null;
   }
   return conversation.id;

@@ -123,12 +123,41 @@ async function handleStatuses(
   statuses: NonNullable<WebhookChangeValue["statuses"]>,
 ) {
   for (const status of statuses) {
+    const deliveryError =
+      status.errors?.[0]?.message ??
+      status.errors?.[0]?.title ??
+      null;
+    const deliveryCode = status.errors?.[0]?.code;
+
+    if (status.status === "failed") {
+      console.error("[whatsapp] delivery failed", {
+        waMessageId: status.id,
+        code: deliveryCode,
+        message: deliveryError,
+        errors: status.errors,
+      });
+    }
+
     const { data: message } = await supabase
       .from("messages")
       .update({ status: status.status })
       .eq("wa_message_id", status.id)
-      .select("raw_payload")
+      .select("id, raw_payload")
       .maybeSingle();
+
+    if (status.status === "failed" && message) {
+      const payload = (message.raw_payload ?? {}) as Record<string, unknown>;
+      await supabase
+        .from("messages")
+        .update({
+          raw_payload: {
+            ...payload,
+            delivery_error: deliveryError,
+            delivery_code: deliveryCode ?? null,
+          },
+        })
+        .eq("id", message.id);
+    }
 
     if (status.status !== "failed" || !message?.raw_payload) continue;
 
@@ -139,17 +168,15 @@ async function handleStatuses(
       typeof payload.rule_key === "string" ? payload.rule_key : null;
     if (!appointmentId || !ruleKey) continue;
 
-    const deliveryError =
-      status.errors?.[0]?.message ??
-      status.errors?.[0]?.title ??
-      "WhatsApp iletilemedi";
-
     await supabase
       .from("message_dispatches")
-      .update({ status: "failed", error: deliveryError })
+      .update({
+        status: "failed",
+        error: deliveryError ?? "WhatsApp iletilemedi",
+      })
       .eq("appointment_id", appointmentId)
       .eq("rule_key", ruleKey)
-      .eq("status", "sent");
+      .in("status", ["sent", "failed"]);
 
     if (ruleKey === "appt_1d") {
       await supabase

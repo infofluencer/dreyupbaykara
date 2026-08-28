@@ -165,6 +165,8 @@ export async function loadCandidateAppointments(
   return rows;
 }
 
+const FAILED_DISPATCH_RETRY_MS = 60 * 60 * 1000;
+
 export async function alreadyDispatched(
   supabase: SupabaseClient,
   appointmentId: string,
@@ -172,12 +174,20 @@ export async function alreadyDispatched(
 ): Promise<boolean> {
   const { data } = await supabase
     .from("message_dispatches")
-    .select("id")
+    .select("id, status, sent_at")
     .eq("appointment_id", appointmentId)
     .eq("rule_key", ruleKey)
-    .in("status", ["sent", "skipped"])
     .maybeSingle();
-  return Boolean(data);
+
+  if (!data) return false;
+  if (data.status === "sent" || data.status === "skipped") return true;
+
+  if (data.status === "failed" && data.sent_at) {
+    const elapsed = Date.now() - new Date(data.sent_at).getTime();
+    if (elapsed < FAILED_DISPATCH_RETRY_MS) return true;
+  }
+
+  return false;
 }
 
 export async function priorRuleSent(
