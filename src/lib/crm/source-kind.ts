@@ -27,16 +27,33 @@ export type SourceRow = {
   campaign?: string | null;
   gclid?: string | null;
   fbclid?: string | null;
+  gbraid?: string | null;
+  wbraid?: string | null;
+  msclkid?: string | null;
+  ttclid?: string | null;
 };
 
+function hasGoogleClickId(row: SourceRow): boolean {
+  return Boolean(
+    row.gclid?.trim() || row.gbraid?.trim() || row.wbraid?.trim(),
+  );
+}
+
 export function classifyAdPlatform(row: SourceRow): AdPlatform {
-  if (row.gclid?.trim()) return "google_ads";
+  if (hasGoogleClickId(row)) return "google_ads";
   if (row.fbclid?.trim()) return "meta";
 
   const source = (row.utm_source || "").trim().toLowerCase();
   if (GOOGLE_SOURCES.has(source)) return "google_ads";
   if (META_SOURCES.has(source)) return "meta";
-  if (source || row.utm_medium?.trim() || row.utm_campaign?.trim() || row.campaign?.trim()) {
+  if (
+    source ||
+    row.utm_medium?.trim() ||
+    row.utm_campaign?.trim() ||
+    row.campaign?.trim() ||
+    row.msclkid?.trim() ||
+    row.ttclid?.trim()
+  ) {
     return "other";
   }
   return "organic";

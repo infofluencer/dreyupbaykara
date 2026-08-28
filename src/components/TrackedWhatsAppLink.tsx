@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useRef, type AnchorHTMLAttributes, type ReactNode } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  type AnchorHTMLAttributes,
+  type ReactNode,
+} from "react";
 import { pushDataLayerEvent } from "@/components/analytics/data-layer";
 import { trackMetaEvent } from "@/components/analytics/track-meta";
 import { buildTrackingPath, DEFAULT_SITE } from "@/lib/crm/tracking";
@@ -14,6 +19,10 @@ type TrackedWhatsAppLinkProps = Omit<
   channel?: string;
   campaign?: string;
 };
+
+function buildFallbackHref(site: string, channel: string) {
+  return `/r?site=${encodeURIComponent(site)}&channel=${encodeURIComponent(channel)}`;
+}
 
 /**
  * WhatsApp CTA that routes through /r so UTM/GCLID/FBCLID are stored
@@ -29,12 +38,15 @@ export function TrackedWhatsAppLink({
   onPointerDown,
   ...rest
 }: TrackedWhatsAppLinkProps) {
-  const fallbackHref = `/r?site=${encodeURIComponent(site)}&channel=${encodeURIComponent(channel)}`;
+  const fallbackHref = buildFallbackHref(site, channel);
   const anchorRef = useRef<HTMLAnchorElement>(null);
 
-  useEffect(() => {
+  const syncHref = () =>
+    buildTrackingPath({ site, channel, campaign });
+
+  useLayoutEffect(() => {
     if (anchorRef.current) {
-      anchorRef.current.href = buildTrackingPath({ site, channel, campaign });
+      anchorRef.current.href = syncHref();
     }
   }, [site, channel, campaign]);
 
@@ -43,14 +55,15 @@ export function TrackedWhatsAppLink({
       {...rest}
       ref={anchorRef}
       href={fallbackHref}
+      suppressHydrationWarning
       className={className}
       rel={rest.rel ?? "noopener noreferrer"}
       onPointerDown={(event) => {
-        event.currentTarget.href = buildTrackingPath({ site, channel, campaign });
+        event.currentTarget.href = syncHref();
         onPointerDown?.(event);
       }}
       onClick={(event) => {
-        event.currentTarget.href = buildTrackingPath({ site, channel, campaign });
+        event.currentTarget.href = syncHref();
         trackMetaEvent("Contact", { content_name: `whatsapp_${channel}` });
         pushDataLayerEvent("whatsapp_click", { channel });
         onClick?.(event);

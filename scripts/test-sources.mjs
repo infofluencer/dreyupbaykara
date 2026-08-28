@@ -88,7 +88,13 @@ function sleep(ms) {
 
 /** source-kind.ts ile aynı tutulmalı */
 function classifyAdPlatform(row) {
-  if (row.gclid?.trim()) return "google_ads";
+  if (
+    row.gclid?.trim() ||
+    row.gbraid?.trim() ||
+    row.wbraid?.trim()
+  ) {
+    return "google_ads";
+  }
   if (row.fbclid?.trim()) return "meta";
   const source = (row.utm_source || "").trim().toLowerCase();
   if (
@@ -105,7 +111,9 @@ function classifyAdPlatform(row) {
     source ||
     row.utm_medium?.trim() ||
     row.utm_campaign?.trim() ||
-    row.campaign?.trim()
+    row.campaign?.trim() ||
+    row.msclkid?.trim() ||
+    row.ttclid?.trim()
   ) {
     return "other";
   }
@@ -195,6 +203,10 @@ try {
       [{ utm_source: "  " }, "organic"],
       [{ gclid: "G1", fbclid: "F1", utm_source: "facebook" }, "google_ads"],
       [{ fbclid: "F1", utm_source: "google" }, "meta"],
+      [{ gbraid: "GB1" }, "google_ads"],
+      [{ wbraid: "WB1" }, "google_ads"],
+      [{ msclkid: "MS1" }, "other"],
+      [{ ttclid: "TT1" }, "other"],
     ];
     for (const [row, expected] of cases) {
       const got = classifyAdPlatform(row);

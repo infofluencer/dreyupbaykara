@@ -1,5 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { DEFAULT_SITE, generateLeadRef } from "@/lib/crm/tracking";
+import {
+  DEFAULT_SITE,
+  generateLeadRef,
+  hasPaidTrackingParams,
+  type TrackingParams,
+} from "@/lib/crm/tracking";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -21,7 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  const tracking = {
+  const tracking: TrackingParams & { landing_url: string | null } = {
     site: clip(body.site) ?? DEFAULT_SITE,
     page: clip(body.page),
     campaign: clip(body.campaign),
@@ -32,18 +37,14 @@ export async function POST(request: NextRequest) {
     utm_term: clip(body.utm_term),
     gclid: clip(body.gclid),
     fbclid: clip(body.fbclid),
+    gbraid: clip(body.gbraid),
+    wbraid: clip(body.wbraid),
+    msclkid: clip(body.msclkid),
+    ttclid: clip(body.ttclid),
     landing_url: clip(body.landing_url),
   };
 
-  const hasAdsParams = Boolean(
-    tracking.gclid ||
-      tracking.fbclid ||
-      tracking.utm_source ||
-      tracking.utm_medium ||
-      tracking.utm_campaign ||
-      tracking.campaign,
-  );
-  if (!hasAdsParams) {
+  if (!hasPaidTrackingParams(tracking)) {
     return NextResponse.json({ ok: true, skipped: true });
   }
 
@@ -65,6 +66,10 @@ export async function POST(request: NextRequest) {
     utm_term: tracking.utm_term,
     gclid: tracking.gclid,
     fbclid: tracking.fbclid,
+    gbraid: tracking.gbraid,
+    wbraid: tracking.wbraid,
+    msclkid: tracking.msclkid,
+    ttclid: tracking.ttclid,
     landing_url: tracking.landing_url ?? request.headers.get("referer"),
     user_agent: request.headers.get("user-agent"),
   });

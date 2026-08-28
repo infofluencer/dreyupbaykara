@@ -18,6 +18,10 @@ export type LeadAttribution = {
   utm_campaign: string | null;
   gclid: string | null;
   fbclid: string | null;
+  gbraid?: string | null;
+  wbraid?: string | null;
+  msclkid?: string | null;
+  ttclid?: string | null;
   lead_ref: string | null;
   created_at: string;
 };
@@ -33,6 +37,10 @@ export type ClickAttribution = {
   utm_campaign: string | null;
   gclid: string | null;
   fbclid: string | null;
+  gbraid?: string | null;
+  wbraid?: string | null;
+  msclkid?: string | null;
+  ttclid?: string | null;
   created_at: string;
 };
 
@@ -62,8 +70,22 @@ function isManual(row: {
   utm_source?: string | null;
   gclid?: string | null;
   fbclid?: string | null;
+  gbraid?: string | null;
+  wbraid?: string | null;
+  msclkid?: string | null;
+  ttclid?: string | null;
 }) {
-  if (row.gclid || row.fbclid || row.utm_source) return false;
+  if (
+    row.gclid ||
+    row.fbclid ||
+    row.gbraid ||
+    row.wbraid ||
+    row.msclkid ||
+    row.ttclid ||
+    row.utm_source
+  ) {
+    return false;
+  }
   return row.site === "manual" || row.channel === "manual";
 }
 
@@ -144,6 +166,16 @@ export function PatientSourceCard({
       {source.gclid ? (
         <p className="mt-2 truncate text-[11px] text-[#466254]/70">
           gclid: {source.gclid}
+        </p>
+      ) : null}
+      {"gbraid" in source && source.gbraid ? (
+        <p className="mt-1 truncate text-[11px] text-[#466254]/70">
+          gbraid: {source.gbraid}
+        </p>
+      ) : null}
+      {"wbraid" in source && source.wbraid ? (
+        <p className="mt-1 truncate text-[11px] text-[#466254]/70">
+          wbraid: {source.wbraid}
         </p>
       ) : null}
       {source.fbclid ? (

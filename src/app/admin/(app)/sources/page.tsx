@@ -55,7 +55,7 @@ const PLATFORM_META: Record<
   { hint: string; icon: typeof Megaphone; card: string; active: string }
 > = {
   google_ads: {
-    hint: "gclid / google UTM",
+    hint: "gclid / gbraid / google UTM",
     icon: MousePointerClick,
     card: "border-[#c5d8fc] bg-[#f3f7ff]",
     active: "border-[#1a56db] bg-[#e8f0fe] ring-2 ring-[#1a56db]/25",
@@ -129,7 +129,7 @@ export default async function AdminSourcesPage({
   const { data: rows, error } = await supabase
     .from("lead_source_report")
     .select(
-      "id, lead_ref, site, page_path, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, matched_lead_id, created_at",
+      "id, lead_ref, site, page_path, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, gbraid, wbraid, msclkid, ttclid, matched_lead_id, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -173,6 +173,10 @@ export default async function AdminSourcesPage({
       row.channel,
       row.gclid,
       row.fbclid,
+      row.gbraid,
+      row.wbraid,
+      row.msclkid,
+      row.ttclid,
     ]
       .filter(Boolean)
       .join(" ")
@@ -462,9 +466,29 @@ export default async function AdminSourcesPage({
                         gclid: {row.gclid}
                       </span>
                     ) : null}
+                    {row.gbraid ? (
+                      <span className="mt-0.5 block truncate text-[10px] text-[#466254]/70">
+                        gbraid: {row.gbraid}
+                      </span>
+                    ) : null}
+                    {row.wbraid ? (
+                      <span className="mt-0.5 block truncate text-[10px] text-[#466254]/70">
+                        wbraid: {row.wbraid}
+                      </span>
+                    ) : null}
                     {row.fbclid ? (
                       <span className="mt-0.5 block truncate text-[10px] text-[#466254]/70">
                         fbclid: {row.fbclid}
+                      </span>
+                    ) : null}
+                    {row.msclkid ? (
+                      <span className="mt-0.5 block truncate text-[10px] text-[#466254]/70">
+                        msclkid: {row.msclkid}
+                      </span>
+                    ) : null}
+                    {row.ttclid ? (
+                      <span className="mt-0.5 block truncate text-[10px] text-[#466254]/70">
+                        ttclid: {row.ttclid}
                       </span>
                     ) : null}
                   </td>

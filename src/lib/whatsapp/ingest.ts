@@ -49,6 +49,10 @@ async function resolveLeadFromRef(
         utm_campaign: source.utm_campaign,
         gclid: source.gclid,
         fbclid: source.fbclid,
+        gbraid: source.gbraid,
+        wbraid: source.wbraid,
+        msclkid: source.msclkid,
+        ttclid: source.ttclid,
         ctwa_clid: ctwaClid,
         lead_ref: leadRef,
       })

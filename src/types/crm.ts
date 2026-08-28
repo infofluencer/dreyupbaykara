@@ -67,6 +67,10 @@ export type Lead = {
   utm_campaign: string | null;
   gclid: string | null;
   fbclid: string | null;
+  gbraid?: string | null;
+  wbraid?: string | null;
+  msclkid?: string | null;
+  ttclid?: string | null;
   ctwa_clid: string | null;
   lead_ref: string | null;
   notes: string | null;
