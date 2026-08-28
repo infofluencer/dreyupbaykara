@@ -6,16 +6,16 @@ import {
   buildTemplateBodyComponents as buildTimingBodyComponents,
   istanbulDayBoundsUtc,
   isRuleDueNow,
-  normalizePhoneDigits,
   offsetDueAtMs,
   previewAutomationBody,
   type AutomationTimingMode,
 } from "@/lib/whatsapp/automation-timing";
+import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
 
 export {
   istanbulDayBoundsUtc,
   isRuleDueNow,
-  normalizePhoneDigits,
+  normalizeWhatsAppPhone as normalizePhoneDigits,
   offsetDueAtMs,
   previewAutomationBody,
 };

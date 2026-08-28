@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertWhatsAppSendConfig, isWhatsAppEnabled } from "@/lib/whatsapp/config";
+import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
 import type { MessageSource } from "@/lib/whatsapp/ingest";
 import { isWithin24hWindow } from "@/lib/whatsapp/service-window";
 
@@ -54,7 +55,7 @@ export type OutboundContext = {
 };
 
 function normalizePhone(to: string | null | undefined): string {
-  return (to ?? "").replace(/\D/g, "");
+  return normalizeWhatsAppPhone(to);
 }
 
 function parseResponseBody(text: string): CloudSendResponse {

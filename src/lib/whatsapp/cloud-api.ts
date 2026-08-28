@@ -31,7 +31,7 @@ export async function sendWhatsAppTemplate(
 ): Promise<{ messageId: string }> {
   const template: Record<string, unknown> = {
     name: templateName,
-    language: { code: languageCode },
+    language: { code: languageCode, policy: "deterministic" },
   };
   if (components?.length) {
     template.components = components;

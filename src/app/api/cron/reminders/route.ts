@@ -156,6 +156,13 @@ async function runReminders(request: NextRequest) {
           components,
         );
 
+        console.info("[cron/reminders] template accepted by Meta", {
+          rule: rule.key,
+          phone,
+          template: rule.template_name,
+          waMessageId: response.messageId,
+        });
+
         const { data: conversation } = await supabase
           .from("conversations")
           .upsert(
