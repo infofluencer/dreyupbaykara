@@ -260,8 +260,25 @@ async function maybeRecordOptOut(
   }
 }
 
+/** Panel okunmamış sayacını sıfırla (telefondan etkileşim veya panel açılışı). */
+export async function clearConversationUnread(
+  supabase: SupabaseClient,
+  conversationId: string,
+): Promise<string | null> {
+  const { error } = await supabase
+    .from("conversations")
+    .update({ unread_count: 0 })
+    .eq("id", conversationId);
+  if (error) {
+    console.error("[whatsapp] clear unread:", error.message);
+    return error.message;
+  }
+  return null;
+}
+
 /**
  * Coexistence: message sent from WhatsApp Business app (smb_message_echoes).
+ * Telefondan mesaj gönderildiğinde konuşmayı panelde okundu sayar.
  */
 export async function ingestWhatsAppAppEcho(
   supabase: SupabaseClient,
@@ -321,12 +338,14 @@ export async function ingestWhatsAppAppEcho(
     )
     .select("id");
 
+  await clearConversationUnread(supabase, conversationId);
+
   if (messageError?.code === "23505") {
     return { conversationId, created: false };
   }
   if (messageError) {
     console.error("[whatsapp] echo message:", messageError.message);
-    return null;
+    return { conversationId, created: false };
   }
 
   return { conversationId, created: (inserted?.length ?? 0) > 0 };

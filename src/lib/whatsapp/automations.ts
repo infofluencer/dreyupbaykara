@@ -179,3 +179,18 @@ export async function alreadyDispatched(
     .maybeSingle();
   return Boolean(data);
 }
+
+export async function priorRuleSent(
+  supabase: SupabaseClient,
+  appointmentId: string,
+  priorRuleKey: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("message_dispatches")
+    .select("id")
+    .eq("appointment_id", appointmentId)
+    .eq("rule_key", priorRuleKey)
+    .eq("status", "sent")
+    .maybeSingle();
+  return Boolean(data);
+}

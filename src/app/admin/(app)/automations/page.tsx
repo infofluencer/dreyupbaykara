@@ -71,7 +71,8 @@ export default async function AutomationsPage() {
         çalıştırın:{" "}
         <code>20260823200000_wa_message_automations.sql</code>,{" "}
         <code>20260824140000_message_rules_lead_statuses.sql</code>,{" "}
-        <code>20260824150000_postop_bilgilendirme_rule.sql</code>.
+        <code>20260824150000_postop_bilgilendirme_rule.sql</code>,{" "}
+        <code>20260828150000_google_maps_review_rule.sql</code>.
         <span className="mt-1 block text-xs opacity-80">{rulesError.message}</span>
       </p>
     );
@@ -87,9 +88,9 @@ export default async function AutomationsPage() {
           WhatsApp otomasyonları
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#466254]">
-          Toplam 3 otomatik mesaj: randevudan 1 gün önce, 1 saat önce, ameliyat
-          günü saat 16:00 bilgilendirme. Cron her 15 dakikada uygun hastaları
-          bulup Meta şablonuyla gönderir.
+          Toplam 4 otomatik mesaj: randevudan 1 gün önce, 1 saat önce, ameliyat
+          günü saat 16:00 bilgilendirme ve ardından Google Maps yorum isteği.
+          Cron her 15 dakikada uygun hastaları bulup Meta şablonuyla gönderir.
         </p>
       </div>
 
@@ -117,7 +118,7 @@ export default async function AutomationsPage() {
       {canEdit ? (
         <section className="rounded-2xl border border-[#123524]/10 bg-[#f7faf8] p-5 sm:p-6">
           <h2 className="text-sm font-semibold text-[#123524]">
-            Meta şablon checklist — yalnızca bu 3 şablon
+            Meta şablon checklist — yalnızca bu 4 şablon
           </h2>
           <ul className="mt-3 space-y-2 text-sm text-[#466254]">
             {WA_AUTOMATION_TEMPLATE_SPECS.map((spec) => (

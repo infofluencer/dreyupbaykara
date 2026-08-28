@@ -19,6 +19,7 @@ import { mergeHomeSections, type HomeSections } from "@/lib/cms/home";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendMessage, sendTemplateMessage } from "@/lib/whatsapp/send-message";
+import { clearConversationUnread } from "@/lib/whatsapp/ingest";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import {
   isConversationLockFresh,
@@ -1314,11 +1315,8 @@ export async function markConversationRead(formData: FormData) {
   await requireAdminSession(["admin", "doctor", "assistant"]);
   const supabase = await createClient();
   const conversationId = text(formData, "conversation_id");
-  const { error } = await supabase
-    .from("conversations")
-    .update({ unread_count: 0 })
-    .eq("id", conversationId);
-  if (error) throw new Error(error.message);
+  const clearError = await clearConversationUnread(supabase, conversationId);
+  if (clearError) throw new Error(clearError);
   // Inbox client updates unread locally; revalidating /admin/messages here
   // remounts the page before ?c= is set and closes the thread panel.
   revalidatePath("/admin");

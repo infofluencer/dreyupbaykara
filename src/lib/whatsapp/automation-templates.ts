@@ -1,15 +1,14 @@
 /**
- * Meta’da onaylanması gereken 3 UTILITY şablon (başka yok):
- *   randevu_1_gun | randevu_1_saat | ameliyat_sonrasi_bilgi
+ * Meta’da onaylanması gereken 4 UTILITY şablon:
+ *   randevu_1_gun | randevu_1_saat | ameliyat_sonrasi_bilgi | google_maps_yorum
  *
  * Dil: Turkish (tr)
  *
  * randevu_1_gun / randevu_1_saat — body değişkenleri:
  *   {{1}} hasta adı · {{2}} tarih · {{3}} saat
  *
- * ameliyat_sonrasi_bilgi — sabit metin (değişken yok).
- * Meta body limiti 1024 karakter; aşağıdaki metin buna sığacak şekilde
- * klinik metninin birebir kısaltılmış hali.
+ * ameliyat_sonrasi_bilgi / google_maps_yorum — sabit metin (değişken yok).
+ * google_maps_yorum: Meta’da URL düğmesi ekleyin (Web sitesini ziyaret et).
  *
  * Onay sonrası /admin/automations’da şablon adını doğrulayıp kuralı açın.
  * Kurallar varsayılan kapalıdır (KVKK / açık rıza).
@@ -56,7 +55,22 @@ export const WA_AUTOMATION_TEMPLATE_SPECS = [
     bodyParams: [] as const,
     sampleBody: POSTOP_BILGILENDIRME_BODY,
   },
+  {
+    key: "surgery_google_review",
+    templateName: "google_maps_yorum",
+    bodyParams: [] as const,
+    sampleBody: `Attığım linke yorumlarınızı bekliyoruz mutlaka.
+
+Linke tıkladıktan sonra yorumlar kısmına girerek yazabilirsiniz 🙏`,
+  },
 ] as const;
+
+/** Bu kural yalnızca önceki kural başarıyla gönderildiyse çalışır. */
+export const AUTOMATION_RULE_REQUIRES_PRIOR: Partial<
+  Record<(typeof WA_AUTOMATION_TEMPLATE_SPECS)[number]["key"], string>
+> = {
+  surgery_google_review: "surgery_day",
+};
 
 export function automationSampleBody(ruleKey: string): string | null {
   return (
