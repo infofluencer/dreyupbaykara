@@ -79,7 +79,7 @@ export async function isPhoneOptedOut(
   supabase: SupabaseClient,
   phone: string,
 ): Promise<boolean> {
-  const digits = normalizePhoneDigits(phone);
+  const digits = normalizeWhatsAppPhone(phone);
   if (!digits) return true;
   const { data } = await supabase
     .from("wa_message_opt_outs")
