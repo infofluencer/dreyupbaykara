@@ -43,6 +43,10 @@ import {
   listTimeLabel,
   threadDayLabel,
 } from "@/lib/whatsapp/inbox-format";
+import {
+  WA_INBOX_REFRESH_EVENT,
+  type WaInboxRefreshDetail,
+} from "@/lib/whatsapp/inbox-events";
 
 const LeadStatusControl = dynamic(
   () =>
@@ -187,7 +191,7 @@ function mapConversation(
       typeof row.is_patient === "boolean"
         ? row.is_patient
         : contactPatient || previous?.is_patient || false,
-    lead: leadRow,
+    lead: leadRow ?? previous?.lead ?? null,
     pipelineLead: pipelineFromRow ?? previous?.pipelineLead ?? null,
   };
 }
@@ -362,13 +366,63 @@ export function MessagesInbox({
 
   useEffect(() => {
     const supabase = createClient();
+
+    const mergeMessage = (row: Record<string, unknown>) => {
+      const conversationId = String(row.conversation_id ?? "");
+      if (!conversationId || !row.id) return;
+      if (selectedIdRef.current !== conversationId) return;
+      const incoming = mapInboxMessage(row);
+      setMessages((rows) => {
+        const withoutOptimistic = rows.filter((existing) => {
+          if (existing.id === incoming.id) return false;
+          if (
+            existing.id.startsWith("local_") &&
+            existing.direction === "outbound" &&
+            incoming.direction === "outbound" &&
+            existing.body === incoming.body
+          ) {
+            return false;
+          }
+          return true;
+        });
+        return sortMessages([...withoutOptimistic, incoming]);
+      });
+    };
+
     const conversationChannel = supabase
       .channel("wa-inbox-conversations")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "conversations" },
-        () => {
-          console.log("[inbox] conversations event received");
+        (payload) => {
+          console.log("[inbox] conversations event", payload.eventType);
+          if (payload.eventType !== "DELETE" && payload.new) {
+            const row = payload.new as Record<string, unknown>;
+            if (row.id) {
+              setConversations((prev) => {
+                const id = String(row.id);
+                const previous = prev.find((item) => item.id === id);
+                // Realtime payload has no joins — only patch list fields, then refetch.
+                if (!previous) {
+                  void fetchConversationsRef.current().catch(() => {});
+                  return prev;
+                }
+                const mapped = mapConversation(row, previous);
+                const next = prev.map((item) =>
+                  item.id === id ? mapped : item,
+                );
+                return [...next].sort((a, b) => {
+                  const at = a.last_message_at
+                    ? new Date(a.last_message_at).getTime()
+                    : 0;
+                  const bt = b.last_message_at
+                    ? new Date(b.last_message_at).getTime()
+                    : 0;
+                  return bt - at;
+                });
+              });
+            }
+          }
           void fetchConversationsRef.current().catch((error: Error) => {
             console.error("[inbox] realtime conversations:", error);
           });
@@ -378,29 +432,14 @@ export function MessagesInbox({
         console.log("[inbox] conversations channel:", status, err ?? "");
       });
 
-    return () => {
-      void supabase.removeChannel(conversationChannel);
-    };
-    // Mount once — soft nav must not tear down this channel.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    const conversationId = selectedId;
-    const supabase = createClient();
-    const threadChannel = supabase
-      .channel(`wa-thread-${conversationId}`)
+    // Filterless messages channel — same pattern as AdminWhatsAppNotifications
+    // (filtered conversation_id channels often miss events under RLS).
+    const messagesChannel = supabase
+      .channel("wa-inbox-messages")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
+        { event: "*", schema: "public", table: "messages" },
         (payload) => {
-          if (selectedIdRef.current !== conversationId) return;
           if (payload.eventType === "DELETE") {
             const oldRow = payload.old as { id?: string } | null;
             if (!oldRow?.id) return;
@@ -409,35 +448,76 @@ export function MessagesInbox({
           }
           const row = payload.new as Record<string, unknown> | null;
           if (!row?.id) return;
-          const incoming = mapInboxMessage(row);
-          setMessages((rows) => {
-            const withoutOptimistic = rows.filter((existing) => {
-              if (existing.id === incoming.id) return false;
-              if (
-                existing.id.startsWith("local_") &&
-                existing.direction === "outbound" &&
-                incoming.direction === "outbound" &&
-                existing.body === incoming.body
-              ) {
-                return false;
-              }
-              return true;
-            });
-            return sortMessages([...withoutOptimistic, incoming]);
-          });
+          mergeMessage(row);
           void fetchConversationsRef.current().catch((error: Error) => {
             console.error("[inbox] realtime conversations:", error);
           });
         },
       )
       .subscribe((status, err) => {
-        console.log("[inbox] thread channel:", conversationId, status, err ?? "");
+        console.log("[inbox] messages channel:", status, err ?? "");
       });
 
-    return () => {
-      void supabase.removeChannel(threadChannel);
+    const onBridgeRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<WaInboxRefreshDetail>).detail;
+      if (!detail?.conversationId) return;
+      void fetchConversationsRef.current().catch((error: Error) => {
+        console.error("[inbox] bridge conversations:", error);
+      });
+      if (selectedIdRef.current !== detail.conversationId) return;
+      if (detail.message?.id) {
+        mergeMessage({
+          ...detail.message,
+          conversation_id: detail.conversationId,
+          created_at: detail.message.created_at ?? new Date().toISOString(),
+          status: detail.message.status ?? "received",
+        });
+      } else {
+        void fetchMessages(detail.conversationId)
+          .then((rows) => {
+            if (selectedIdRef.current === detail.conversationId) {
+              setMessages(rows);
+            }
+          })
+          .catch((error: Error) => {
+            console.error("[inbox] bridge messages:", error);
+          });
+      }
     };
-  }, [selectedId]);
+    window.addEventListener(WA_INBOX_REFRESH_EVENT, onBridgeRefresh);
+
+    return () => {
+      window.removeEventListener(WA_INBOX_REFRESH_EVENT, onBridgeRefresh);
+      void supabase.removeChannel(conversationChannel);
+      void supabase.removeChannel(messagesChannel);
+    };
+    // Mount once — soft nav must not tear down this channel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Keep selected thread in sync if bridge/realtime missed a row.
+    if (!selectedId) return;
+    const conversationId = selectedId;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      if (selectedIdRef.current !== conversationId) return;
+      void fetchMessages(conversationId)
+        .then((rows) => {
+          if (selectedIdRef.current !== conversationId) return;
+          setMessages((prev) => {
+            if (prev.length === rows.length) {
+              const lastPrev = prev[prev.length - 1]?.id;
+              const lastNext = rows[rows.length - 1]?.id;
+              if (lastPrev === lastNext) return prev;
+            }
+            return rows;
+          });
+        })
+        .catch(() => {});
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [selectedId, fetchMessages]);
 
   async function handleSend() {
     if (!selected || !draft.trim() || sending) return;

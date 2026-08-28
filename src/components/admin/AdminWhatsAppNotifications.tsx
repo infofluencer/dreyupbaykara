@@ -9,6 +9,7 @@ import {
 } from "@/components/admin/notification-sound";
 import { useSetWhatsAppUnread } from "@/components/admin/whatsapp-unread-context";
 import { createClient } from "@/lib/supabase/client";
+import { dispatchWaInboxRefresh } from "@/lib/whatsapp/inbox-events";
 
 type ConversationRow = {
   id: string;
@@ -22,6 +23,12 @@ type MessageRow = {
   conversation_id: string;
   direction: string;
   body: string | null;
+  status?: string;
+  automated?: boolean | null;
+  created_at?: string;
+  media_type?: string | null;
+  media_url?: string | null;
+  source?: string | null;
 };
 
 const TOAST_VISIBLE = 3;
@@ -233,6 +240,20 @@ export function AdminWhatsAppNotifications() {
           if (!row?.id || row.direction !== "inbound") return;
           showInboundToast(row);
           refreshUnread();
+          dispatchWaInboxRefresh({
+            conversationId: row.conversation_id,
+            message: {
+              id: row.id,
+              direction: row.direction,
+              body: row.body,
+              status: row.status,
+              automated: row.automated,
+              created_at: row.created_at,
+              media_type: row.media_type,
+              media_url: row.media_url,
+              source: row.source,
+            },
+          });
         },
       )
       .subscribe();
