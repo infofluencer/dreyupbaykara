@@ -2,10 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp/cloud-api";
-import {
-  automationSampleBody,
-  priorAutomationRuleKey,
-} from "@/lib/whatsapp/automation-templates";
+import { priorAutomationRuleKey } from "@/lib/whatsapp/automation-templates";
 import {
   alreadyDispatched,
   buildTemplateBodyComponents,
@@ -180,13 +177,10 @@ async function runReminders(request: NextRequest) {
             conversation_id: conversation.id,
             wa_message_id: response.messageId,
             direction: "outbound",
-            body: `[Otomatik: ${rule.label}] ${
-              automationSampleBody(rule.key) ??
-              previewAutomationBody(
-                appointment.contact.name,
-                appointment.starts_at,
-              )
-            }`,
+            body: `[Otomatik: ${rule.label}] ${previewAutomationBody(
+              appointment.contact.name,
+              appointment.starts_at,
+            )}`,
             status: "sent",
             automated: true,
             source: "system",

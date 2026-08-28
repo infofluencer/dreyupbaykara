@@ -37,6 +37,7 @@ type WebhookChangeValue = {
   statuses?: Array<{
     id: string;
     status: "sent" | "delivered" | "read" | "failed";
+    errors?: Array<{ code?: number; title?: string; message?: string }>;
   }>;
   history?: unknown;
   state_sync?: unknown;
@@ -122,10 +123,40 @@ async function handleStatuses(
   statuses: NonNullable<WebhookChangeValue["statuses"]>,
 ) {
   for (const status of statuses) {
-    await supabase
+    const { data: message } = await supabase
       .from("messages")
       .update({ status: status.status })
-      .eq("wa_message_id", status.id);
+      .eq("wa_message_id", status.id)
+      .select("raw_payload")
+      .maybeSingle();
+
+    if (status.status !== "failed" || !message?.raw_payload) continue;
+
+    const payload = message.raw_payload as Record<string, unknown>;
+    const appointmentId =
+      typeof payload.appointment_id === "string" ? payload.appointment_id : null;
+    const ruleKey =
+      typeof payload.rule_key === "string" ? payload.rule_key : null;
+    if (!appointmentId || !ruleKey) continue;
+
+    const deliveryError =
+      status.errors?.[0]?.message ??
+      status.errors?.[0]?.title ??
+      "WhatsApp iletilemedi";
+
+    await supabase
+      .from("message_dispatches")
+      .update({ status: "failed", error: deliveryError })
+      .eq("appointment_id", appointmentId)
+      .eq("rule_key", ruleKey)
+      .eq("status", "sent");
+
+    if (ruleKey === "appt_1d") {
+      await supabase
+        .from("appointments")
+        .update({ reminder_sent_at: null })
+        .eq("id", appointmentId);
+    }
   }
 }
 
