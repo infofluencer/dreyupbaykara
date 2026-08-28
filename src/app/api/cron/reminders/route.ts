@@ -4,7 +4,7 @@ import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp/cloud-api";
 import {
   automationSampleBody,
-  AUTOMATION_RULE_REQUIRES_PRIOR,
+  priorAutomationRuleKey,
 } from "@/lib/whatsapp/automation-templates";
 import {
   alreadyDispatched,
@@ -99,7 +99,7 @@ async function runReminders(request: NextRequest) {
         continue;
       }
 
-      const priorRuleKey = AUTOMATION_RULE_REQUIRES_PRIOR[rule.key];
+      const priorRuleKey = priorAutomationRuleKey(rule.key);
       if (
         priorRuleKey &&
         !(await priorRuleSent(supabase, appointment.id, priorRuleKey))

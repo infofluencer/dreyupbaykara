@@ -66,11 +66,17 @@ Linke tıkladıktan sonra yorumlar kısmına girerek yazabilirsiniz 🙏`,
 ] as const;
 
 /** Bu kural yalnızca önceki kural başarıyla gönderildiyse çalışır. */
-export const AUTOMATION_RULE_REQUIRES_PRIOR: Partial<
+const AUTOMATION_RULE_REQUIRES_PRIOR_MAP: Partial<
   Record<(typeof WA_AUTOMATION_TEMPLATE_SPECS)[number]["key"], string>
 > = {
   surgery_google_review: "surgery_day",
 };
+
+export function priorAutomationRuleKey(ruleKey: string): string | undefined {
+  return AUTOMATION_RULE_REQUIRES_PRIOR_MAP[
+    ruleKey as keyof typeof AUTOMATION_RULE_REQUIRES_PRIOR_MAP
+  ];
+}
 
 export function automationSampleBody(ruleKey: string): string | null {
   return (
