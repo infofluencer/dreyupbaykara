@@ -12,10 +12,13 @@ export function DeleteAppointmentButton({
   id,
   label = "Sil",
   className = "inline-flex min-h-8 items-center text-xs font-semibold text-red-700",
+  redirectTo,
 }: {
   id: string;
   label?: string;
   className?: string;
+  /** Detay sayfasından silince takvime dön (örn. /admin/leads?date=2026-08-31) */
+  redirectTo?: string;
 }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<AdminDialogStatus>(null);
@@ -34,6 +37,10 @@ export function DeleteAppointmentButton({
       const formData = new FormData();
       formData.set("id", id);
       await deleteAppointment(formData);
+      if (redirectTo) {
+        router.push(redirectTo);
+        return;
+      }
       setMessage("Randevu silindi.");
       setDialog("success");
       router.refresh();

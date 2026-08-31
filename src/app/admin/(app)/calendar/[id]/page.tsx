@@ -227,6 +227,7 @@ export default async function AppointmentDetailPage({
             id={appointment.id}
             label="Randevuyu sil"
             className="rounded-full border border-red-300 bg-white px-5 py-2.5 text-sm font-semibold text-red-700"
+            redirectTo={`/admin/leads?date=${startDate}`}
           />
         </div>
       </div>
