@@ -1,6 +1,7 @@
 "use client";
 
 import type { MarketingSummary } from "@/lib/marketing/types";
+import { formatTry } from "@/lib/marketing/format";
 import { PLATFORM_COLOR, PLATFORM_LABEL } from "@/lib/crm/source-kind";
 
 export function MarketingDailyChart({
@@ -121,17 +122,4 @@ export function MarketingPlatformBars({
       })}
     </div>
   );
-}
-
-export function formatTry(value: number | null | undefined): string {
-  if (value == null) return "—";
-  return `₺${value.toLocaleString("tr-TR", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-export function formatPct(value: number | null | undefined): string {
-  if (value == null) return "—";
-  return `${Math.round(value * 100)}%`;
 }

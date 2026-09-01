@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { loadMonthToDateSummary } from "@/lib/marketing/admin-stats";
-import { formatTry } from "@/components/admin/MarketingCharts";
+import { formatTry } from "@/lib/marketing/format";
 
 export async function AdminMarketingHomeCard() {
-  const mtd = await loadMonthToDateSummary();
-  if (!mtd || (mtd.spend === 0 && mtd.cpl == null)) {
-    return null;
-  }
+  try {
+    const mtd = await loadMonthToDateSummary();
+    if (!mtd || (mtd.spend === 0 && mtd.cpl == null)) {
+      return null;
+    }
 
   return (
     <Link
@@ -33,4 +34,8 @@ export async function AdminMarketingHomeCard() {
       </div>
     </Link>
   );
+  } catch (err) {
+    console.error("[marketing] home card:", err);
+    return null;
+  }
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { AdminMarketingHomeCard } from "@/components/admin/AdminMarketingHomeCard";
 import { AdminSourcePie } from "@/components/admin/AdminSourcePie";
 import { Skeleton } from "@/components/admin/AdminSkeleton";
@@ -59,7 +60,9 @@ export async function AdminHomeInsights() {
         </div>
       </Link>
 
-      <AdminMarketingHomeCard />
+      <Suspense fallback={null}>
+        <AdminMarketingHomeCard />
+      </Suspense>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <AdminSourcePie

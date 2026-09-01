@@ -12,9 +12,8 @@ import {
 import {
   MarketingDailyChart,
   MarketingPlatformBars,
-  formatPct,
-  formatTry,
 } from "@/components/admin/MarketingCharts";
+import { formatPct, formatTry } from "@/lib/marketing/format";
 import { UnmatchedCampaignRow } from "@/components/admin/UnmatchedCampaignRow";
 import { PLATFORM_LABEL } from "@/lib/crm/source-kind";
 
