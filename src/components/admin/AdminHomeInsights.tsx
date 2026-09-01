@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdminMarketingHomeCard } from "@/components/admin/AdminMarketingHomeCard";
 import { AdminSourcePie } from "@/components/admin/AdminSourcePie";
 import { Skeleton } from "@/components/admin/AdminSkeleton";
 import {
@@ -57,6 +58,8 @@ export async function AdminHomeInsights() {
           <MiniStat label="Yanıt bekleyen" value={wa.awaiting} />
         </div>
       </Link>
+
+      <AdminMarketingHomeCard />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <AdminSourcePie

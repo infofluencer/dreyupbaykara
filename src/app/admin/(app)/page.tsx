@@ -140,6 +140,11 @@ function QuickLinks() {
         desc="Section metinleri, medya ve iletişim ayarları"
       />
       <QuickLink
+        href="/admin/marketing"
+        title="Reklam performansı"
+        desc="Google + Meta harcama, CPL, kampanya tablosu"
+      />
+      <QuickLink
         href="/admin/sources"
         title="Kaynaklar"
         desc="UTM, site ve kanal performansı"
