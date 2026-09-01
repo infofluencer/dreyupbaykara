@@ -186,14 +186,14 @@ export function PatientSourceCard({
 
       {leadRef ? (
         <Link
-          href={`/admin/sources?q=${encodeURIComponent(leadRef)}`}
+          href={`/admin/marketing?q=${encodeURIComponent(leadRef)}`}
           className="mt-3 inline-block text-xs font-semibold text-[#0b6b45]"
         >
-          Kaynaklar’da aç →
+          Reklam&apos;da aç →
         </Link>
       ) : (
         <Link
-          href="/admin/sources"
+          href="/admin/marketing"
           className="mt-3 inline-block text-xs font-semibold text-[#0b6b45]"
         >
           Tüm kaynaklar →

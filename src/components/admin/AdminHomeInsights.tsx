@@ -69,26 +69,26 @@ export async function AdminHomeInsights() {
           title="Kaynaklar"
           hint="Reklam / organik dağılım"
           totalLabel="kayıt"
-          href="/admin/sources"
+          href="/admin/marketing"
           slices={PLATFORMS.map((id) => ({
             id,
             label: PLATFORM_LABEL[id],
             value: sources.platforms[id],
             color: PLATFORM_COLOR[id],
-            href: `/admin/sources?platform=${id}`,
+            href: `/admin/marketing?platform=${id}`,
           }))}
         />
         <AdminSourcePie
           title="Ne yaptı?"
           hint="Site, WhatsApp veya form"
           totalLabel="kayıt"
-          href="/admin/sources"
+          href="/admin/marketing"
           slices={EVENTS.map((id) => ({
             id,
             label: EVENT_LABEL[id],
             value: sources.events[id],
             color: EVENT_COLOR[id],
-            href: `/admin/sources?event=${id}`,
+            href: `/admin/marketing?event=${id}`,
           }))}
         />
       </div>

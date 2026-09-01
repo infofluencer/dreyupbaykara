@@ -13,27 +13,41 @@ import {
   MarketingDailyChart,
   MarketingPlatformBars,
 } from "@/components/admin/MarketingCharts";
+import { MarketingLeadSourcesSection } from "@/components/admin/MarketingLeadSourcesSection";
 import { formatPct, formatTry } from "@/lib/marketing/format";
+import { buildMarketingHref } from "@/lib/marketing/urls";
 import { UnmatchedCampaignRow } from "@/components/admin/UnmatchedCampaignRow";
-import { PLATFORM_LABEL } from "@/lib/crm/source-kind";
+import {
+  PLATFORM_LABEL,
+  type AdPlatform,
+  type SourceEvent,
+} from "@/lib/crm/source-kind";
 
-function marketingHref(opts: {
-  start?: string;
-  end?: string;
-  site?: string;
-}) {
-  const params = new URLSearchParams();
-  if (opts.start) params.set("start", opts.start);
-  if (opts.end) params.set("end", opts.end);
-  if (opts.site) params.set("site", opts.site);
-  const q = params.toString();
-  return q ? `/admin/marketing?${q}` : "/admin/marketing";
+const PLATFORMS = ["google_ads", "meta", "other", "organic"] as const;
+const EVENTS = ["landing", "whatsapp", "form"] as const;
+
+type PlatformFilter = "all" | AdPlatform;
+type EventFilter = "all" | SourceEvent;
+
+function parsePlatform(raw?: string): PlatformFilter {
+  return PLATFORMS.includes(raw as AdPlatform) ? (raw as AdPlatform) : "all";
+}
+
+function parseEvent(raw?: string): EventFilter {
+  return EVENTS.includes(raw as SourceEvent) ? (raw as SourceEvent) : "all";
 }
 
 export default async function AdminMarketingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ start?: string; end?: string; site?: string }>;
+  searchParams: Promise<{
+    start?: string;
+    end?: string;
+    site?: string;
+    platform?: string;
+    event?: string;
+    q?: string;
+  }>;
 }) {
   await requireAdminSession(["admin", "doctor", "assistant", "agency"]);
   const query = await searchParams;
@@ -41,6 +55,9 @@ export default async function AdminMarketingPage({
   const startDate = query.start || defaults.startDate;
   const endDate = query.end || defaults.endDate;
   const siteFilter = query.site?.trim() || null;
+  const platform = parsePlatform(query.platform);
+  const event = parseEvent(query.event);
+  const search = query.q?.trim() || "";
 
   const [summary, campaigns, unmatched, siteOptions, accounts] =
     await Promise.all([
@@ -59,10 +76,11 @@ export default async function AdminMarketingPage({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold tracking-tight">
-            Reklam performansı
+            Reklam
           </h1>
           <p className="mt-2 text-sm text-[#466254]">
-            Google Ads + Meta harcama, lead ve CPL — site bazlı filtre.
+            Harcama, lead, CPL ve tıklama kayıtları — site bazlı filtre ile tüm
+            siteleri tek yerden yönetin.
           </p>
         </div>
         <Link
@@ -118,6 +136,13 @@ export default async function AdminMarketingPage({
 
       <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
         <form action="/admin/marketing" className="flex flex-col gap-3 lg:flex-row lg:items-end">
+          {platform !== "all" ? (
+            <input type="hidden" name="platform" value={platform} />
+          ) : null}
+          {event !== "all" ? (
+            <input type="hidden" name="event" value={event} />
+          ) : null}
+          {search ? <input type="hidden" name="q" value={search} /> : null}
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-xs font-semibold uppercase tracking-wide text-[#466254]">
               Başlangıç
@@ -162,7 +187,13 @@ export default async function AdminMarketingPage({
           </button>
           {siteFilter ? (
             <Link
-              href={marketingHref({ start: startDate, end: endDate })}
+              href={buildMarketingHref({
+                start: startDate,
+                end: endDate,
+                platform,
+                event,
+                q: search,
+              })}
               className="inline-flex min-h-10 items-center justify-center text-sm font-semibold text-[#466254]"
             >
               Site filtresini kaldır
@@ -311,6 +342,15 @@ export default async function AdminMarketingPage({
           </div>
         </section>
       ) : null}
+
+      <MarketingLeadSourcesSection
+        startDate={startDate}
+        endDate={endDate}
+        siteFilter={siteFilter}
+        platform={platform}
+        event={event}
+        search={search}
+      />
     </div>
   );
 }
