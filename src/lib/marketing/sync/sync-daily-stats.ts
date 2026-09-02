@@ -12,6 +12,7 @@ import {
   getActiveAdAccount,
   MarketingTokenError,
 } from "@/lib/marketing/tokens";
+import { chunkRows, mergeRowsByKey } from "@/lib/marketing/sync/upsert-rows";
 
 export type SyncDailyStatsResult = {
   platform: MarketingPlatform;
@@ -118,15 +119,38 @@ async function syncPlatformDailyStats(
       return { platform, rows: 0 };
     }
 
-    const { error } = await supabase.from("ad_daily_stats").upsert(rows, {
-      onConflict: "campaign_id,date",
+    const deduped = mergeRowsByKey(
+      rows,
+      (row) => `${row.campaign_id}|${row.date}`,
+      ["spend", "impressions", "clicks", "conversions"],
+    ).map((row) => {
+      const clicks = Number(row.clicks);
+      const impressions = Number(row.impressions);
+      const spend = Number(row.spend);
+      return {
+        ...row,
+        ctr:
+          impressions > 0
+            ? Math.round((clicks / impressions) * 1_000_000) / 1_000_000
+            : row.ctr,
+        average_cpc:
+          clicks > 0
+            ? Math.round((spend / clicks) * 100) / 100
+            : row.average_cpc,
+      };
     });
 
-    if (error) {
-      throw new Error(error.message);
+    for (const batch of chunkRows(deduped)) {
+      const { error } = await supabase.from("ad_daily_stats").upsert(batch, {
+        onConflict: "campaign_id,date",
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
     }
 
-    return { platform, rows: rows.length };
+    return { platform, rows: deduped.length };
   } catch (err) {
     if (err instanceof MarketingTokenError) {
       await deactivateAdAccount(supabase, account.id);

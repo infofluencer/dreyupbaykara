@@ -15,6 +15,7 @@ import {
   getActiveAdAccount,
   MarketingTokenError,
 } from "@/lib/marketing/tokens";
+import { chunkRows, mergeRowsByKey } from "@/lib/marketing/sync/upsert-rows";
 
 export type GoogleExtendedSyncResult = {
   deviceRows: number;
@@ -77,12 +78,21 @@ async function upsertSegmentRows(
 
   if (!payload.length) return 0;
 
-  const { error } = await supabase.from("ad_segment_daily_stats").upsert(
+  const deduped = mergeRowsByKey(
     payload,
-    { onConflict: "campaign_id,date,segment_type,segment_value" },
+    (row) =>
+      `${row.campaign_id}|${row.date}|${row.segment_type}|${row.segment_value}`,
+    ["spend", "impressions", "clicks", "conversions"],
   );
-  if (error) throw new Error(error.message);
-  return payload.length;
+
+  for (const batch of chunkRows(deduped)) {
+    const { error } = await supabase.from("ad_segment_daily_stats").upsert(batch, {
+      onConflict: "campaign_id,date,segment_type,segment_value",
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  return deduped.length;
 }
 
 async function upsertSearchTermRows(
@@ -117,11 +127,20 @@ async function upsertSearchTermRows(
 
   if (!payload.length) return 0;
 
-  const { error } = await supabase.from("ad_search_term_daily").upsert(payload, {
-    onConflict: "campaign_id,date,search_term",
-  });
-  if (error) throw new Error(error.message);
-  return payload.length;
+  const deduped = mergeRowsByKey(
+    payload,
+    (row) => `${row.campaign_id}|${row.date}|${row.search_term}`,
+    ["spend", "impressions", "clicks", "conversions"],
+  );
+
+  for (const batch of chunkRows(deduped)) {
+    const { error } = await supabase.from("ad_search_term_daily").upsert(batch, {
+      onConflict: "campaign_id,date,search_term",
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  return deduped.length;
 }
 
 async function upsertLandingPageRows(
@@ -156,12 +175,20 @@ async function upsertLandingPageRows(
 
   if (!payload.length) return 0;
 
-  const { error } = await supabase.from("ad_landing_page_daily").upsert(
+  const deduped = mergeRowsByKey(
     payload,
-    { onConflict: "campaign_id,date,landing_page" },
+    (row) => `${row.campaign_id}|${row.date}|${row.landing_page}`,
+    ["spend", "impressions", "clicks", "conversions"],
   );
-  if (error) throw new Error(error.message);
-  return payload.length;
+
+  for (const batch of chunkRows(deduped)) {
+    const { error } = await supabase.from("ad_landing_page_daily").upsert(batch, {
+      onConflict: "campaign_id,date,landing_page",
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  return deduped.length;
 }
 
 export async function syncGoogleExtendedStats(
