@@ -47,24 +47,34 @@ export async function loadAdAccountsSafe(): Promise<AdAccountSafe[]> {
   return (data as AdAccountSafe[]) ?? [];
 }
 
+const KNOWN_MARKETING_SITES = [
+  "endospineistanbul",
+  "fitikameliyati",
+  "endoskopikbelameliyati",
+] as const;
+
 export async function loadSiteOptions(): Promise<string[]> {
   const supabase = await createClient();
-  const [{ data: prefixes }, { data: campaigns }, { data: leads }] =
+  const [{ data: prefixes }, { data: campaigns }, { data: leads }, { data: customerSites }] =
     await Promise.all([
       supabase.from("site_prefix_map").select("site"),
       supabase.from("ad_campaigns").select("site").not("site", "is", null),
       supabase.from("leads").select("site").not("site", "is", null).limit(500),
+      supabase.from("ad_customer_site_map").select("site"),
     ]);
 
-  const sites = new Set<string>();
+  const sites = new Set<string>(KNOWN_MARKETING_SITES);
   for (const row of prefixes ?? []) {
     if (row.site) sites.add(row.site);
   }
-  for (const row of campaigns ?? []) {
+  for (const row of customerSites ?? []) {
     if (row.site) sites.add(row.site as string);
   }
+  for (const row of campaigns ?? []) {
+    if (row.site && row.site !== "manual") sites.add(row.site as string);
+  }
   for (const row of leads ?? []) {
-    if (row.site) sites.add(row.site as string);
+    if (row.site && row.site !== "manual") sites.add(row.site as string);
   }
 
   return [...sites].sort((a, b) => a.localeCompare(b, "tr"));

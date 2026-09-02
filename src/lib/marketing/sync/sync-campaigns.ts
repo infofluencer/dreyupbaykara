@@ -21,7 +21,7 @@ import {
   getActiveAdAccount,
   MarketingTokenError,
 } from "@/lib/marketing/tokens";
-import { googleAdsConfig, googleAdsCustomerIds } from "@/lib/marketing/config";
+import { googleAdsConfig, googleAdsCustomerIds, googleAdsCustomerSiteMapFromEnv } from "@/lib/marketing/config";
 
 export type SyncCampaignsResult = {
   platform: MarketingPlatform;
@@ -37,11 +37,25 @@ async function loadCustomerSiteMap(
     .from("ad_customer_site_map")
     .select("platform, external_customer_id, site, label");
 
+  const fromDb = error ? [] : ((data as AdCustomerSiteMapRow[]) ?? []);
+  const fromEnv = googleAdsCustomerSiteMapFromEnv();
+
   if (error) {
-    throw new Error(`ad_customer_site_map read failed: ${error.message}`);
+    console.warn("[marketing] ad_customer_site_map:", error.message);
   }
 
-  return (data as AdCustomerSiteMapRow[]) ?? [];
+  const merged = new Map<string, AdCustomerSiteMapRow>();
+  for (const row of [...fromDb, ...fromEnv]) {
+    merged.set(`${row.platform}:${row.external_customer_id}`, row);
+  }
+
+  if (!merged.size && googleAdsCustomerIds().length) {
+    console.warn(
+      "[marketing] ad_customer_site_map boş — migration veya GOOGLE_ADS_CUSTOMER_SITE_MAP gerekli",
+    );
+  }
+
+  return [...merged.values()];
 }
 
 function siteForGoogleCustomer(

@@ -208,6 +208,48 @@ export default async function AdminMarketingPage({
         </form>
       </section>
 
+      {siteFilter === "endoskopikbelameliyati" &&
+      summary &&
+      summary.total_spend === 0 ? (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+          <p className="font-semibold">Bu sitede aktif Google reklamı yok</p>
+          <p className="mt-1">
+            Ajans haritasına göre harcama{" "}
+            <strong>endospineistanbul</strong> (647-432-9013) ve{" "}
+            <strong>fitikameliyati</strong> (929-825-6533) hesaplarında. Site
+            filtresini değiştirin veya{" "}
+            <Link
+              href={buildMarketingHref({
+                start: startDate,
+                end: endDate,
+                site: "endospineistanbul",
+                platform,
+                event,
+                q: search,
+              })}
+              className="font-semibold underline"
+            >
+              endospineistanbul
+            </Link>
+            {" / "}
+            <Link
+              href={buildMarketingHref({
+                start: startDate,
+                end: endDate,
+                site: "fitikameliyati",
+                platform,
+                event,
+                q: search,
+              })}
+              className="font-semibold underline"
+            >
+              fitikameliyati
+            </Link>
+            {" "}seçin.
+          </p>
+        </div>
+      ) : null}
+
       {summary ? (
         <>
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -330,12 +372,13 @@ export default async function AdminMarketingPage({
             Eşleşmemiş kampanyalar
           </h2>
           <p className="mt-1 text-sm text-[#466254]">
-            Kampanya adında <code>[PREFIX]</code> yok veya prefix tanımlı
-            değil. Manuel site atayın veya{" "}
+            Sync sonrası hâlâ listede ise{" "}
+            <strong>Veriyi şimdi çek (sync)</strong> çalıştırın. Google hesap
+            haritası{" "}
             <Link href="/admin/marketing/connect" className="text-[#0b6b45]">
-              prefix map
+              connect
             </Link>{" "}
-            güncelleyin.
+            sayfasında; kampanya adında <code>[PREFIX]</code> varsa o önceliklidir.
           </p>
           <div className="mt-4 space-y-2">
             {unmatched.map((campaign) => (

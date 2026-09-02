@@ -89,3 +89,30 @@ export function googleAdsApiBaseUrl(): string {
   const version = process.env.GOOGLE_ADS_API_VERSION?.trim() || "v25";
   return `https://googleads.googleapis.com/${version}`;
 }
+
+/** Env yedek: 6474329013:endospineistanbul,9298256533:fitikameliyati */
+export function googleAdsCustomerSiteMapFromEnv(): Array<{
+  platform: "google_ads";
+  external_customer_id: string;
+  site: string;
+  label: string | null;
+}> {
+  const raw = process.env.GOOGLE_ADS_CUSTOMER_SITE_MAP?.trim();
+  if (!raw) return [];
+
+  return raw
+    .split(/[,;\n]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [id, site] = part.split(/[:=]/).map((s) => s.trim());
+      if (!id || !site) return null;
+      return {
+        platform: "google_ads" as const,
+        external_customer_id: id.replace(/\D/g, ""),
+        site,
+        label: null,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
+}
