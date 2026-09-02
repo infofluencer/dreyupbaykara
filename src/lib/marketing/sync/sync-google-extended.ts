@@ -5,6 +5,7 @@ import { googleAdsCustomerIds } from "@/lib/marketing/config";
 import {
   fetchGoogleConversionActionStats,
   fetchGoogleConversionActions,
+  fetchGoogleClickViewRange,
   fetchGoogleDeviceStats,
   fetchGoogleGeoStats,
   fetchGoogleLandingPageStats,
@@ -27,6 +28,7 @@ export type GoogleExtendedSyncResult = {
   landingPageRows: number;
   leadSubmissionRows: number;
   conversionActionDefs: number;
+  gclidRows: number;
   error?: string;
 };
 
@@ -262,6 +264,51 @@ async function upsertConversionActionDefs(
   return payload.length;
 }
 
+async function upsertGoogleClicks(
+  supabase: SupabaseClient,
+  accountId: string,
+  customerId: string,
+  campaignIdMap: Map<string, string>,
+  rows: Array<{
+    gclid: string;
+    externalCampaignId: string;
+    clickDate: string;
+  }>,
+): Promise<number> {
+  if (!rows.length) return 0;
+
+  const deduped = new Map<
+    string,
+    {
+      gclid: string;
+      externalCampaignId: string;
+      clickDate: string;
+    }
+  >();
+  for (const row of rows) {
+    if (!deduped.has(row.gclid)) deduped.set(row.gclid, row);
+  }
+
+  const payload = [...deduped.values()].map((row) => ({
+    account_id: accountId,
+    external_customer_id: customerId,
+    gclid: row.gclid,
+    external_campaign_id: row.externalCampaignId,
+    campaign_id: campaignIdMap.get(row.externalCampaignId) ?? null,
+    click_date: row.clickDate,
+    synced_at: new Date().toISOString(),
+  }));
+
+  for (const batch of chunkRows(payload)) {
+    const { error } = await supabase.from("google_ad_clicks").upsert(batch, {
+      onConflict: "gclid",
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  return payload.length;
+}
+
 export async function syncGoogleExtendedStats(
   supabase: SupabaseClient,
   startDate: string,
@@ -277,6 +324,7 @@ export async function syncGoogleExtendedStats(
       landingPageRows: 0,
       leadSubmissionRows: 0,
       conversionActionDefs: 0,
+      gclidRows: 0,
     };
   }
 
@@ -300,6 +348,7 @@ export async function syncGoogleExtendedStats(
     const conversionActionDefsAll: Awaited<
       ReturnType<typeof fetchGoogleConversionActions>
     > = [];
+    let gclidRows = 0;
 
     for (const customerId of customerIds) {
       try {
@@ -381,6 +430,23 @@ export async function syncGoogleExtendedStats(
       } catch (err) {
         console.warn("[marketing] conversion action defs:", err);
       }
+      try {
+        const clicks = await fetchGoogleClickViewRange(
+          accessToken,
+          customerId,
+          startDate,
+          endDate,
+        );
+        gclidRows += await upsertGoogleClicks(
+          supabase,
+          account.id,
+          customerId,
+          campaignIdMap,
+          clicks,
+        );
+      } catch (err) {
+        console.warn("[marketing] click_view gclid:", err);
+      }
     }
 
     const [
@@ -418,6 +484,7 @@ export async function syncGoogleExtendedStats(
       landingPageRows,
       leadSubmissionRows,
       conversionActionDefs,
+      gclidRows,
     };
   } catch (err) {
     if (err instanceof MarketingTokenError) {
@@ -431,6 +498,7 @@ export async function syncGoogleExtendedStats(
       landingPageRows: 0,
       leadSubmissionRows: 0,
       conversionActionDefs: 0,
+      gclidRows: 0,
       error: err instanceof Error ? err.message : "Google extended sync hatası",
     };
   }

@@ -5,6 +5,7 @@ import type {
   RemoteCampaign,
   RemoteConversionAction,
   RemoteDailyStat,
+  RemoteGoogleClick,
   RemoteGoogleLeadSubmission,
   RemoteLandingPageStat,
   RemoteSearchTermStat,
@@ -589,4 +590,76 @@ export async function fetchGoogleConversionActions(
       },
     ];
   });
+}
+
+/** click_view — tek gün (Google zorunluluğu). Son 90 gün. */
+export async function fetchGoogleClickViewForDate(
+  accessToken: string,
+  accountExternalId: string,
+  date: string,
+): Promise<RemoteGoogleClick[]> {
+  const rows = await googleAdsSearch<{
+    campaign?: { id?: string };
+    clickView?: { gclid?: string };
+    segments?: { date?: string };
+  }>(
+    accessToken,
+    accountExternalId,
+    `
+      SELECT
+        campaign.id,
+        click_view.gclid,
+        segments.date
+      FROM click_view
+      WHERE segments.date = '${date}'
+        AND click_view.gclid != ''
+    `,
+  );
+
+  return rows.flatMap((row) => {
+    const gclid = row.clickView?.gclid?.trim() ?? "";
+    const externalCampaignId = row.campaign?.id ? String(row.campaign.id) : "";
+    const clickDate = row.segments?.date ?? date;
+    if (!gclid || !externalCampaignId) return [];
+    return [{ gclid, externalCampaignId, clickDate }];
+  });
+}
+
+function listDatesInclusive(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const cursor = new Date(`${startDate}T12:00:00Z`);
+  const end = new Date(`${endDate}T12:00:00Z`);
+  while (cursor <= end) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+/** click_view aralığı — gün gün (max 90 gün Google limiti). */
+export async function fetchGoogleClickViewRange(
+  accessToken: string,
+  accountExternalId: string,
+  startDate: string,
+  endDate: string,
+): Promise<RemoteGoogleClick[]> {
+  const allDates = listDatesInclusive(startDate, endDate);
+  const dates = allDates.slice(-90);
+  const out: RemoteGoogleClick[] = [];
+
+  for (const date of dates) {
+    try {
+      out.push(
+        ...(await fetchGoogleClickViewForDate(
+          accessToken,
+          accountExternalId,
+          date,
+        )),
+      );
+    } catch (err) {
+      console.warn(`[marketing] click_view ${accountExternalId} ${date}:`, err);
+    }
+  }
+
+  return out;
 }

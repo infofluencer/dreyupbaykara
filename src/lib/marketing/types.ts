@@ -106,6 +106,13 @@ export type RemoteConversionAction = {
   actionType: string | null;
 };
 
+/** click_view — gclid → kampanya (CRM eşleşmesi için) */
+export type RemoteGoogleClick = {
+  gclid: string;
+  externalCampaignId: string;
+  clickDate: string;
+};
+
 export type GoogleLeadSubmissionRow = {
   id: string;
   submitted_at: string;

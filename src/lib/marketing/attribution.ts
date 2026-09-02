@@ -122,12 +122,18 @@ export function leadMatchesAdSiteFilter(
   siteFilter: string,
   campaigns: CampaignForLeadMatch[],
   landingUtmSlugs?: Set<string>,
+  gclidSiteMap?: Map<string, string>,
 ): boolean {
   if (lead.site === siteFilter || lead.resolvedSite === siteFilter) {
     return true;
   }
 
   if (!isMarketingAdSite(siteFilter)) return false;
+
+  const gclid = clip(lead.gclid);
+  if (gclid && gclidSiteMap?.get(gclid) === siteFilter) {
+    return true;
+  }
 
   const campaignId = matchLeadToCampaignId(lead, campaigns);
   if (campaignId) {
@@ -163,4 +169,29 @@ export function countGoogleUnmatchedForAdSite(
     if (leadMatchesAdSiteFilter(lead, siteFilter, siteCampaigns)) count += 1;
   }
   return count;
+}
+
+/** gclid → reklam sitesi (google_ad_clicks + ad_campaigns join) */
+export type GclidAttributionMaps = {
+  gclidToSite: Map<string, string>;
+  gclidToExternalCampaignId: Map<string, string>;
+};
+
+export function matchLeadToCampaignIdWithGclid(
+  lead: LeadForCampaignMatch,
+  campaigns: CampaignForLeadMatch[],
+  gclidToExternalCampaignId?: Map<string, string>,
+): string | null {
+  const fromUtm = matchLeadToCampaignId(lead, campaigns);
+  if (fromUtm) return fromUtm;
+
+  const gclid = clip(lead.gclid);
+  if (!gclid || !gclidToExternalCampaignId) return null;
+
+  const externalId = gclidToExternalCampaignId.get(gclid);
+  if (!externalId) return null;
+
+  return (
+    campaigns.find((c) => c.externalCampaignId === externalId)?.id ?? null
+  );
 }

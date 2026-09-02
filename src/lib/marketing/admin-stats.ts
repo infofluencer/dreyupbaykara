@@ -10,11 +10,12 @@ import type {
 } from "@/lib/marketing/types";
 import {
   isGoogleAttributedLead,
-  matchLeadToCampaignId,
 } from "@/lib/marketing/campaign-match";
 import {
   leadMatchesAdSiteFilter,
+  matchLeadToCampaignIdWithGclid,
   resolveLeadAttribution,
+  type GclidAttributionMaps,
   type LeadSourceAttribution,
 } from "@/lib/marketing/attribution";
 import {
@@ -166,6 +167,34 @@ async function loadLeadSourceMap(
   return map;
 }
 
+async function loadGclidAttributionMaps(): Promise<GclidAttributionMaps> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("google_ad_clicks")
+    .select("gclid, external_campaign_id, ad_campaigns(site)")
+    .not("gclid", "is", null);
+
+  const gclidToSite = new Map<string, string>();
+  const gclidToExternalCampaignId = new Map<string, string>();
+
+  for (const row of data ?? []) {
+    const gclid = String(row.gclid ?? "").trim();
+    if (!gclid) continue;
+
+    const campaign = row.ad_campaigns as
+      | { site?: string | null }
+      | { site?: string | null }[]
+      | null;
+    const site = Array.isArray(campaign) ? campaign[0]?.site : campaign?.site;
+    if (site) gclidToSite.set(gclid, site);
+
+    const externalId = String(row.external_campaign_id ?? "").trim();
+    if (externalId) gclidToExternalCampaignId.set(gclid, externalId);
+  }
+
+  return { gclidToSite, gclidToExternalCampaignId };
+}
+
 export async function loadCampaignPerformance(
   startDate: string,
   endDate: string,
@@ -254,6 +283,8 @@ export async function loadCampaignPerformance(
       ? await loadLandingUtmSlugs(campaignIds)
       : new Set<string>();
 
+  const gclidMaps = await loadGclidAttributionMaps();
+
   const campaignsForMatch = campaigns.map((c) => ({
     id: c.id as string,
     name: c.name as string,
@@ -276,6 +307,7 @@ export async function loadCampaignPerformance(
         siteFilter,
         campaignsForMatch,
         landingUtmSlugs,
+        gclidMaps.gclidToSite,
       );
     });
 
@@ -284,7 +316,11 @@ export async function loadCampaignPerformance(
   let crmGoogleUnmatched = 0;
 
   for (const lead of allLeads) {
-    const campaignId = matchLeadToCampaignId(lead, campaignsForMatch);
+    const campaignId = matchLeadToCampaignIdWithGclid(
+      lead,
+      campaignsForMatch,
+      gclidMaps.gclidToExternalCampaignId,
+    );
     if (campaignId) {
       leadCounts.set(campaignId, (leadCounts.get(campaignId) ?? 0) + 1);
       crmLeadsMatched += 1;
@@ -298,10 +334,7 @@ export async function loadCampaignPerformance(
     }
   }
 
-  const crmLeadsInRange =
-    siteFilter && isMarketingAdSite(siteFilter)
-      ? crmLeadsMatched
-      : allLeads.length;
+  const crmLeadsInRange = allLeads.length;
 
   const rows = campaigns
     .map((campaign) => {

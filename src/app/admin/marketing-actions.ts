@@ -92,7 +92,7 @@ export async function triggerMarketingSyncNow(): Promise<{
     const ext = result.googleExtended;
     const extSummary = ext.error
       ? ext.error
-      : `cihaz ${ext.deviceRows}, dönüşüm ${ext.conversionRows}, geo ${ext.geoRows}, terim ${ext.searchTermRows}, LP ${ext.landingPageRows}`;
+      : `cihaz ${ext.deviceRows}, dönüşüm ${ext.conversionRows}, gclid ${ext.gclidRows}, terim ${ext.searchTermRows}, LP ${ext.landingPageRows}`;
 
     return {
       ok: true,

@@ -180,6 +180,18 @@ export default async function AdminMarketingPage({
         siteOptions={siteOptions}
       />
 
+      <Suspense
+        key={`${startDate}-${endDate}-${siteFilter ?? "all"}`}
+        fallback={<MarketingGoogleInsightsFallback />}
+      >
+        <MarketingGoogleInsightsSection
+          startDate={startDate}
+          endDate={endDate}
+          siteFilter={siteFilter}
+          period={period}
+        />
+      </Suspense>
+
       {siteFilter === "endoskopikbelameliyati" &&
       summary &&
       summary.total_spend === 0 ? (
@@ -355,18 +367,6 @@ export default async function AdminMarketingPage({
         summary={googleLeads}
         crmLeads={summary?.total_leads ?? 0}
       />
-
-      <Suspense
-        key={`${startDate}-${endDate}-${siteFilter ?? "all"}`}
-        fallback={<MarketingGoogleInsightsFallback />}
-      >
-        <MarketingGoogleInsightsSection
-          startDate={startDate}
-          endDate={endDate}
-          siteFilter={siteFilter}
-          period={period}
-        />
-      </Suspense>
 
       {unmatched.length ? (
         <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
