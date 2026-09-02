@@ -25,8 +25,42 @@ supabase/migrations/20260901180000_marketing_api.sql
 | `META_AD_ACCOUNT_ID` | Reklam hesabı (`act_` olmadan) |
 | `CRON_SECRET` | Cron endpoint koruması |
 | `MARKETING_OAUTH_REDIRECT_BASE` | Opsiyonel; prod URL (OAuth redirect) |
+| `GOOGLE_ADS_REFRESH_TOKEN` | Kalıcı Google token (script veya bir kez OAuth) |
+| `GOOGLE_ADS_CUSTOMER_IDS` | MCC altı hesap ID'leri (virgülle) |
+| `META_ACCESS_TOKEN` | Meta long-lived veya System User token |
 
-Token'lar OAuth sonrası `ad_accounts` tablosuna yazılır — env'e koymayın.
+**Kalıcı bağlantı (önerilen):** Token'ları env'e yazın; cron her seferinde `ad_accounts`'a bootstrap eder. Site OAuth akışı şart değil.
+
+### Token alma (canlı — önerilen)
+
+1. Dokploy env (refresh token hariç):
+   - Google: `GOOGLE_ADS_CLIENT_ID`, `CLIENT_SECRET`, `DEVELOPER_TOKEN`, `LOGIN_CUSTOMER_ID`, `CUSTOMER_IDS`
+   - Meta: `META_APP_ID`, `META_APP_SECRET`, `META_AD_ACCOUNT_ID`
+   - `MARKETING_OAUTH_REDIRECT_BASE=https://endoskopikbelameliyati.com`
+
+2. Redirect URI (Google Cloud + Meta App):
+   ```text
+   https://endoskopikbelameliyati.com/api/marketing/oauth/google/callback
+   https://endoskopikbelameliyati.com/api/marketing/oauth/meta/callback
+   ```
+
+3. Admin → `/admin/marketing/connect` → **Google/Meta bağla (OAuth)**  
+   veya terminal:
+   ```bash
+   npm run marketing:tokens prod google
+   npm run marketing:tokens prod meta
+   ```
+
+4. Başarılı olunca sayfada `GOOGLE_ADS_REFRESH_TOKEN` / `META_ACCESS_TOKEN` satırı çıkar → Dokploy'a yapıştır → redeploy.
+
+### Token alma (local script)
+
+Redirect URI: `http://127.0.0.1:8765/callback`
+
+```bash
+npm run marketing:tokens google
+npm run marketing:tokens meta
+```
 
 ## 3. OAuth redirect URI'leri
 

@@ -6,6 +6,7 @@ import { fetchGoogleDailyStats } from "@/lib/marketing/google-ads/client";
 import { fetchMetaDailyStats } from "@/lib/marketing/meta/client";
 import type { MarketingPlatform } from "@/lib/marketing/types";
 import {
+  bootstrapAdAccountsFromEnv,
   deactivateAdAccount,
   ensureValidAccessToken,
   getActiveAdAccount,
@@ -148,10 +149,12 @@ export async function runMarketingSync(
   supabase: SupabaseClient,
   options?: { days?: number },
 ): Promise<{
+  bootstrap: Awaited<ReturnType<typeof bootstrapAdAccountsFromEnv>>;
   campaigns: Awaited<ReturnType<typeof import("./sync-campaigns").syncAllCampaigns>>;
   stats: SyncDailyStatsResult[];
   range: { startDate: string; endDate: string };
 }> {
+  const bootstrap = await bootstrapAdAccountsFromEnv(supabase);
   const { syncAllCampaigns } = await import("./sync-campaigns");
   const range = rollingSyncDateRange(options?.days ?? 7);
   const campaigns = await syncAllCampaigns(supabase);
@@ -160,5 +163,5 @@ export async function runMarketingSync(
     range.startDate,
     range.endDate,
   );
-  return { campaigns, stats, range };
+  return { bootstrap, campaigns, stats, range };
 }

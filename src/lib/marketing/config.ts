@@ -54,3 +54,32 @@ export function isMetaAdsConfigured(): boolean {
   const c = metaAdsConfig();
   return Boolean(c.appId && c.appSecret && c.adAccountId);
 }
+
+export function hasGoogleEnvTokens(): boolean {
+  return Boolean(
+    process.env.GOOGLE_ADS_REFRESH_TOKEN?.trim() ||
+      process.env.GOOGLE_ADS_ACCESS_TOKEN?.trim(),
+  );
+}
+
+export function hasMetaEnvToken(): boolean {
+  return Boolean(process.env.META_ACCESS_TOKEN?.trim());
+}
+
+export function isGoogleAdsEnvReady(): boolean {
+  const c = googleAdsConfig();
+  return Boolean(
+    c.developerToken &&
+      c.loginCustomerId &&
+      c.clientId &&
+      c.clientSecret &&
+      hasGoogleEnvTokens(),
+  );
+}
+
+export function isMetaEnvReady(): boolean {
+  const c = metaAdsConfig();
+  return Boolean(
+    c.appId && c.appSecret && c.adAccountId && hasMetaEnvToken(),
+  );
+}

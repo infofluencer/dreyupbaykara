@@ -25,6 +25,7 @@ async function handleMarketingSync(request: NextRequest) {
     const result = await runMarketingSync(supabase, { days: 7 });
     return NextResponse.json({
       ok: true,
+      bootstrap: result.bootstrap,
       range: result.range,
       campaigns: result.campaigns,
       stats: result.stats,

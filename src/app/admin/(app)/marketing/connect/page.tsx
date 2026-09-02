@@ -5,10 +5,17 @@ import { requireAdminSession } from "@/lib/admin/auth";
 import { addSitePrefix } from "@/app/admin/marketing-actions";
 import {
   isGoogleAdsConfigured,
+  isGoogleAdsEnvReady,
   isMetaAdsConfigured,
+  isMetaEnvReady,
+  hasGoogleEnvTokens,
+  hasMetaEnvToken,
 } from "@/lib/marketing/config";
 import { loadAdAccountsSafe } from "@/lib/marketing/admin-stats";
+import { createServiceClient } from "@/lib/supabase/admin";
+import { bootstrapAdAccountsFromEnv, loadAdAccountEnvExport } from "@/lib/marketing/tokens";
 import { createClient } from "@/lib/supabase/server";
+import { MarketingEnvCopy } from "@/components/admin/MarketingEnvCopy";
 
 const ERROR_LABEL: Record<string, string> = {
   google_env: "Google OAuth env değişkenleri eksik.",
@@ -25,8 +32,24 @@ export default async function MarketingConnectPage({
 }: {
   searchParams: Promise<{ connected?: string; error?: string }>;
 }) {
-  await requireAdminSession(["admin", "doctor", "agency"]);
+  const session = await requireAdminSession(["admin", "doctor", "agency"]);
   const query = await searchParams;
+
+  const service = createServiceClient();
+  if (service) {
+    await bootstrapAdAccountsFromEnv(service);
+  }
+
+  let envExport: { googleRefreshToken: string | null; metaAccessToken: string | null } | null =
+    null;
+  if (session.role === "admin" && service) {
+    try {
+      envExport = await loadAdAccountEnvExport(service);
+    } catch {
+      envExport = null;
+    }
+  }
+
   const accounts = await loadAdAccountsSafe();
 
   const supabase = await createClient();
@@ -57,10 +80,31 @@ export default async function MarketingConnectPage({
       </div>
 
       {query.connected === "google" ? (
-        <Notice ok>Google Ads hesabı bağlandı.</Notice>
+        <Notice ok>
+          Google Ads hesabı bağlandı.
+          {session.role === "admin" && envExport?.googleRefreshToken ? (
+            <MarketingEnvCopy
+              lines={[
+                `GOOGLE_ADS_REFRESH_TOKEN=${envExport.googleRefreshToken}`,
+              ]}
+            />
+          ) : session.role === "admin" ? (
+            <p className="mt-2 text-xs">
+              Refresh token gelmediyse Google hesabında uygulama iznini kaldırıp
+              yeniden bağlayın.
+            </p>
+          ) : null}
+        </Notice>
       ) : null}
       {query.connected === "meta" ? (
-        <Notice ok>Meta reklam hesabı bağlandı.</Notice>
+        <Notice ok>
+          Meta reklam hesabı bağlandı.
+          {session.role === "admin" && envExport?.metaAccessToken ? (
+            <MarketingEnvCopy
+              lines={[`META_ACCESS_TOKEN=${envExport.metaAccessToken}`]}
+            />
+          ) : null}
+        </Notice>
       ) : null}
       {query.error ? (
         <Notice>
@@ -72,17 +116,79 @@ export default async function MarketingConnectPage({
         <AccountCard
           title="Google Ads"
           configured={isGoogleAdsConfigured()}
+          envReady={isGoogleAdsEnvReady()}
+          hasEnvToken={hasGoogleEnvTokens()}
           account={googleAccount}
           connectHref="/api/marketing/oauth/google"
-          envHint="GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_DEVELOPER_TOKEN, GOOGLE_ADS_LOGIN_CUSTOMER_ID"
+          envHint="GOOGLE_ADS_* + GOOGLE_ADS_REFRESH_TOKEN (kalıcı) veya OAuth"
         />
         <AccountCard
           title="Meta"
           configured={isMetaAdsConfigured()}
+          envReady={isMetaEnvReady()}
+          hasEnvToken={hasMetaEnvToken()}
           account={metaAccount}
           connectHref="/api/marketing/oauth/meta"
-          envHint="META_APP_ID, META_APP_SECRET, META_AD_ACCOUNT_ID"
+          envHint="META_* + META_ACCESS_TOKEN (kalıcı) veya OAuth"
         />
+      </section>
+
+      <section className="rounded-2xl border border-[#123524]/08 bg-[#f7f9f8] px-4 py-4 text-sm text-[#466254]">
+        <p className="font-semibold text-[#123524]">Kalıcı bağlantı (canlı OAuth)</p>
+        <p className="mt-2">
+          Dokploy&apos;da <code>CLIENT_ID</code> / <code>SECRET</code> tanımlıyken
+          canlı siteden OAuth yapın; token satırları burada görünür. Env&apos;e
+          yapıştırıp redeploy edin — bir daha OAuth gerekmez.
+        </p>
+        <ol className="mt-3 list-decimal space-y-1 pl-5">
+          <li>
+            <code>MARKETING_OAUTH_REDIRECT_BASE=https://endoskopikbelameliyati.com</code>{" "}
+            (Dokploy)
+          </li>
+          <li>
+            Google/Meta console&apos;da redirect:{" "}
+            <code>https://endoskopikbelameliyati.com/api/marketing/oauth/google/callback</code>
+          </li>
+          <li>
+            Aşağıdaki <strong>bağla (OAuth)</strong> veya{" "}
+            <code>npm run marketing:tokens prod google</code>
+          </li>
+          <li>Başarılı olunca env satırını kopyala → Dokploy → redeploy</li>
+        </ol>
+        <ul className="mt-3 list-disc space-y-1 pl-5">
+          <li>
+            <strong>Google:</strong>{" "}
+            <code>GOOGLE_ADS_REFRESH_TOKEN</code> (bir kez alınır, süresiz —
+            access token otomatik yenilenir)
+          </li>
+          <li>
+            <strong>Meta:</strong>{" "}
+            <code>META_ACCESS_TOKEN</code> (Business Manager → System User
+            token, süresiz; veya long-lived user token ~60 gün)
+          </li>
+        </ul>
+        {session.role === "admin" &&
+        (envExport?.googleRefreshToken || envExport?.metaAccessToken) &&
+        !query.connected ? (
+          <div className="mt-4">
+            <p className="font-semibold text-[#123524]">
+              Kayıtlı token&apos;lar (Dokploy env)
+            </p>
+            <MarketingEnvCopy
+              lines={[
+                ...(envExport.googleRefreshToken
+                  ? [`GOOGLE_ADS_REFRESH_TOKEN=${envExport.googleRefreshToken}`]
+                  : []),
+                ...(envExport.metaAccessToken
+                  ? [`META_ACCESS_TOKEN=${envExport.metaAccessToken}`]
+                  : []),
+              ]}
+            />
+          </div>
+        ) : null}
+        <p className="mt-3 text-xs">
+          Env token tanımlıysa OAuth butonları gizlenir; cron env&apos;den bootstrap eder.
+        </p>
       </section>
 
       <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
@@ -145,12 +251,16 @@ export default async function MarketingConnectPage({
 function AccountCard({
   title,
   configured,
+  envReady,
+  hasEnvToken,
   account,
   connectHref,
   envHint,
 }: {
   title: string;
   configured: boolean;
+  envReady: boolean;
+  hasEnvToken: boolean;
   account?: {
     is_active: boolean;
     has_token: boolean;
@@ -184,6 +294,10 @@ function AccountCard({
             <CheckCircle2 className="h-3.5 w-3.5" />
             Bağlı
           </span>
+        ) : envReady ? (
+          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-900">
+            Env hazır
+          </span>
         ) : (
           <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-900">
             Bağlı değil
@@ -195,14 +309,24 @@ function AccountCard({
         <p className="mt-3 text-sm text-amber-900">
           Env eksik: <code>{envHint}</code>
         </p>
+      ) : hasEnvToken ? (
+        <p className="mt-3 text-sm text-[#0b6b45]">
+          Env token tanımlı — sync/cron otomatik bağlar. OAuth gerekmez.
+        </p>
       ) : (
         <a
           href={connectHref}
           className="mt-4 inline-flex min-h-10 items-center justify-center rounded-xl bg-[#123524] px-4 text-sm font-semibold text-white"
         >
-          {connected ? "Yeniden bağla" : `${title} bağla`}
+          {connected ? "Yeniden bağla (OAuth)" : `${title} bağla (OAuth)`}
         </a>
       )}
+
+      {configured && hasEnvToken && !connected ? (
+        <p className="mt-2 text-xs text-[#466254]">
+          Sayfayı yenileyin veya cron sync çalıştırın.
+        </p>
+      ) : null}
 
       {account?.token_expires_at ? (
         <p className="mt-2 text-[11px] text-[#466254]/80">

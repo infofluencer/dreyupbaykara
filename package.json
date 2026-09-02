@@ -17,7 +17,8 @@
     "test:automations": "node --experimental-strip-types scripts/test-automations.mjs",
     "test:schedule": "node scripts/test-schedule.mjs",
     "test:consent": "node scripts/test-cookie-consent.mjs",
-    "test:site-matcher": "node --experimental-strip-types scripts/test-site-matcher.mjs"
+    "test:site-matcher": "node --experimental-strip-types scripts/test-site-matcher.mjs",
+    "marketing:tokens": "node scripts/marketing-get-tokens.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
