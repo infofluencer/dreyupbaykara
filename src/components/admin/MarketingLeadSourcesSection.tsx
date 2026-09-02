@@ -78,6 +78,7 @@ const EVENT_BADGE: Record<SourceEvent, string> = {
 };
 
 export async function MarketingLeadSourcesSection({
+  period,
   startDate,
   endDate,
   siteFilter,
@@ -85,6 +86,7 @@ export async function MarketingLeadSourcesSection({
   event,
   search,
 }: {
+  period: string;
   startDate: string;
   endDate: string;
   siteFilter: string | null;
@@ -140,8 +142,9 @@ export async function MarketingLeadSourcesSection({
   });
 
   const baseHref = {
-    start: startDate,
-    end: endDate,
+    period,
+    start: period === "custom" ? startDate : undefined,
+    end: period === "custom" ? endDate : undefined,
     site: siteFilter ?? undefined,
   };
 
@@ -252,8 +255,15 @@ export async function MarketingLeadSourcesSection({
             action="/admin/marketing"
             className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:w-80"
           >
-            <input type="hidden" name="start" value={startDate} />
-            <input type="hidden" name="end" value={endDate} />
+            {period === "custom" ? (
+              <>
+                <input type="hidden" name="period" value="custom" />
+                <input type="hidden" name="start" value={startDate} />
+                <input type="hidden" name="end" value={endDate} />
+              </>
+            ) : (
+              <input type="hidden" name="period" value={period} />
+            )}
             {siteFilter ? (
               <input type="hidden" name="site" value={siteFilter} />
             ) : null}
@@ -290,7 +300,7 @@ export async function MarketingLeadSourcesSection({
           </p>
           {hasFilter ? (
             <Link
-              href={buildMarketingHref({ start: startDate, end: endDate })}
+              href={buildMarketingHref({ period })}
               className="inline-flex items-center gap-1 rounded-full border border-[#123524]/12 px-3 py-1 text-xs font-semibold text-[#466254]"
             >
               <X className="h-3 w-3" />

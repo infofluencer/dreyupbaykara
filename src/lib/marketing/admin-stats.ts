@@ -209,3 +209,244 @@ export async function loadMonthToDateSummary(): Promise<{
   if (!summary) return null;
   return { spend: summary.total_spend, cpl: summary.cpl };
 }
+
+export type GoogleMarketingInsights = {
+  avgCtr: number | null;
+  avgCpc: number | null;
+  avgImpressionShare: number | null;
+  budgetLostShare: number | null;
+  rankLostShare: number | null;
+  googleCostPerConversion: number | null;
+  devices: Array<{
+    device: string;
+    spend: number;
+    clicks: number;
+    conversions: number;
+  }>;
+  conversionActions: Array<{
+    name: string;
+    conversions: number;
+    spend: number;
+  }>;
+  searchTerms: Array<{
+    term: string;
+    spend: number;
+    clicks: number;
+    conversions: number;
+  }>;
+  landingPages: Array<{
+    url: string;
+    spend: number;
+    clicks: number;
+    conversions: number;
+  }>;
+};
+
+async function loadFilteredGoogleCampaignIds(
+  siteFilter: string | null,
+): Promise<string[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("ad_campaigns")
+    .select("id")
+    .eq("platform", "google_ads");
+  if (siteFilter) query = query.eq("site", siteFilter);
+  const { data } = await query;
+  return (data ?? []).map((row) => row.id as string);
+}
+
+export async function loadGoogleMarketingInsights(
+  startDate: string,
+  endDate: string,
+  siteFilter: string | null,
+): Promise<GoogleMarketingInsights | null> {
+  const supabase = await createClient();
+  const campaignIds = await loadFilteredGoogleCampaignIds(siteFilter);
+  if (!campaignIds.length) {
+    return {
+      avgCtr: null,
+      avgCpc: null,
+      avgImpressionShare: null,
+      budgetLostShare: null,
+      rankLostShare: null,
+      googleCostPerConversion: null,
+      devices: [],
+      conversionActions: [],
+      searchTerms: [],
+      landingPages: [],
+    };
+  }
+
+  const { data: dailyRows } = await supabase
+    .from("ad_daily_stats")
+    .select(
+      "spend, clicks, impressions, conversions, ctr, average_cpc, cost_per_conversion, search_impression_share, search_budget_lost_impression_share, search_rank_lost_impression_share",
+    )
+    .in("campaign_id", campaignIds)
+    .gte("date", startDate)
+    .lte("date", endDate);
+
+  const { data: segmentRows } = await supabase
+    .from("ad_segment_daily_stats")
+    .select("segment_type, segment_value, spend, clicks, conversions")
+    .in("campaign_id", campaignIds)
+    .gte("date", startDate)
+    .lte("date", endDate);
+
+  const { data: searchRows } = await supabase
+    .from("ad_search_term_daily")
+    .select("search_term, spend, clicks, conversions")
+    .in("campaign_id", campaignIds)
+    .gte("date", startDate)
+    .lte("date", endDate);
+
+  const { data: landingRows } = await supabase
+    .from("ad_landing_page_daily")
+    .select("landing_page, spend, clicks, conversions")
+    .in("campaign_id", campaignIds)
+    .gte("date", startDate)
+    .lte("date", endDate);
+
+  const daily = dailyRows ?? [];
+  const totalSpend = daily.reduce((s, r) => s + Number(r.spend ?? 0), 0);
+  const totalClicks = daily.reduce((s, r) => s + Number(r.clicks ?? 0), 0);
+  const totalConversions = daily.reduce(
+    (s, r) => s + Number(r.conversions ?? 0),
+    0,
+  );
+
+  const avg = (values: number[]) =>
+    values.length
+      ? Math.round(
+          (values.reduce((a, b) => a + b, 0) / values.length) * 10_000,
+        ) / 10_000
+      : null;
+
+  const deviceMap = new Map<
+    string,
+    { spend: number; clicks: number; conversions: number }
+  >();
+  const conversionMap = new Map<
+    string,
+    { spend: number; conversions: number }
+  >();
+  for (const row of segmentRows ?? []) {
+    if (row.segment_type === "device") {
+      const current = deviceMap.get(row.segment_value) ?? {
+        spend: 0,
+        clicks: 0,
+        conversions: 0,
+      };
+      current.spend += Number(row.spend ?? 0);
+      current.clicks += Number(row.clicks ?? 0);
+      current.conversions += Number(row.conversions ?? 0);
+      deviceMap.set(row.segment_value, current);
+    }
+    if (row.segment_type === "conversion_action") {
+      const current = conversionMap.get(row.segment_value) ?? {
+        spend: 0,
+        conversions: 0,
+      };
+      current.spend += Number(row.spend ?? 0);
+      current.conversions += Number(row.conversions ?? 0);
+      conversionMap.set(row.segment_value, current);
+    }
+  }
+
+  const searchMap = new Map<
+    string,
+    { spend: number; clicks: number; conversions: number }
+  >();
+  for (const row of searchRows ?? []) {
+    const current = searchMap.get(row.search_term) ?? {
+      spend: 0,
+      clicks: 0,
+      conversions: 0,
+    };
+    current.spend += Number(row.spend ?? 0);
+    current.clicks += Number(row.clicks ?? 0);
+    current.conversions += Number(row.conversions ?? 0);
+    searchMap.set(row.search_term, current);
+  }
+
+  const landingMap = new Map<
+    string,
+    { spend: number; clicks: number; conversions: number }
+  >();
+  for (const row of landingRows ?? []) {
+    const current = landingMap.get(row.landing_page) ?? {
+      spend: 0,
+      clicks: 0,
+      conversions: 0,
+    };
+    current.spend += Number(row.spend ?? 0);
+    current.clicks += Number(row.clicks ?? 0);
+    current.conversions += Number(row.conversions ?? 0);
+    landingMap.set(row.landing_page, current);
+  }
+
+  const deviceLabels: Record<string, string> = {
+    MOBILE: "Mobil",
+    DESKTOP: "Masaüstü",
+    TABLET: "Tablet",
+    CONNECTED_TV: "TV",
+    OTHER: "Diğer",
+  };
+
+  return {
+    avgCtr: avg(daily.map((r) => Number(r.ctr)).filter((v) => v > 0)),
+    avgCpc:
+      totalClicks > 0
+        ? Math.round((totalSpend / totalClicks) * 100) / 100
+        : avg(daily.map((r) => Number(r.average_cpc)).filter((v) => v > 0)),
+    avgImpressionShare: avg(
+      daily
+        .map((r) => Number(r.search_impression_share))
+        .filter((v) => v > 0),
+    ),
+    budgetLostShare: avg(
+      daily
+        .map((r) => Number(r.search_budget_lost_impression_share))
+        .filter((v) => v > 0),
+    ),
+    rankLostShare: avg(
+      daily
+        .map((r) => Number(r.search_rank_lost_impression_share))
+        .filter((v) => v > 0),
+    ),
+    googleCostPerConversion:
+      totalConversions > 0
+        ? Math.round((totalSpend / totalConversions) * 100) / 100
+        : null,
+    devices: [...deviceMap.entries()]
+      .map(([device, agg]) => ({
+        device: deviceLabels[device] ?? device,
+        ...agg,
+        spend: Math.round(agg.spend * 100) / 100,
+      }))
+      .sort((a, b) => b.spend - a.spend),
+    conversionActions: [...conversionMap.entries()]
+      .map(([name, agg]) => ({
+        name,
+        conversions: Math.round(agg.conversions * 100) / 100,
+        spend: Math.round(agg.spend * 100) / 100,
+      }))
+      .sort((a, b) => b.conversions - a.conversions),
+    searchTerms: [...searchMap.entries()]
+      .map(([term, agg]) => ({
+        term,
+        ...agg,
+        spend: Math.round(agg.spend * 100) / 100,
+      }))
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 15),
+    landingPages: [...landingMap.entries()]
+      .map(([url, agg]) => ({
+        url,
+        ...agg,
+        spend: Math.round(agg.spend * 100) / 100,
+      }))
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 10),
+  };
+}

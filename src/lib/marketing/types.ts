@@ -51,6 +51,43 @@ export type RemoteDailyStat = {
   clicks: number;
   conversions: number;
   currency: string;
+  ctr?: number | null;
+  averageCpc?: number | null;
+  costPerConversion?: number | null;
+  searchImpressionShare?: number | null;
+  searchBudgetLostImpressionShare?: number | null;
+  searchRankLostImpressionShare?: number | null;
+};
+
+export type RemoteSegmentStat = {
+  externalCampaignId: string;
+  date: string;
+  segmentType: "device" | "conversion_action" | "geo";
+  segmentValue: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+};
+
+export type RemoteSearchTermStat = {
+  externalCampaignId: string;
+  date: string;
+  searchTerm: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+};
+
+export type RemoteLandingPageStat = {
+  externalCampaignId: string;
+  date: string;
+  landingPage: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
 };
 
 export type MarketingSummary = {

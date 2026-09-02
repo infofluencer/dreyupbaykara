@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { marketingSyncDays } from "@/lib/marketing/config";
 import { runMarketingSync } from "@/lib/marketing/sync/sync-daily-stats";
 import { createClient } from "@/lib/supabase/server";
 
@@ -73,7 +74,10 @@ export async function triggerMarketingSyncNow(): Promise<{
   }
 
   try {
-    const result = await runMarketingSync(supabase, { days: 30 });
+    const result = await runMarketingSync(supabase, {
+      days: marketingSyncDays(),
+      mode: "full",
+    });
     revalidatePath("/admin/marketing");
     revalidatePath("/admin/marketing/connect");
 
@@ -85,9 +89,14 @@ export async function triggerMarketingSyncNow(): Promise<{
       return { ok: false, message: `Google sync hatası: ${googleErr}` };
     }
 
+    const ext = result.googleExtended;
+    const extSummary = ext.error
+      ? ext.error
+      : `cihaz ${ext.deviceRows}, dönüşüm ${ext.conversionRows}, geo ${ext.geoRows}, terim ${ext.searchTermRows}, LP ${ext.landingPageRows}`;
+
     return {
       ok: true,
-      message: `Google: ${google?.synced ?? 0} kampanya, ${googleStats?.rows ?? 0} günlük satır sync edildi.`,
+      message: `Google: ${google?.synced ?? 0} kampanya, ${googleStats?.rows ?? 0} günlük satır (${result.range.days}g). Ek: ${extSummary}.`,
     };
   } catch (err) {
     return {

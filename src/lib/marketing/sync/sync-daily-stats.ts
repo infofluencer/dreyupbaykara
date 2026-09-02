@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { googleAdsCustomerIds } from "@/lib/marketing/config";
+import { googleAdsCustomerIds, marketingSyncDays } from "@/lib/marketing/config";
 import { fetchGoogleDailyStats } from "@/lib/marketing/google-ads/client";
 import { fetchMetaDailyStats } from "@/lib/marketing/meta/client";
 import type { MarketingPlatform } from "@/lib/marketing/types";
@@ -101,6 +101,14 @@ async function syncPlatformDailyStats(
           clicks: stat.clicks,
           conversions: stat.conversions,
           currency: stat.currency,
+          ctr: stat.ctr ?? null,
+          average_cpc: stat.averageCpc ?? null,
+          cost_per_conversion: stat.costPerConversion ?? null,
+          search_impression_share: stat.searchImpressionShare ?? null,
+          search_budget_lost_impression_share:
+            stat.searchBudgetLostImpressionShare ?? null,
+          search_rank_lost_impression_share:
+            stat.searchRankLostImpressionShare ?? null,
           updated_at: new Date().toISOString(),
         };
       })
@@ -147,21 +155,38 @@ export async function syncAllDailyStats(
 
 export async function runMarketingSync(
   supabase: SupabaseClient,
-  options?: { days?: number },
+  options?: { days?: number; mode?: "cron" | "full" },
 ): Promise<{
   bootstrap: Awaited<ReturnType<typeof bootstrapAdAccountsFromEnv>>;
   campaigns: Awaited<ReturnType<typeof import("./sync-campaigns").syncAllCampaigns>>;
   stats: SyncDailyStatsResult[];
-  range: { startDate: string; endDate: string };
+  googleExtended: Awaited<
+    ReturnType<typeof import("./sync-google-extended").syncGoogleExtendedStats>
+  >;
+  range: { startDate: string; endDate: string; days: number; mode: "cron" | "full" };
 }> {
   const bootstrap = await bootstrapAdAccountsFromEnv(supabase);
   const { syncAllCampaigns } = await import("./sync-campaigns");
-  const range = rollingSyncDateRange(options?.days ?? 7);
+  const mode = options?.mode ?? "full";
+  const days = options?.days ?? marketingSyncDays();
+  const range = rollingSyncDateRange(days);
   const campaigns = await syncAllCampaigns(supabase);
   const stats = await syncAllDailyStats(
     supabase,
     range.startDate,
     range.endDate,
   );
-  return { bootstrap, campaigns, stats, range };
+  const { syncGoogleExtendedStats } = await import("./sync-google-extended");
+  const googleExtended = await syncGoogleExtendedStats(
+    supabase,
+    range.startDate,
+    range.endDate,
+  );
+  return {
+    bootstrap,
+    campaigns,
+    stats,
+    googleExtended,
+    range: { ...range, days, mode },
+  };
 }

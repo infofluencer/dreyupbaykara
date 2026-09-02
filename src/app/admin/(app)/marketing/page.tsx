@@ -2,18 +2,21 @@ import Link from "next/link";
 import { AlertTriangle, Link2, TrendingUp } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
-  defaultMarketingDateRange,
   loadAdAccountsSafe,
   loadCampaignPerformance,
   loadMarketingSummary,
   loadSiteOptions,
   loadUnmatchedCampaigns,
+  loadGoogleMarketingInsights,
 } from "@/lib/marketing/admin-stats";
+import { resolveMarketingDateRange } from "@/lib/marketing/date-range";
 import {
   MarketingDailyChart,
   MarketingPlatformBars,
 } from "@/components/admin/MarketingCharts";
+import { MarketingGoogleInsightsPanel } from "@/components/admin/MarketingGoogleInsightsPanel";
 import { MarketingLeadSourcesSection } from "@/components/admin/MarketingLeadSourcesSection";
+import { MarketingPeriodFilter } from "@/components/admin/MarketingPeriodFilter";
 import { formatPct, formatTry } from "@/lib/marketing/format";
 import { buildMarketingHref } from "@/lib/marketing/urls";
 import { UnmatchedCampaignRow } from "@/components/admin/UnmatchedCampaignRow";
@@ -42,6 +45,7 @@ export default async function AdminMarketingPage({
   searchParams,
 }: {
   searchParams: Promise<{
+    period?: string;
     start?: string;
     end?: string;
     site?: string;
@@ -52,21 +56,20 @@ export default async function AdminMarketingPage({
 }) {
   const session = await requireAdminSession(["admin", "doctor", "assistant", "agency"]);
   const query = await searchParams;
-  const defaults = defaultMarketingDateRange(30);
-  const startDate = query.start || defaults.startDate;
-  const endDate = query.end || defaults.endDate;
+  const { startDate, endDate, period } = resolveMarketingDateRange(query);
   const siteFilter = query.site?.trim() || null;
   const platform = parsePlatform(query.platform);
   const event = parseEvent(query.event);
   const search = query.q?.trim() || "";
 
-  const [summary, campaigns, unmatched, siteOptions, accounts] =
+  const [summary, campaigns, unmatched, siteOptions, accounts, googleInsights] =
     await Promise.all([
       loadMarketingSummary(startDate, endDate, siteFilter),
       loadCampaignPerformance(startDate, endDate, siteFilter),
       loadUnmatchedCampaigns(),
       loadSiteOptions(),
       loadAdAccountsSafe(),
+      loadGoogleMarketingInsights(startDate, endDate, siteFilter),
     ]);
 
   const inactiveAccounts = accounts.filter((a) => !a.is_active || !a.has_token);
@@ -140,73 +143,16 @@ export default async function AdminMarketingPage({
         </div>
       ) : null}
 
-      <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
-        <form action="/admin/marketing" className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          {platform !== "all" ? (
-            <input type="hidden" name="platform" value={platform} />
-          ) : null}
-          {event !== "all" ? (
-            <input type="hidden" name="event" value={event} />
-          ) : null}
-          {search ? <input type="hidden" name="q" value={search} /> : null}
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[#466254]">
-              Başlangıç
-            </span>
-            <input
-              type="date"
-              name="start"
-              defaultValue={startDate}
-              className="min-h-10 rounded-xl border border-[#123524]/12 bg-[#f7f9f8] px-3"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[#466254]">
-              Bitiş
-            </span>
-            <input
-              type="date"
-              name="end"
-              defaultValue={endDate}
-              className="min-h-10 rounded-xl border border-[#123524]/12 bg-[#f7f9f8] px-3"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm lg:min-w-[14rem]">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[#466254]">
-              Site
-            </span>
-            <select
-              name="site"
-              defaultValue={siteFilter ?? ""}
-              className="min-h-10 rounded-xl border border-[#123524]/12 bg-[#f7f9f8] px-3"
-            >
-              <option value="">Tüm siteler</option>
-              {siteOptions.map((site) => (
-                <option key={site} value={site}>
-                  {site}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[#123524] px-5 text-sm font-semibold text-white">
-            Uygula
-          </button>
-          {siteFilter ? (
-            <Link
-              href={buildMarketingHref({
-                start: startDate,
-                end: endDate,
-                platform,
-                event,
-                q: search,
-              })}
-              className="inline-flex min-h-10 items-center justify-center text-sm font-semibold text-[#466254]"
-            >
-              Site filtresini kaldır
-            </Link>
-          ) : null}
-        </form>
-      </section>
+      <MarketingPeriodFilter
+        period={period}
+        startDate={startDate}
+        endDate={endDate}
+        siteFilter={siteFilter}
+        platform={platform}
+        event={event}
+        search={search}
+        siteOptions={siteOptions}
+      />
 
       {siteFilter === "endoskopikbelameliyati" &&
       summary &&
@@ -220,8 +166,7 @@ export default async function AdminMarketingPage({
             filtresini değiştirin veya{" "}
             <Link
               href={buildMarketingHref({
-                start: startDate,
-                end: endDate,
+                period,
                 site: "endospineistanbul",
                 platform,
                 event,
@@ -234,8 +179,7 @@ export default async function AdminMarketingPage({
             {" / "}
             <Link
               href={buildMarketingHref({
-                start: startDate,
-                end: endDate,
+                period,
                 site: "fitikameliyati",
                 platform,
                 event,
@@ -366,6 +310,8 @@ export default async function AdminMarketingPage({
         )}
       </section>
 
+      <MarketingGoogleInsightsPanel insights={googleInsights} />
+
       {unmatched.length ? (
         <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
           <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
@@ -393,6 +339,7 @@ export default async function AdminMarketingPage({
       ) : null}
 
       <MarketingLeadSourcesSection
+        period={period}
         startDate={startDate}
         endDate={endDate}
         siteFilter={siteFilter}

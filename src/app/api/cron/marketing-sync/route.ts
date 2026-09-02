@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { marketingCronSyncDays } from "@/lib/marketing/config";
 import { runMarketingSync } from "@/lib/marketing/sync/sync-daily-stats";
 
 export const runtime = "nodejs";
@@ -22,13 +23,17 @@ async function handleMarketingSync(request: NextRequest) {
   }
 
   try {
-    const result = await runMarketingSync(supabase, { days: 30 });
+    const result = await runMarketingSync(supabase, {
+      days: marketingCronSyncDays(),
+      mode: "cron",
+    });
     return NextResponse.json({
       ok: true,
       bootstrap: result.bootstrap,
       range: result.range,
       campaigns: result.campaigns,
       stats: result.stats,
+      googleExtended: result.googleExtended,
     });
   } catch (err) {
     return NextResponse.json(

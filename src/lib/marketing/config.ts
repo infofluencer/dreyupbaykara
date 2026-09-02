@@ -90,6 +90,21 @@ export function googleAdsApiBaseUrl(): string {
   return `https://googleads.googleapis.com/${version}`;
 }
 
+export function marketingSyncDays(defaultDays = 180): number {
+  const raw = process.env.MARKETING_SYNC_DAYS?.trim();
+  const parsed = raw ? Number.parseInt(raw, 10) : defaultDays;
+  if (!Number.isFinite(parsed) || parsed < 1) return defaultDays;
+  return Math.min(parsed, 365);
+}
+
+/** Cron: son N günü tekrar çek + upsert (dönüşüm atribüsyonu güncellenir). */
+export function marketingCronSyncDays(defaultDays = 14): number {
+  const raw = process.env.MARKETING_CRON_SYNC_DAYS?.trim();
+  const parsed = raw ? Number.parseInt(raw, 10) : defaultDays;
+  if (!Number.isFinite(parsed) || parsed < 1) return defaultDays;
+  return Math.min(parsed, marketingSyncDays());
+}
+
 /** Env yedek: 6474329013:endospineistanbul,9298256533:fitikameliyati */
 export function googleAdsCustomerSiteMapFromEnv(): Array<{
   platform: "google_ads";

@@ -1,4 +1,5 @@
 export function buildMarketingHref(opts: {
+  period?: string;
   start?: string;
   end?: string;
   site?: string;
@@ -7,8 +8,13 @@ export function buildMarketingHref(opts: {
   q?: string;
 }): string {
   const params = new URLSearchParams();
-  if (opts.start) params.set("start", opts.start);
-  if (opts.end) params.set("end", opts.end);
+  if (opts.period && opts.period !== "custom") {
+    params.set("period", opts.period);
+  } else if (opts.start && opts.end) {
+    params.set("period", "custom");
+    params.set("start", opts.start);
+    params.set("end", opts.end);
+  }
   if (opts.site) params.set("site", opts.site);
   if (opts.platform && opts.platform !== "all") {
     params.set("platform", opts.platform);
