@@ -290,6 +290,7 @@ export async function fetchGoogleConversionActionStats(
       FROM campaign
       WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
         AND campaign.status != 'REMOVED'
+        AND segments.conversion_action_name != ''
         AND metrics.conversions > 0
     `,
   );

@@ -9,7 +9,7 @@ import {
   loadUnmatchedCampaigns,
   loadGoogleMarketingInsights,
 } from "@/lib/marketing/admin-stats";
-import { resolveMarketingDateRange } from "@/lib/marketing/date-range";
+import { resolveMarketingDateRange, pickMarketingQueryParam, formatMarketingDateRangeTr } from "@/lib/marketing/date-range";
 import {
   MarketingDailyChart,
   MarketingPlatformBars,
@@ -45,17 +45,26 @@ export default async function AdminMarketingPage({
   searchParams,
 }: {
   searchParams: Promise<{
-    period?: string;
-    start?: string;
-    end?: string;
-    site?: string;
-    platform?: string;
-    event?: string;
-    q?: string;
+    period?: string | string[];
+    start?: string | string[];
+    end?: string | string[];
+    site?: string | string[];
+    platform?: string | string[];
+    event?: string | string[];
+    q?: string | string[];
   }>;
 }) {
   const session = await requireAdminSession(["admin", "doctor", "assistant", "agency"]);
-  const query = await searchParams;
+  const raw = await searchParams;
+  const query = {
+    period: pickMarketingQueryParam(raw.period),
+    start: pickMarketingQueryParam(raw.start),
+    end: pickMarketingQueryParam(raw.end),
+    site: pickMarketingQueryParam(raw.site),
+    platform: pickMarketingQueryParam(raw.platform),
+    event: pickMarketingQueryParam(raw.event),
+    q: pickMarketingQueryParam(raw.q),
+  };
   const { startDate, endDate, period } = resolveMarketingDateRange(query);
   const siteFilter = query.site?.trim() || null;
   const platform = parsePlatform(query.platform);
@@ -200,7 +209,7 @@ export default async function AdminMarketingPage({
             <SummaryCard
               label="Toplam harcama"
               value={formatTry(summary.total_spend)}
-              hint={`${startDate} – ${endDate}`}
+              hint={formatMarketingDateRangeTr(startDate, endDate)}
             />
             <SummaryCard
               label="Toplam lead"
@@ -310,7 +319,13 @@ export default async function AdminMarketingPage({
         )}
       </section>
 
-      <MarketingGoogleInsightsPanel insights={googleInsights} />
+      <MarketingGoogleInsightsPanel
+        insights={googleInsights}
+        period={period}
+        startDate={startDate}
+        endDate={endDate}
+        siteFilter={siteFilter}
+      />
 
       {unmatched.length ? (
         <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   MARKETING_PERIOD_OPTIONS,
   type MarketingPeriod,
@@ -31,68 +32,57 @@ export function MarketingPeriodFilter({
 }: MarketingPeriodFilterProps) {
   const router = useRouter();
   const isCustom = period === "custom";
+  const [customStart, setCustomStart] = useState(startDate);
+  const [customEnd, setCustomEnd] = useState(endDate);
 
-  function baseHref(next: {
-    period?: string;
+  useEffect(() => {
+    setCustomStart(startDate);
+    setCustomEnd(endDate);
+  }, [startDate, endDate]);
+
+  function navigate(next: {
+    period?: MarketingPeriod;
     start?: string;
     end?: string;
     site?: string;
   }) {
-    return buildMarketingHref({
-      period: next.period ?? period,
-      start: next.start,
-      end: next.end,
-      site: next.site ?? siteFilter ?? undefined,
-      platform,
-      event,
-      q: search,
-    });
-  }
-
-  function onPeriodChange(nextPeriod: MarketingPeriod) {
-    if (nextPeriod === "custom") {
-      router.push(
-        baseHref({
-          period: "custom",
-          start: startDate,
-          end: endDate,
-        }),
-      );
-      return;
-    }
-
-    router.push(baseHref({ period: nextPeriod }));
+    router.push(
+      buildMarketingHref({
+        period: next.period ?? period,
+        start: next.start,
+        end: next.end,
+        site:
+          next.site !== undefined
+            ? next.site || undefined
+            : siteFilter ?? undefined,
+        platform,
+        event,
+        q: search,
+      }),
+    );
   }
 
   return (
     <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
-      <form
-        action="/admin/marketing"
-        className="flex flex-col gap-3 lg:flex-row lg:items-end"
-      >
-        {platform !== "all" ? (
-          <input type="hidden" name="platform" value={platform} />
-        ) : null}
-        {event !== "all" ? (
-          <input type="hidden" name="event" value={event} />
-        ) : null}
-        {search ? <input type="hidden" name="q" value={search} /> : null}
-        {!isCustom ? (
-          <input type="hidden" name="period" value={period} />
-        ) : (
-          <input type="hidden" name="period" value="custom" />
-        )}
-
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
         <label className="flex flex-col gap-1 text-sm lg:min-w-[12rem]">
           <span className="text-xs font-semibold uppercase tracking-wide text-[#466254]">
             Tarih aralığı
           </span>
           <select
-            name="period"
             value={period}
-            onChange={(event) =>
-              onPeriodChange(event.target.value as MarketingPeriod)
-            }
+            onChange={(event) => {
+              const nextPeriod = event.target.value as MarketingPeriod;
+              if (nextPeriod === "custom") {
+                navigate({
+                  period: "custom",
+                  start: customStart,
+                  end: customEnd,
+                });
+                return;
+              }
+              navigate({ period: nextPeriod });
+            }}
             className="min-h-10 rounded-xl border border-[#123524]/12 bg-[#f7f9f8] px-3"
           >
             {MARKETING_PERIOD_OPTIONS.map((option) => (
@@ -111,9 +101,8 @@ export function MarketingPeriodFilter({
               </span>
               <input
                 type="date"
-                name="start"
-                defaultValue={startDate}
-                required
+                value={customStart}
+                onChange={(event) => setCustomStart(event.target.value)}
                 className="min-h-10 rounded-xl border border-[#123524]/12 bg-[#f7f9f8] px-3"
               />
             </label>
@@ -123,12 +112,24 @@ export function MarketingPeriodFilter({
               </span>
               <input
                 type="date"
-                name="end"
-                defaultValue={endDate}
-                required
+                value={customEnd}
+                onChange={(event) => setCustomEnd(event.target.value)}
                 className="min-h-10 rounded-xl border border-[#123524]/12 bg-[#f7f9f8] px-3"
               />
             </label>
+            <button
+              type="button"
+              onClick={() =>
+                navigate({
+                  period: "custom",
+                  start: customStart,
+                  end: customEnd,
+                })
+              }
+              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[#123524] px-5 text-sm font-semibold text-white"
+            >
+              Uygula
+            </button>
           </>
         ) : (
           <p className="pb-2 text-sm text-[#466254] lg:pb-0">
@@ -147,19 +148,14 @@ export function MarketingPeriodFilter({
             Site
           </span>
           <select
-            name="site"
             value={siteFilter ?? ""}
-            onChange={
-              isCustom
-                ? undefined
-                : (event) => {
-                    const site = event.target.value;
-                    router.push(
-                      baseHref({
-                        site: site || undefined,
-                      }),
-                    );
-                  }
+            onChange={(event) =>
+              navigate({
+                site: event.target.value,
+                ...(isCustom
+                  ? { period: "custom", start: customStart, end: customEnd }
+                  : {}),
+              })
             }
             className="min-h-10 rounded-xl border border-[#123524]/12 bg-[#f7f9f8] px-3"
           >
@@ -172,21 +168,22 @@ export function MarketingPeriodFilter({
           </select>
         </label>
 
-        {isCustom ? (
-          <button className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[#123524] px-5 text-sm font-semibold text-white">
-            Uygula
-          </button>
-        ) : null}
-
         {siteFilter ? (
           <Link
-            href={baseHref({ site: "" })}
+            href={buildMarketingHref({
+              period,
+              start: isCustom ? customStart : undefined,
+              end: isCustom ? customEnd : undefined,
+              platform,
+              event,
+              q: search,
+            })}
             className="inline-flex min-h-10 items-center justify-center text-sm font-semibold text-[#466254]"
           >
             Site filtresini kaldır
           </Link>
         ) : null}
-      </form>
+      </div>
     </section>
   );
 }

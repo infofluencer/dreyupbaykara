@@ -211,6 +211,9 @@ export async function loadMonthToDateSummary(): Promise<{
 }
 
 export type GoogleMarketingInsights = {
+  totalSpend: number;
+  totalClicks: number;
+  totalConversions: number;
   avgCtr: number | null;
   avgCpc: number | null;
   avgImpressionShare: number | null;
@@ -264,6 +267,9 @@ export async function loadGoogleMarketingInsights(
   const campaignIds = await loadFilteredGoogleCampaignIds(siteFilter);
   if (!campaignIds.length) {
     return {
+      totalSpend: 0,
+      totalClicks: 0,
+      totalConversions: 0,
       avgCtr: null,
       avgCpc: null,
       avgImpressionShare: null,
@@ -394,6 +400,9 @@ export async function loadGoogleMarketingInsights(
   };
 
   return {
+    totalSpend: Math.round(totalSpend * 100) / 100,
+    totalClicks,
+    totalConversions: Math.round(totalConversions * 100) / 100,
     avgCtr: avg(daily.map((r) => Number(r.ctr)).filter((v) => v > 0)),
     avgCpc:
       totalClicks > 0
