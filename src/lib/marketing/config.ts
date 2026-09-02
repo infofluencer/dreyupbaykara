@@ -83,3 +83,9 @@ export function isMetaEnvReady(): boolean {
     c.appId && c.appSecret && c.adAccountId && hasMetaEnvToken(),
   );
 }
+
+/** Google Ads REST API — v18 Ağustos 2025'te kapatıldı; varsayılan v25. */
+export function googleAdsApiBaseUrl(): string {
+  const version = process.env.GOOGLE_ADS_API_VERSION?.trim() || "v25";
+  return `https://googleads.googleapis.com/${version}`;
+}

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin/auth";
+import { createServiceClient } from "@/lib/supabase/admin";
+import { runMarketingSync } from "@/lib/marketing/sync/sync-daily-stats";
 import { createClient } from "@/lib/supabase/server";
 
 export async function assignCampaignSite(formData: FormData): Promise<void> {
@@ -57,4 +59,40 @@ export async function addSitePrefix(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/marketing");
   revalidatePath("/admin/marketing/connect");
+}
+
+export async function triggerMarketingSyncNow(): Promise<{
+  ok: boolean;
+  message: string;
+}> {
+  await requireAdminSession(["admin"]);
+
+  const supabase = createServiceClient();
+  if (!supabase) {
+    return { ok: false, message: "Supabase service role yapılandırılmadı." };
+  }
+
+  try {
+    const result = await runMarketingSync(supabase, { days: 30 });
+    revalidatePath("/admin/marketing");
+    revalidatePath("/admin/marketing/connect");
+
+    const google = result.campaigns.find((c) => c.platform === "google_ads");
+    const googleStats = result.stats.find((s) => s.platform === "google_ads");
+    const googleErr = google?.error || googleStats?.error;
+
+    if (googleErr) {
+      return { ok: false, message: `Google sync hatası: ${googleErr}` };
+    }
+
+    return {
+      ok: true,
+      message: `Google: ${google?.synced ?? 0} kampanya, ${googleStats?.rows ?? 0} günlük satır sync edildi.`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      message: err instanceof Error ? err.message : "Sync hatası",
+    };
+  }
 }

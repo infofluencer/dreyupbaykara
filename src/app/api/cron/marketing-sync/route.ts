@@ -22,7 +22,7 @@ async function handleMarketingSync(request: NextRequest) {
   }
 
   try {
-    const result = await runMarketingSync(supabase, { days: 7 });
+    const result = await runMarketingSync(supabase, { days: 30 });
     return NextResponse.json({
       ok: true,
       bootstrap: result.bootstrap,

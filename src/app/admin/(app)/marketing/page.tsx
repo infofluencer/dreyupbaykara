@@ -17,6 +17,7 @@ import { MarketingLeadSourcesSection } from "@/components/admin/MarketingLeadSou
 import { formatPct, formatTry } from "@/lib/marketing/format";
 import { buildMarketingHref } from "@/lib/marketing/urls";
 import { UnmatchedCampaignRow } from "@/components/admin/UnmatchedCampaignRow";
+import { MarketingSyncButton } from "@/components/admin/MarketingSyncButton";
 import {
   PLATFORM_LABEL,
   type AdPlatform,
@@ -49,7 +50,7 @@ export default async function AdminMarketingPage({
     q?: string;
   }>;
 }) {
-  await requireAdminSession(["admin", "doctor", "assistant", "agency"]);
+  const session = await requireAdminSession(["admin", "doctor", "assistant", "agency"]);
   const query = await searchParams;
   const defaults = defaultMarketingDateRange(30);
   const startDate = query.start || defaults.startDate;
@@ -83,13 +84,18 @@ export default async function AdminMarketingPage({
             siteleri tek yerden yönetin.
           </p>
         </div>
-        <Link
-          href="/admin/marketing/connect"
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#123524]/12 bg-white px-4 text-sm font-semibold text-[#123524] hover:border-[#0b6b45]/30"
-        >
-          <Link2 className="h-4 w-4" />
-          Hesap bağla
-        </Link>
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+          {session.role === "admin" && hasAccounts ? (
+            <MarketingSyncButton />
+          ) : null}
+          <Link
+            href="/admin/marketing/connect"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#123524]/12 bg-white px-4 text-sm font-semibold text-[#123524] hover:border-[#0b6b45]/30"
+          >
+            <Link2 className="h-4 w-4" />
+            Hesap bağla
+          </Link>
+        </div>
       </div>
 
       {inactiveAccounts.length ? (

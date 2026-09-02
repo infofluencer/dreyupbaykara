@@ -1,9 +1,11 @@
 import "server-only";
 
-import { googleAdsConfig } from "@/lib/marketing/config";
+import { googleAdsConfig, googleAdsApiBaseUrl } from "@/lib/marketing/config";
 import type { RemoteCampaign, RemoteDailyStat } from "@/lib/marketing/types";
 
-const GOOGLE_ADS_API = "https://googleads.googleapis.com/v18";
+function googleAdsApi(): string {
+  return googleAdsApiBaseUrl();
+}
 
 export class GoogleAdsApiError extends Error {
   constructor(
@@ -40,7 +42,7 @@ async function googleAdsSearch<T extends Record<string, unknown>>(
   }
 
   const res = await fetch(
-    `${GOOGLE_ADS_API}/customers/${cid}/googleAds:search`,
+    `${googleAdsApi()}/customers/${cid}/googleAds:search`,
     {
       method: "POST",
       headers,
