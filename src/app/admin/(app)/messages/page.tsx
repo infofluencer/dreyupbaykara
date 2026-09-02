@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { MessagesInbox } from "@/components/admin/MessagesInbox";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
-import { pickActiveLead } from "@/lib/crm/lead-status";
+import { pickDisplayLead } from "@/lib/crm/lead-status";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AdminMessagesPage({
@@ -144,7 +144,7 @@ export default async function AdminMessagesPage({
 
   const normalized = (conversations ?? []).map((row) => {
     const lead = Array.isArray(row.leads) ? row.leads[0] : row.leads;
-    const active = pickActiveLead(leadsByContact.get(row.contact_id) ?? []);
+    const active = pickDisplayLead(leadsByContact.get(row.contact_id) ?? []);
     return {
       id: row.id,
       wa_phone: row.wa_phone,

@@ -12,6 +12,7 @@ import {
   statusesForFilter,
   type LeadStatusFilter,
 } from "@/lib/crm/lead-status";
+import { matchesNameOrPhone } from "@/lib/whatsapp/phone";
 
 const LeadStatusControl = dynamic(
   () =>
@@ -50,7 +51,6 @@ export function PatientsList({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const digits = q.replace(/\D/g, "");
     const allowed = statusesForFilter(filter);
     return initialRows.filter((row) => {
       if (allowed) {
@@ -58,13 +58,10 @@ export function PatientsList({
         if (!allowed.includes(asLeadStatus(row.activeLead.status))) return false;
       }
       if (!q) return true;
-      const hay = `${row.name ?? ""} ${row.phone ?? ""} ${row.city ?? ""} ${
-        row.patient_no ?? ""
-      }`.toLowerCase();
-      if (hay.includes(q)) return true;
-      if (digits && (row.phone ?? "").includes(digits)) return true;
-      if (digits && String(row.patient_no ?? "") === digits) return true;
-      return false;
+      return matchesNameOrPhone(row.name, row.phone, query, [
+        row.city,
+        row.patient_no,
+      ]);
     });
   }, [initialRows, filter, query]);
 
@@ -80,7 +77,7 @@ export function PatientsList({
         />
 
         <div
-          className="flex flex-wrap gap-2"
+          className="-mx-1 flex flex-nowrap gap-2 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           role="tablist"
           aria-label="Durum filtresi"
         >
@@ -91,7 +88,7 @@ export function PatientsList({
               role="tab"
               aria-selected={filter === item.id}
               onClick={() => setFilter(item.id)}
-              className={`inline-flex min-h-9 items-center rounded-full px-3.5 text-xs font-semibold transition ${
+              className={`inline-flex min-h-10 shrink-0 items-center rounded-full px-3.5 text-xs font-semibold transition ${
                 filter === item.id
                   ? "bg-[#0b6b45] text-white"
                   : "border border-[#0b6b45]/25 bg-white text-[#466254] hover:bg-[#f4f6f5]"

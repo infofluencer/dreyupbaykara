@@ -18,7 +18,7 @@ import { PATIENT_NOTE_KIND_LABEL, formatPatientNo } from "@/lib/crm/patient";
 import { appointmentEndIso } from "@/lib/crm/schedule";
 import { getIstanbulTodayYmd } from "@/lib/date/now";
 import { formatDateLongTr, formatTimeTr } from "@/lib/date/tr";
-import { pickActiveLead } from "@/lib/crm/lead-status";
+import { pickDisplayLead } from "@/lib/crm/lead-status";
 import { createClient } from "@/lib/supabase/server";
 
 const input =
@@ -67,7 +67,7 @@ export default async function PatientDetailPage({
   const leadRefs = (leads ?? [])
     .map((lead) => lead.lead_ref)
     .filter((ref): ref is string => Boolean(ref));
-  const activeLead = pickActiveLead(leads ?? []);
+  const activeLead = pickDisplayLead(leads ?? []);
 
   const [{ data: appointments }, { data: sourceClicks }] = await Promise.all([
     leadIds.length

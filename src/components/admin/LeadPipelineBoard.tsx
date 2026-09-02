@@ -40,6 +40,7 @@ export function LeadPipelineBoard({
   const [leads, setLeads] = useState(initialLeads);
   const [dragId, setDragId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mobileColumn, setMobileColumn] = useState<LeadPipelineStatus>("yeni");
   const [, startTransition] = useTransition();
   const initialLeadsRef = useRef(initialLeads);
   initialLeadsRef.current = initialLeads;
@@ -110,7 +111,8 @@ export function LeadPipelineBoard({
   return (
     <div className="space-y-3">
       <p className="text-sm text-[#466254]">
-        Genel bakış. Kartı sürükleyerek durum değiştirin. Günlük takip için{" "}
+        Genel bakış. Telefonda bir duruma dokunun; masaüstünde kartı
+        sürükleyerek değiştirin. Günlük takip için{" "}
         <Link href="/admin/messages" className="font-semibold text-[#0b6b45]">
           WhatsApp
         </Link>
@@ -122,7 +124,37 @@ export function LeadPipelineBoard({
         </p>
       ) : null}
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div
+        className="-mx-1 flex flex-nowrap gap-1.5 overflow-x-auto px-1 pb-1 xl:hidden"
+        role="tablist"
+        aria-label="Hasta durumu"
+      >
+        {LEAD_STATUSES.map((column) => (
+          <button
+            key={column}
+            type="button"
+            role="tab"
+            aria-selected={mobileColumn === column}
+            onClick={() => setMobileColumn(column)}
+            className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition ${
+              mobileColumn === column
+                ? "bg-[#123524] text-white"
+                : "border border-[#123524]/15 bg-white text-[#466254]"
+            }`}
+          >
+            {LEAD_STATUS_LABEL[column]}
+            <span
+              className={
+                mobileColumn === column ? "text-white/80" : "text-[#466254]/80"
+              }
+            >
+              {byStatus[column].length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-3 xl:grid-cols-4">
         {LEAD_STATUSES.map((column) => (
           <section
             key={column}
@@ -134,7 +166,9 @@ export function LeadPipelineBoard({
               if (id) moveLead(id, column);
               setDragId(null);
             }}
-            className="flex min-h-[240px] flex-col rounded-2xl border border-[#123524]/10 bg-[#f7f9f8]"
+            className={`min-h-[240px] flex-col rounded-2xl border border-[#123524]/10 bg-[#f7f9f8] ${
+              column === mobileColumn ? "flex" : "hidden"
+            } xl:flex`}
           >
             <header className="flex items-center justify-between gap-2 border-b border-[#123524]/08 px-3 py-2.5">
               <span
@@ -178,6 +212,28 @@ export function LeadPipelineBoard({
                       <p className="mt-0.5 text-xs text-[#466254]">
                         {row.phone || "—"}
                       </p>
+                      <label
+                        className="mt-2 block xl:hidden"
+                        onPointerDown={(event) => event.stopPropagation()}
+                      >
+                        <span className="sr-only">Durumu değiştir</span>
+                        <select
+                          value={asLeadStatus(row.status)}
+                          onChange={(event) =>
+                            moveLead(
+                              row.id,
+                              event.target.value as LeadPipelineStatus,
+                            )
+                          }
+                          className="min-h-10 w-full rounded-lg border border-[#123524]/15 bg-white px-2 text-xs font-semibold text-[#123524]"
+                        >
+                          {LEAD_STATUSES.map((status) => (
+                            <option key={status} value={status}>
+                              {LEAD_STATUS_LABEL[status]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Link
                           href={`/admin/messages?lead=${row.id}`}

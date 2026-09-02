@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -47,6 +48,10 @@ import {
   WA_INBOX_REFRESH_EVENT,
   type WaInboxRefreshDetail,
 } from "@/lib/whatsapp/inbox-events";
+import {
+  matchesNameOrPhone,
+  nationalPhoneDigits,
+} from "@/lib/whatsapp/phone";
 
 const LeadStatusControl = dynamic(
   () =>
@@ -196,6 +201,23 @@ function mapConversation(
   };
 }
 
+function sanitizeIlike(value: string): string {
+  return value
+    .replace(/\\/g, "")
+    .replace(/[%_,()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function phoneSearchVariants(query: string): string[] {
+  const digits = query.replace(/\D/g, "");
+  if (digits.length < 4) return [];
+  const national = nationalPhoneDigits(query);
+  return [...new Set([digits, national, `90${national}`, `0${national}`])].filter(
+    (value) => value.length >= 4,
+  );
+}
+
 export function MessagesInbox({
   conversations: initialConversations,
   selectedId: initialSelectedId,
@@ -218,16 +240,18 @@ export function MessagesInbox({
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
   const [, startTransition] = useTransition();
   const threadRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   /** Last conversation id whose server `initialMessages` were applied — skip soft-nav echoes. */
   const appliedServerMessagesForRef = useRef<string | null>(null);
+  const skipNextUrlSyncRef = useRef(false);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     const allowedStatuses = statusesForFilter(leadStatusFilter);
     return conversations.filter((row) => {
       if (filter === "open" && row.status !== "open") return false;
@@ -244,8 +268,7 @@ export function MessagesInbox({
         }
       }
       if (!q) return true;
-      const hay = `${row.contact_name ?? ""} ${row.wa_phone ?? ""}`.toLowerCase();
-      return hay.includes(q);
+      return matchesNameOrPhone(row.contact_name, row.wa_phone, q);
     });
   }, [conversations, filter, leadStatusFilter, query]);
 
@@ -299,6 +322,60 @@ export function MessagesInbox({
   const fetchConversationsRef = useRef(fetchConversations);
   fetchConversationsRef.current = fetchConversations;
 
+  useEffect(() => {
+    const q = query.trim();
+    const nameNeedle = sanitizeIlike(q);
+    const variants = phoneSearchVariants(q);
+    if (nameNeedle.length < 2 && variants.length === 0) return;
+
+    const timer = window.setTimeout(() => {
+      const orParts: string[] = [];
+      if (nameNeedle.length >= 2) {
+        orParts.push(`contact_name.ilike.%${nameNeedle}%`);
+      }
+      for (const variant of variants) {
+        orParts.push(`wa_phone.ilike.%${variant}%`);
+      }
+      if (!orParts.length) return;
+
+      const supabase = createClient();
+      void supabase
+        .from("conversations")
+        .select(CONVERSATION_SELECT)
+        .or(orParts.join(","))
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(40)
+        .then(({ data, error }) => {
+          if (error) {
+            console.error("[inbox] search:", error);
+            return;
+          }
+          if (!data?.length) return;
+          setConversations((prev) => {
+            const byId = new Map(prev.map((row) => [row.id, row]));
+            for (const row of data) {
+              const mapped = mapConversation(
+                row as Record<string, unknown>,
+                byId.get(String(row.id)),
+              );
+              byId.set(mapped.id, mapped);
+            }
+            return [...byId.values()].sort((a, b) => {
+              const at = a.last_message_at
+                ? new Date(a.last_message_at).getTime()
+                : 0;
+              const bt = b.last_message_at
+                ? new Date(b.last_message_at).getTime()
+                : 0;
+              return bt - at;
+            });
+          });
+        });
+    }, 280);
+
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
   const selectConversation = useCallback(
     (id: string) => {
       setSelectedId(id);
@@ -335,6 +412,19 @@ export function MessagesInbox({
     [fetchMessages, router],
   );
 
+  // Phone: never restore the last open thread on a fresh visit.
+  // Notifications still open a chat via a later `?c=` change.
+  useLayoutEffect(() => {
+    if (!window.matchMedia("(max-width: 1023px)").matches) return;
+    if (!initialSelectedId) return;
+    skipNextUrlSyncRef.current = true;
+    setSelectedId(null);
+    appliedServerMessagesForRef.current = null;
+    setMessages([]);
+    router.replace("/admin/messages", { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Conversations list is owned by client/realtime after mount — do not re-apply
   // server snapshots on soft nav (they overwrite fresher realtime state).
 
@@ -342,18 +432,28 @@ export function MessagesInbox({
     // Apply server messages only when the URL conversation id changes (e.g. back/forward),
     // not when the same ?c= soft-nav refreshes initialMessages.
     if (initialSelectedId === appliedServerMessagesForRef.current) return;
-    appliedServerMessagesForRef.current = initialSelectedId;
-    if (initialSelectedId) {
-      setMessages(initialMessages);
-    } else {
-      setMessages([]);
+    if (!initialSelectedId) {
+      appliedServerMessagesForRef.current = null;
+      if (!selectedIdRef.current) setMessages([]);
+      return;
     }
+    appliedServerMessagesForRef.current = initialSelectedId;
+    setMessages(initialMessages);
   }, [initialSelectedId, initialMessages]);
 
   useEffect(() => {
-    if (initialSelectedId && initialSelectedId !== selectedId) {
-      setSelectedId(initialSelectedId);
+    if (skipNextUrlSyncRef.current) {
+      skipNextUrlSyncRef.current = false;
+      return;
     }
+    if (initialSelectedId === selectedId) return;
+    if (initialSelectedId) {
+      setSelectedId(initialSelectedId);
+      return;
+    }
+    setSelectedId(null);
+    appliedServerMessagesForRef.current = null;
+    setMessages([]);
     // Sync from URL only when the server-provided id changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSelectedId]);
@@ -506,12 +606,32 @@ export function MessagesInbox({
         .then((rows) => {
           if (selectedIdRef.current !== conversationId) return;
           setMessages((prev) => {
-            if (prev.length === rows.length) {
-              const lastPrev = prev[prev.length - 1]?.id;
-              const lastNext = rows[rows.length - 1]?.id;
-              if (lastPrev === lastNext) return prev;
+            const pendingLocal = prev.filter(
+              (row) =>
+                row.id.startsWith("local_") &&
+                (row.status === "pending" || row.status === "failed"),
+            );
+            const merged = [...rows];
+            for (const local of pendingLocal) {
+              const already = merged.some(
+                (row) =>
+                  row.direction === "outbound" &&
+                  row.body === local.body &&
+                  Math.abs(
+                    new Date(row.created_at).getTime() -
+                      new Date(local.created_at).getTime(),
+                  ) < 120_000,
+              );
+              if (!already) merged.push(local);
             }
-            return rows;
+            if (
+              pendingLocal.length === 0 &&
+              prev.length === rows.length &&
+              prev[prev.length - 1]?.id === rows[rows.length - 1]?.id
+            ) {
+              return prev;
+            }
+            return sortMessages(merged);
           });
         })
         .catch(() => {});
@@ -520,10 +640,16 @@ export function MessagesInbox({
   }, [selectedId, fetchMessages]);
 
   async function handleSend() {
-    if (!selected || !draft.trim() || sending) return;
+    if (!selected) return;
+    const body = draftRef.current.trim();
+    if (!body) return;
     if (apiEnabled && !windowOpen) return;
 
-    const body = draft.trim();
+    draftRef.current = "";
+    setDraft("");
+
+    const conversationId = selected.id;
+    const phone = selected.wa_phone ?? "";
     const optimistic: InboxMessage = {
       id: `local_${crypto.randomUUID()}`,
       direction: "outbound",
@@ -535,12 +661,10 @@ export function MessagesInbox({
       media_url: null,
       source: "panel",
     };
-    setDraft("");
-    setSending(true);
     setMessages((rows) => [...rows, optimistic]);
     setConversations((rows) =>
       rows.map((row) =>
-        row.id === selected.id
+        row.id === conversationId
           ? {
               ...row,
               last_message_at: optimistic.created_at,
@@ -553,22 +677,27 @@ export function MessagesInbox({
     );
 
     const fd = new FormData();
-    fd.set("conversation_id", selected.id);
-    fd.set("phone", selected.wa_phone ?? "");
+    fd.set("conversation_id", conversationId);
+    fd.set("phone", phone);
     fd.set("body", body);
     try {
       await sendConversationMessage(fd);
-      const rows = await fetchMessages(selected.id);
-      setMessages(rows);
+      if (selectedIdRef.current !== conversationId) return;
+      setMessages((rows) =>
+        rows.map((row) =>
+          row.id === optimistic.id && row.status === "pending"
+            ? { ...row, status: "sent" }
+            : row,
+        ),
+      );
     } catch (error) {
       console.error("[inbox] send:", error);
+      if (selectedIdRef.current !== conversationId) return;
       setMessages((rows) =>
         rows.map((row) =>
           row.id === optimistic.id ? { ...row, status: "failed" } : row,
         ),
       );
-    } finally {
-      setSending(false);
     }
   }
 
@@ -626,29 +755,15 @@ export function MessagesInbox({
             />
           </label>
           <div className="space-y-2">
-            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Konuşma durumu">
-              {FILTERS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === item.id}
-                  onClick={() => setFilter(item.id)}
-                  className={`inline-flex min-h-10 items-center rounded-full px-3.5 text-xs font-semibold transition ${
-                    filter === item.id
-                      ? "bg-[#0b6b45] text-white"
-                      : "border border-[#0b6b45]/25 bg-transparent text-[#466254] hover:bg-[#f4f6f5]"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
             <div>
               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#6b7d73]">
                 Hasta durumu
               </p>
-              <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Hasta talep durumu">
+              <div
+                className="-mx-1 flex flex-nowrap gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="tablist"
+                aria-label="Hasta talep durumu"
+              >
                 {LEAD_STATUS_FILTERS.map((item) => (
                   <button
                     key={item.id}
@@ -656,7 +771,7 @@ export function MessagesInbox({
                     role="tab"
                     aria-selected={leadStatusFilter === item.id}
                     onClick={() => setLeadStatusFilter(item.id)}
-                    className={`inline-flex min-h-9 items-center rounded-full px-3 text-[11px] font-semibold transition ${
+                    className={`inline-flex min-h-9 shrink-0 items-center rounded-full px-3 text-[11px] font-semibold transition ${
                       leadStatusFilter === item.id
                         ? "bg-[#123524] text-white"
                         : "border border-[#123524]/15 bg-[#f7f9f8] text-[#466254] hover:bg-[#eef2f0]"
@@ -666,6 +781,28 @@ export function MessagesInbox({
                   </button>
                 ))}
               </div>
+            </div>
+            <div
+              className="-mx-1 flex flex-nowrap gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              role="tablist"
+              aria-label="Konuşma durumu"
+            >
+              {FILTERS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === item.id}
+                  onClick={() => setFilter(item.id)}
+                  className={`inline-flex min-h-9 shrink-0 items-center rounded-full px-3 text-xs font-semibold transition ${
+                    filter === item.id
+                      ? "bg-[#0b6b45] text-white"
+                      : "border border-[#0b6b45]/25 bg-transparent text-[#466254] hover:bg-[#f4f6f5]"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -955,7 +1092,7 @@ export function MessagesInbox({
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={onComposerKeyDown}
                   rows={2}
-                  disabled={sending || (apiEnabled && !windowOpen)}
+                  disabled={apiEnabled && !windowOpen}
                   placeholder={
                     apiEnabled && !windowOpen
                       ? "Serbest mesaj penceresi kapalı"
@@ -966,17 +1103,11 @@ export function MessagesInbox({
                 />
                 <button
                   type="submit"
-                  disabled={
-                    sending || !draft.trim() || (apiEnabled && !windowOpen)
-                  }
+                  disabled={!draft.trim() || (apiEnabled && !windowOpen)}
                   aria-label="Gönder"
                   className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0b6b45] text-white disabled:opacity-50"
                 >
-                  {sending ? (
-                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                  ) : (
-                    <Send className="h-5 w-5" aria-hidden />
-                  )}
+                  <Send className="h-5 w-5" aria-hidden />
                 </button>
               </form>
             </div>

@@ -20,7 +20,7 @@ import {
   getActiveAdAccount,
   MarketingTokenError,
 } from "@/lib/marketing/tokens";
-import { googleAdsConfig } from "@/lib/marketing/config";
+import { googleAdsConfig, googleAdsCustomerIds } from "@/lib/marketing/config";
 
 export type SyncCampaignsResult = {
   platform: MarketingPlatform;
@@ -126,7 +126,13 @@ async function syncPlatformCampaigns(
     const accessToken = await ensureValidAccessToken(supabase, account);
     const remoteCampaigns =
       platform === "google_ads"
-        ? await fetchGoogleCampaigns(accessToken, account.external_account_id)
+        ? (
+            await Promise.all(
+              googleAdsCustomerIds().map((customerId) =>
+                fetchGoogleCampaigns(accessToken, customerId),
+              ),
+            )
+          ).flat()
         : await fetchMetaCampaigns(accessToken, account.external_account_id);
 
     const { data: existingRows } = await supabase

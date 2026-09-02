@@ -3,6 +3,7 @@
 import { requireAdminSession } from "@/lib/admin/auth";
 import { firstRelation } from "@/lib/crm/labels";
 import { createClient } from "@/lib/supabase/server";
+import { matchesNameOrPhone } from "@/lib/whatsapp/phone";
 import type { ScheduleLead } from "@/components/admin/schedule/types";
 
 /**
@@ -43,9 +44,7 @@ export async function loadScheduleLeads(options?: {
   const leads = ((data ?? []) as ScheduleLead[]).filter((lead) => {
     if (!search) return true;
     const contact = firstRelation(lead.contacts);
-    return `${contact?.name ?? ""} ${contact?.phone ?? ""}`
-      .toLocaleLowerCase("tr-TR")
-      .includes(search.toLocaleLowerCase("tr-TR"));
+    return matchesNameOrPhone(contact?.name, contact?.phone, search);
   });
 
   return { ok: true, leads };

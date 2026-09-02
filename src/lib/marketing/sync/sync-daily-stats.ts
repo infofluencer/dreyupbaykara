@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { googleAdsCustomerIds } from "@/lib/marketing/config";
 import { fetchGoogleDailyStats } from "@/lib/marketing/google-ads/client";
 import { fetchMetaDailyStats } from "@/lib/marketing/meta/client";
 import type { MarketingPlatform } from "@/lib/marketing/types";
@@ -46,12 +47,18 @@ async function syncPlatformDailyStats(
     const accessToken = await ensureValidAccessToken(supabase, account);
     const remoteStats =
       platform === "google_ads"
-        ? await fetchGoogleDailyStats(
-            accessToken,
-            account.external_account_id,
-            startDate,
-            endDate,
-          )
+        ? (
+            await Promise.all(
+              googleAdsCustomerIds().map((customerId) =>
+                fetchGoogleDailyStats(
+                  accessToken,
+                  customerId,
+                  startDate,
+                  endDate,
+                ),
+              ),
+            )
+          ).flat()
         : await fetchMetaDailyStats(
             accessToken,
             account.external_account_id,

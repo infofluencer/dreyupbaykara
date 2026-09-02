@@ -19,6 +19,22 @@ export function googleAdsConfig() {
   };
 }
 
+/** MCC altındaki reklam hesapları; yoksa login customer id. */
+export function googleAdsCustomerIds(): string[] {
+  const raw = process.env.GOOGLE_ADS_CUSTOMER_IDS?.trim();
+  const login = googleAdsConfig().loginCustomerId;
+
+  if (raw) {
+    const ids = raw
+      .split(/[,;\s]+/)
+      .map((id) => id.replace(/\D/g, ""))
+      .filter(Boolean);
+    if (ids.length) return [...new Set(ids)];
+  }
+
+  return login ? [login] : [];
+}
+
 export function metaAdsConfig() {
   return {
     appId: process.env.META_APP_ID?.trim() || "",

@@ -118,3 +118,16 @@ export function pickActiveLead<
     );
   return active[0] ?? null;
 }
+
+/** Liste / filtre: aktif talep; yoksa en yeni (bitti dahil). */
+export function pickDisplayLead<
+  T extends { stage: string; created_at: string },
+>(leads: T[]): T | null {
+  const active = pickActiveLead(leads);
+  if (active) return active;
+  const latest = [...leads].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+  return latest[0] ?? null;
+}

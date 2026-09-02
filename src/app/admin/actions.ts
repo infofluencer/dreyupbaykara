@@ -1275,7 +1275,8 @@ export async function sendConversationMessage(formData: FormData) {
     })
     .eq("id", conversationId);
 
-  revalidateMessages(conversationId);
+  // Inbox is optimistic + realtime. Skipping revalidatePath keeps the
+  // action from blocking the composer until the full RSC tree refreshes.
 }
 
 export async function updateConversationStatus(formData: FormData) {

@@ -5,7 +5,7 @@ import {
   type PatientsListRow,
 } from "@/components/admin/PatientsList";
 import { requireAdminSession } from "@/lib/admin/auth";
-import { pickActiveLead } from "@/lib/crm/lead-status";
+import { pickDisplayLead } from "@/lib/crm/lead-status";
 import {
   LEAD_STATUS_FILTERS,
   type LeadStatusFilter,
@@ -65,7 +65,7 @@ export default async function PatientsPage({
   }
 
   const rows: PatientsListRow[] = (patients ?? []).map((patient) => {
-    const activeLead = pickActiveLead(leadsByContact.get(patient.id) ?? []);
+    const activeLead = pickDisplayLead(leadsByContact.get(patient.id) ?? []);
     return {
       id: patient.id,
       name: patient.name,
