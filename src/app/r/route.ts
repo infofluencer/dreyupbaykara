@@ -4,7 +4,9 @@ import {
   buildFormWhatsAppMessage,
   buildWhatsAppUrl,
   generateLeadRef,
+  mergeTrackingParams,
   pickTrackingParams,
+  pickTrackingParamsFromUrl,
 } from "@/lib/crm/tracking";
 import { createServiceClient } from "@/lib/supabase/admin";
 
@@ -18,7 +20,11 @@ function first(value: string | null): string | null {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const tracking = pickTrackingParams(searchParams);
+  const fromQuery = pickTrackingParams(searchParams);
+  const fromReferer = pickTrackingParamsFromUrl(
+    request.headers.get("referer"),
+  );
+  const tracking = mergeTrackingParams(fromQuery, fromReferer);
 
   const form = {
     name: first(searchParams.get("name")),
@@ -54,7 +60,9 @@ export async function GET(request: NextRequest) {
       wbraid: tracking.wbraid,
       msclkid: tracking.msclkid,
       ttclid: tracking.ttclid,
-      landing_url: request.headers.get("referer"),
+      landing_url:
+        request.headers.get("referer") ??
+        request.nextUrl.searchParams.get("landing_url"),
       user_agent: request.headers.get("user-agent"),
       form_payload: hasForm ? form : null,
     });

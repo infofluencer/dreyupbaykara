@@ -3,6 +3,8 @@ import {
   DEFAULT_SITE,
   generateLeadRef,
   hasPaidTrackingParams,
+  mergeTrackingParams,
+  pickTrackingParamsFromUrl,
   type TrackingParams,
 } from "@/lib/crm/tracking";
 import { createServiceClient } from "@/lib/supabase/admin";
@@ -44,7 +46,10 @@ export async function POST(request: NextRequest) {
     landing_url: clip(body.landing_url),
   };
 
-  if (!hasPaidTrackingParams(tracking)) {
+  const fromLandingUrl = pickTrackingParamsFromUrl(tracking.landing_url);
+  const merged = mergeTrackingParams(tracking, fromLandingUrl);
+
+  if (!hasPaidTrackingParams(merged)) {
     return NextResponse.json({ ok: true, skipped: true });
   }
 
@@ -55,21 +60,21 @@ export async function POST(request: NextRequest) {
 
   const { error } = await supabase.from("lead_sources").insert({
     lead_ref: generateLeadRef(),
-    site: tracking.site,
-    page_path: tracking.page,
+    site: merged.site,
+    page_path: merged.page,
     channel: "landing",
-    campaign: tracking.campaign,
-    utm_source: tracking.utm_source,
-    utm_medium: tracking.utm_medium,
-    utm_campaign: tracking.utm_campaign,
-    utm_content: tracking.utm_content,
-    utm_term: tracking.utm_term,
-    gclid: tracking.gclid,
-    fbclid: tracking.fbclid,
-    gbraid: tracking.gbraid,
-    wbraid: tracking.wbraid,
-    msclkid: tracking.msclkid,
-    ttclid: tracking.ttclid,
+    campaign: merged.campaign,
+    utm_source: merged.utm_source,
+    utm_medium: merged.utm_medium,
+    utm_campaign: merged.utm_campaign,
+    utm_content: merged.utm_content,
+    utm_term: merged.utm_term,
+    gclid: merged.gclid,
+    fbclid: merged.fbclid,
+    gbraid: merged.gbraid,
+    wbraid: merged.wbraid,
+    msclkid: merged.msclkid,
+    ttclid: merged.ttclid,
     landing_url: tracking.landing_url ?? request.headers.get("referer"),
     user_agent: request.headers.get("user-agent"),
   });

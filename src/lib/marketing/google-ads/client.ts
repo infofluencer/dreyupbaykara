@@ -3,7 +3,9 @@ import "server-only";
 import { googleAdsConfig, googleAdsApiBaseUrl } from "@/lib/marketing/config";
 import type {
   RemoteCampaign,
+  RemoteConversionAction,
   RemoteDailyStat,
+  RemoteGoogleLeadSubmission,
   RemoteLandingPageStat,
   RemoteSearchTermStat,
   RemoteSegmentStat,
@@ -471,4 +473,120 @@ export async function fetchGoogleAccountDisplayName(
     "SELECT customer.descriptive_name FROM customer LIMIT 1",
   );
   return rows[0]?.customer?.descriptiveName?.trim() || null;
+}
+
+function parseSubmissionDateTime(raw: string | undefined): string | null {
+  if (!raw?.trim()) return null;
+  const parsed = new Date(raw.replace(" ", "T"));
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+/** Google Lead Form Extension — bireysel lead kayıtları (WhatsApp CRM lead değil). */
+export async function fetchGoogleLeadFormSubmissions(
+  accessToken: string,
+  accountExternalId: string,
+  startDate: string,
+  endDate: string,
+): Promise<RemoteGoogleLeadSubmission[]> {
+  const start = `${startDate} 00:00:00`;
+  const end = `${endDate} 23:59:59`;
+
+  const rows = await googleAdsSearch<{
+    campaign?: { id?: string };
+    leadFormSubmissionData?: {
+      id?: string;
+      gclid?: string;
+      submissionDateTime?: string;
+      leadFormSubmissionFields?: Array<{
+        fieldType?: string;
+        fieldValue?: string;
+      }>;
+    };
+  }>(
+    accessToken,
+    accountExternalId,
+    `
+      SELECT
+        campaign.id,
+        lead_form_submission_data.id,
+        lead_form_submission_data.gclid,
+        lead_form_submission_data.submission_date_time,
+        lead_form_submission_data.lead_form_submission_fields
+      FROM lead_form_submission_data
+      WHERE lead_form_submission_data.submission_date_time
+        BETWEEN '${start}' AND '${end}'
+      ORDER BY lead_form_submission_data.submission_date_time DESC
+    `,
+  );
+
+  return rows.flatMap((row) => {
+    const externalSubmissionId = row.leadFormSubmissionData?.id?.trim() ?? "";
+    const externalCampaignId = row.campaign?.id ? String(row.campaign.id) : "";
+    const submittedAt = parseSubmissionDateTime(
+      row.leadFormSubmissionData?.submissionDateTime,
+    );
+    if (!externalSubmissionId || !externalCampaignId || !submittedAt) return [];
+
+    const formFields = (row.leadFormSubmissionData?.leadFormSubmissionFields ??
+      [])
+      .map((field) => ({
+        fieldType: field.fieldType?.trim() ?? "",
+        fieldValue: field.fieldValue?.trim() ?? "",
+      }))
+      .filter((field) => field.fieldType || field.fieldValue);
+
+    return [
+      {
+        externalSubmissionId,
+        externalCampaignId,
+        gclid: row.leadFormSubmissionData?.gclid?.trim() || null,
+        submittedAt,
+        formFields,
+      },
+    ];
+  });
+}
+
+/** Hesapta tanımlı dönüşüm aksiyonları (ne sayılıyor?). */
+export async function fetchGoogleConversionActions(
+  accessToken: string,
+  accountExternalId: string,
+): Promise<RemoteConversionAction[]> {
+  const rows = await googleAdsSearch<{
+    conversionAction?: {
+      id?: string;
+      name?: string;
+      category?: string;
+      type?: string;
+    };
+  }>(
+    accessToken,
+    accountExternalId,
+    `
+      SELECT
+        conversion_action.id,
+        conversion_action.name,
+        conversion_action.category,
+        conversion_action.type
+      FROM conversion_action
+      WHERE conversion_action.status != 'REMOVED'
+      ORDER BY conversion_action.name
+    `,
+  );
+
+  return rows.flatMap((row) => {
+    const externalActionId = row.conversionAction?.id
+      ? String(row.conversionAction.id)
+      : "";
+    const name = row.conversionAction?.name?.trim() ?? "";
+    if (!externalActionId || !name) return [];
+    return [
+      {
+        externalActionId,
+        name,
+        category: row.conversionAction?.category?.trim() || null,
+        actionType: row.conversionAction?.type?.trim() || null,
+      },
+    ];
+  });
 }

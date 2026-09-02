@@ -1,28 +1,39 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { AlertTriangle, Link2, TrendingUp } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
   loadAdAccountsSafe,
   loadCampaignPerformance,
+  loadGoogleLeadsSummary,
   loadMarketingSummary,
   loadSiteOptions,
   loadUnmatchedCampaigns,
-  loadGoogleMarketingInsights,
 } from "@/lib/marketing/admin-stats";
-import { resolveMarketingDateRange, pickMarketingQueryParam, formatMarketingDateRangeTr } from "@/lib/marketing/date-range";
+import { MARKETING_CLICK_LOGS_SITE, isMarketingAdSite } from "@/lib/marketing/constants";
+import {
+  resolveMarketingDateRange,
+  pickMarketingQueryParam,
+  formatMarketingDateRangeTr,
+} from "@/lib/marketing/date-range";
 import {
   MarketingDailyChart,
   MarketingPlatformBars,
 } from "@/components/admin/MarketingCharts";
-import { MarketingGoogleInsightsPanel } from "@/components/admin/MarketingGoogleInsightsPanel";
+import {
+  MarketingGoogleInsightsFallback,
+  MarketingGoogleInsightsSection,
+} from "@/components/admin/MarketingGoogleInsightsSection";
 import { MarketingLeadSourcesSection } from "@/components/admin/MarketingLeadSourcesSection";
-import { MarketingPeriodFilter } from "@/components/admin/MarketingPeriodFilter";
+import { MarketingFilterBar } from "@/components/admin/MarketingFilterBar";
+import { MarketingCampaignTable } from "@/components/admin/MarketingCampaignTable";
+import { MarketingGoogleLeadsSection } from "@/components/admin/MarketingGoogleLeadsSection";
+import { MarketingWaBridgeSetup } from "@/components/admin/MarketingWaBridgeSetup";
 import { formatPct, formatTry } from "@/lib/marketing/format";
 import { buildMarketingHref } from "@/lib/marketing/urls";
 import { UnmatchedCampaignRow } from "@/components/admin/UnmatchedCampaignRow";
 import { MarketingSyncButton } from "@/components/admin/MarketingSyncButton";
 import {
-  PLATFORM_LABEL,
   type AdPlatform,
   type SourceEvent,
 } from "@/lib/crm/source-kind";
@@ -71,15 +82,21 @@ export default async function AdminMarketingPage({
   const event = parseEvent(query.event);
   const search = query.q?.trim() || "";
 
-  const [summary, campaigns, unmatched, siteOptions, accounts, googleInsights] =
+  const [summary, campaignPerformance, unmatched, siteOptions, accounts] =
     await Promise.all([
       loadMarketingSummary(startDate, endDate, siteFilter),
       loadCampaignPerformance(startDate, endDate, siteFilter),
       loadUnmatchedCampaigns(),
       loadSiteOptions(),
       loadAdAccountsSafe(),
-      loadGoogleMarketingInsights(startDate, endDate, siteFilter),
     ]);
+
+  const googleLeads = await loadGoogleLeadsSummary(
+    startDate,
+    endDate,
+    siteFilter,
+    campaignPerformance.attribution.googleConversionsTotal,
+  );
 
   const inactiveAccounts = accounts.filter((a) => !a.is_active || !a.has_token);
   const hasAccounts = accounts.some((a) => a.is_active && a.has_token);
@@ -152,7 +169,7 @@ export default async function AdminMarketingPage({
         </div>
       ) : null}
 
-      <MarketingPeriodFilter
+      <MarketingFilterBar
         period={period}
         startDate={startDate}
         endDate={endDate}
@@ -203,6 +220,63 @@ export default async function AdminMarketingPage({
         </div>
       ) : null}
 
+      {siteFilter &&
+      isMarketingAdSite(siteFilter) &&
+      summary &&
+      summary.total_leads === 0 &&
+      campaignPerformance.attribution.googleConversionsTotal > 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold">
+            CRM lead bu reklam sitesine eşleşmedi — Google dönüşüm var
+          </p>
+          <p className="mt-1">
+            Google reklamları{" "}
+            <strong>
+              {siteFilter === "endospineistanbul"
+                ? "endospineistanbul.com"
+                : "fitikameliyati.com"}
+            </strong>
+            &apos;a gidiyor; CRM lead&apos;leri ise{" "}
+            <strong>endoskopikbelameliyati.com</strong> WhatsApp/form
+            akışından geliyor. Veritabanında{" "}
+            <code className="rounded bg-amber-100 px-1">gclid</code> /{" "}
+            <code className="rounded bg-amber-100 px-1">utm_campaign</code>{" "}
+            kaydı yoksa site filtresinde CRM lead 0 görünür — bu normaldir.
+          </p>
+          <p className="mt-2">
+            Bu dönemde Google Ads dönüşüm:{" "}
+            <strong>
+              {campaignPerformance.attribution.googleConversionsTotal.toLocaleString(
+                "tr-TR",
+              )}
+            </strong>
+            . WhatsApp linklerinin{" "}
+            <code className="rounded bg-amber-100 px-1">
+              endoskopikbelameliyati.com/r?...&amp;gclid=...
+            </code>{" "}
+            üzerinden gitmesi gerekir; aksi halde kampanya eşleşmesi yapılamaz.
+          </p>
+          <Link
+            href="#wa-bridge-setup"
+            className="mt-2 mr-4 inline-block font-semibold text-amber-900 underline"
+          >
+            WordPress kurulum kodu →
+          </Link>
+          <Link
+            href={buildMarketingHref({
+              period,
+              site: MARKETING_CLICK_LOGS_SITE,
+              platform,
+              event,
+              q: search,
+            })}
+            className="mt-2 inline-block font-semibold text-amber-900 underline"
+          >
+            Ana site CRM lead&apos;lerini gör →
+          </Link>
+        </div>
+      ) : null}
+
       {summary ? (
         <>
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -212,14 +286,14 @@ export default async function AdminMarketingPage({
               hint={formatMarketingDateRangeTr(startDate, endDate)}
             />
             <SummaryCard
-              label="Toplam lead"
+              label="Toplam lead (CRM)"
               value={String(summary.total_leads)}
-              hint="Eşleşmiş leads kayıtları"
+              hint="Form / WhatsApp — platforma göre (gclid, Meta clid)"
             />
             <SummaryCard
-              label="CPL"
+              label="CPL (CRM)"
               value={formatTry(summary.cpl)}
-              hint="Harcama / lead"
+              hint="Harcama ÷ CRM lead"
             />
             <SummaryCard
               label="Lead → Randevu"
@@ -249,7 +323,12 @@ export default async function AdminMarketingPage({
                 Google Ads vs Meta
               </p>
               <div className="mt-5">
-                <MarketingPlatformBars summary={summary} />
+                <MarketingPlatformBars
+                  summary={summary}
+                  googleConversions={
+                    campaignPerformance.attribution.googleConversionsTotal
+                  }
+                />
               </div>
             </section>
           </div>
@@ -266,66 +345,28 @@ export default async function AdminMarketingPage({
           Kampanya performansı
         </h2>
         <p className="mt-1 text-sm text-[#466254]">
-          Harcama API&apos;den; lead sayısı utm_campaign eşleşmesiyle.
+          Harcama ve tıklama Google/Meta API&apos;den; dönüşüm ve CRM lead ayrı
+          sütunlarda.
         </p>
-        {!campaigns.length ? (
-          <p className="mt-4 text-sm text-[#466254]">
-            Kampanya verisi yok. Sync sonrası burada görünür.
-          </p>
-        ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[48rem] text-left text-sm">
-              <thead className="border-b border-[#123524]/08 bg-[#f7f9f8] text-[#466254]">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Kampanya</th>
-                  <th className="px-3 py-2 font-medium">Site</th>
-                  <th className="px-3 py-2 font-medium">Platform</th>
-                  <th className="px-3 py-2 font-medium">Harcama</th>
-                  <th className="px-3 py-2 font-medium">Tıklama</th>
-                  <th className="px-3 py-2 font-medium">Lead</th>
-                  <th className="px-3 py-2 font-medium">CPL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {campaigns.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b border-[#123524]/06 last:border-0"
-                  >
-                    <td className="px-3 py-2 font-medium text-[#123524]">
-                      {row.name}
-                    </td>
-                    <td className="px-3 py-2 text-[#466254]">
-                      {row.site || (
-                        <span className="text-amber-700">eşleşmedi</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2">
-                      {PLATFORM_LABEL[row.platform]}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {formatTry(row.spend)}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">{row.clicks}</td>
-                    <td className="px-3 py-2 tabular-nums">{row.leads}</td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {formatTry(row.cpl)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <MarketingCampaignTable performance={campaignPerformance} />
       </section>
 
-      <MarketingGoogleInsightsPanel
-        insights={googleInsights}
-        period={period}
-        startDate={startDate}
-        endDate={endDate}
-        siteFilter={siteFilter}
+      <MarketingGoogleLeadsSection
+        summary={googleLeads}
+        crmLeads={summary?.total_leads ?? 0}
       />
+
+      <Suspense
+        key={`${startDate}-${endDate}-${siteFilter ?? "all"}`}
+        fallback={<MarketingGoogleInsightsFallback />}
+      >
+        <MarketingGoogleInsightsSection
+          startDate={startDate}
+          endDate={endDate}
+          siteFilter={siteFilter}
+          period={period}
+        />
+      </Suspense>
 
       {unmatched.length ? (
         <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
@@ -353,15 +394,21 @@ export default async function AdminMarketingPage({
         </section>
       ) : null}
 
-      <MarketingLeadSourcesSection
-        period={period}
-        startDate={startDate}
-        endDate={endDate}
-        siteFilter={siteFilter}
-        platform={platform}
-        event={event}
-        search={search}
-      />
+      <div id="wa-bridge-setup">
+        <MarketingWaBridgeSetup />
+      </div>
+
+      {siteFilter === MARKETING_CLICK_LOGS_SITE ? (
+        <MarketingLeadSourcesSection
+          period={period}
+          startDate={startDate}
+          endDate={endDate}
+          siteFilter={siteFilter}
+          platform={platform}
+          event={event}
+          search={search}
+        />
+      ) : null}
     </div>
   );
 }

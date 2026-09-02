@@ -3,9 +3,25 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type {
   AdAccountSafe,
+  CampaignPerformanceResult,
   CampaignPerformanceRow,
+  GoogleLeadsSummary,
   MarketingSummary,
 } from "@/lib/marketing/types";
+import {
+  isGoogleAttributedLead,
+  matchLeadToCampaignId,
+} from "@/lib/marketing/campaign-match";
+import {
+  leadMatchesAdSiteFilter,
+  resolveLeadAttribution,
+  type LeadSourceAttribution,
+} from "@/lib/marketing/attribution";
+import {
+  filterLeadsBySiteColumn,
+  isMarketingAdSite,
+  MARKETING_CLICK_LOGS_SITE,
+} from "@/lib/marketing/constants";
 
 function parseSummary(data: unknown): MarketingSummary | null {
   if (!data || typeof data !== "object") return null;
@@ -55,11 +71,10 @@ const KNOWN_MARKETING_SITES = [
 
 export async function loadSiteOptions(): Promise<string[]> {
   const supabase = await createClient();
-  const [{ data: prefixes }, { data: campaigns }, { data: leads }, { data: customerSites }] =
+  const [{ data: prefixes }, { data: campaigns }, { data: customerSites }] =
     await Promise.all([
       supabase.from("site_prefix_map").select("site"),
       supabase.from("ad_campaigns").select("site").not("site", "is", null),
-      supabase.from("leads").select("site").not("site", "is", null).limit(500),
       supabase.from("ad_customer_site_map").select("site"),
     ]);
 
@@ -71,9 +86,6 @@ export async function loadSiteOptions(): Promise<string[]> {
     if (row.site) sites.add(row.site as string);
   }
   for (const row of campaigns ?? []) {
-    if (row.site && row.site !== "manual") sites.add(row.site as string);
-  }
-  for (const row of leads ?? []) {
     if (row.site && row.site !== "manual") sites.add(row.site as string);
   }
 
@@ -96,16 +108,76 @@ export async function loadUnmatchedCampaigns() {
   return data ?? [];
 }
 
+function extractUtmCampaignFromLandingUrl(url: string): string | null {
+  try {
+    const normalized = url.replace("{ignore}", "placeholder");
+    const parsed = new URL(normalized);
+    const utm = parsed.searchParams.get("utm_campaign")?.trim();
+    return utm || null;
+  } catch {
+    const match = url.match(/[?&]utm_campaign=([^&]+)/i);
+    if (!match?.[1]) return null;
+    try {
+      return decodeURIComponent(match[1]).trim() || null;
+    } catch {
+      return match[1].trim() || null;
+    }
+  }
+}
+
+async function loadLandingUtmSlugs(
+  campaignIds: string[],
+): Promise<Set<string>> {
+  if (!campaignIds.length) return new Set();
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("ad_landing_page_daily")
+    .select("landing_page")
+    .in("campaign_id", campaignIds);
+
+  const slugs = new Set<string>();
+  for (const row of data ?? []) {
+    const utm = extractUtmCampaignFromLandingUrl(String(row.landing_page ?? ""));
+    if (utm) slugs.add(utm.toLowerCase());
+  }
+  return slugs;
+}
+
+async function loadLeadSourceMap(
+  leadRefs: string[],
+): Promise<Map<string, LeadSourceAttribution>> {
+  const map = new Map<string, LeadSourceAttribution>();
+  if (!leadRefs.length) return map;
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("lead_sources")
+    .select(
+      "lead_ref, site, utm_source, utm_medium, utm_campaign, campaign, gclid, gbraid, wbraid, fbclid, landing_url",
+    )
+    .in("lead_ref", leadRefs);
+
+  for (const row of data ?? []) {
+    if (row.lead_ref) {
+      map.set(row.lead_ref as string, row as LeadSourceAttribution);
+    }
+  }
+  return map;
+}
+
 export async function loadCampaignPerformance(
   startDate: string,
   endDate: string,
   siteFilter: string | null,
-): Promise<CampaignPerformanceRow[]> {
+): Promise<CampaignPerformanceResult> {
   const supabase = await createClient();
 
   let campaignQuery = supabase
     .from("ad_campaigns")
-    .select("id, platform, name, site, site_match_source, status");
+    .select(
+      "id, platform, name, site, site_match_source, status, external_campaign_id",
+    );
 
   if (siteFilter) {
     campaignQuery = campaignQuery.eq("site", siteFilter);
@@ -113,20 +185,33 @@ export async function loadCampaignPerformance(
 
   const { data: campaigns, error: campaignError } = await campaignQuery;
   if (campaignError || !campaigns?.length) {
-    return [];
+    return {
+      rows: [],
+      attribution: {
+        crmLeadsInRange: 0,
+        crmLeadsMatched: 0,
+        crmGoogleUnmatched: 0,
+        googleConversionsTotal: 0,
+      },
+    };
   }
 
   const campaignIds = campaigns.map((c) => c.id);
   const { data: stats } = await supabase
     .from("ad_daily_stats")
-    .select("campaign_id, spend, clicks, impressions")
+    .select("campaign_id, spend, clicks, impressions, conversions")
     .in("campaign_id", campaignIds)
     .gte("date", startDate)
     .lte("date", endDate);
 
   const statsByCampaign = new Map<
     string,
-    { spend: number; clicks: number; impressions: number }
+    {
+      spend: number;
+      clicks: number;
+      impressions: number;
+      conversions: number;
+    }
   >();
   for (const row of stats ?? []) {
     const id = row.campaign_id as string;
@@ -134,55 +219,140 @@ export async function loadCampaignPerformance(
       spend: 0,
       clicks: 0,
       impressions: 0,
+      conversions: 0,
     };
     current.spend += Number(row.spend ?? 0);
     current.clicks += Number(row.clicks ?? 0);
     current.impressions += Number(row.impressions ?? 0);
+    current.conversions += Number(row.conversions ?? 0);
     statsByCampaign.set(id, current);
   }
 
   let leadsQuery = supabase
     .from("leads")
-    .select("utm_campaign, campaign, site, created_at")
+    .select(
+      "utm_campaign, campaign, gclid, gbraid, wbraid, site, lead_ref, utm_source, fbclid",
+    )
     .gte("created_at", `${startDate}T00:00:00+03:00`)
     .lte("created_at", `${endDate}T23:59:59+03:00`);
 
-  if (siteFilter) {
+  if (siteFilter && filterLeadsBySiteColumn(siteFilter)) {
     leadsQuery = leadsQuery.eq("site", siteFilter);
   }
 
   const { data: leads } = await leadsQuery;
+  const rawLeads = leads ?? [];
 
-  return campaigns.map((campaign) => {
-    const agg = statsByCampaign.get(campaign.id) ?? {
-      spend: 0,
-      clicks: 0,
-      impressions: 0,
-    };
-    const nameLower = campaign.name.toLowerCase();
-    const leadCount = (leads ?? []).filter((lead) => {
-      const utm = (lead.utm_campaign || lead.campaign || "").toLowerCase();
-      return utm === nameLower || utm.includes(nameLower);
-    }).length;
+  const sourceMap = await loadLeadSourceMap(
+    rawLeads
+      .map((lead) => lead.lead_ref as string | null)
+      .filter((ref): ref is string => Boolean(ref)),
+  );
 
-    return {
-      id: campaign.id,
-      platform: campaign.platform as CampaignPerformanceRow["platform"],
-      name: campaign.name,
-      site: campaign.site as string | null,
-      site_match_source:
-        campaign.site_match_source as CampaignPerformanceRow["site_match_source"],
-      status: campaign.status as string | null,
-      spend: Math.round(agg.spend * 100) / 100,
-      clicks: agg.clicks,
-      impressions: agg.impressions,
-      leads: leadCount,
-      cpl:
-        leadCount > 0
-          ? Math.round((agg.spend / leadCount) * 100) / 100
-          : null,
-    };
-  }).sort((a, b) => b.spend - a.spend);
+  const landingUtmSlugs =
+    siteFilter && isMarketingAdSite(siteFilter)
+      ? await loadLandingUtmSlugs(campaignIds)
+      : new Set<string>();
+
+  const campaignsForMatch = campaigns.map((c) => ({
+    id: c.id as string,
+    name: c.name as string,
+    externalCampaignId: (c.external_campaign_id as string) ?? "",
+    site: c.site as string | null,
+    platform: c.platform as string,
+  }));
+
+  const allLeads = rawLeads
+    .map((lead) =>
+      resolveLeadAttribution(
+        lead,
+        lead.lead_ref ? sourceMap.get(lead.lead_ref as string) : null,
+      ),
+    )
+    .filter((lead) => {
+      if (!siteFilter || !isMarketingAdSite(siteFilter)) return true;
+      return leadMatchesAdSiteFilter(
+        lead,
+        siteFilter,
+        campaignsForMatch,
+        landingUtmSlugs,
+      );
+    });
+
+  const leadCounts = new Map<string, number>();
+  let crmLeadsMatched = 0;
+  let crmGoogleUnmatched = 0;
+
+  for (const lead of allLeads) {
+    const campaignId = matchLeadToCampaignId(lead, campaignsForMatch);
+    if (campaignId) {
+      leadCounts.set(campaignId, (leadCounts.get(campaignId) ?? 0) + 1);
+      crmLeadsMatched += 1;
+      continue;
+    }
+
+    if (isGoogleAttributedLead(lead)) {
+      if (!siteFilter || isMarketingAdSite(siteFilter)) {
+        crmGoogleUnmatched += 1;
+      }
+    }
+  }
+
+  const crmLeadsInRange =
+    siteFilter && isMarketingAdSite(siteFilter)
+      ? crmLeadsMatched
+      : allLeads.length;
+
+  const rows = campaigns
+    .map((campaign) => {
+      const agg = statsByCampaign.get(campaign.id) ?? {
+        spend: 0,
+        clicks: 0,
+        impressions: 0,
+        conversions: 0,
+      };
+      const crmLeads = leadCounts.get(campaign.id) ?? 0;
+      const googleConversions = Math.round(agg.conversions * 100) / 100;
+
+      return {
+        id: campaign.id,
+        platform: campaign.platform as CampaignPerformanceRow["platform"],
+        name: campaign.name,
+        site: campaign.site as string | null,
+        site_match_source:
+          campaign.site_match_source as CampaignPerformanceRow["site_match_source"],
+        status: campaign.status as string | null,
+        spend: Math.round(agg.spend * 100) / 100,
+        clicks: agg.clicks,
+        impressions: agg.impressions,
+        googleConversions,
+        crmLeads,
+        googleCpa:
+          googleConversions > 0
+            ? Math.round((agg.spend / googleConversions) * 100) / 100
+            : null,
+        cpl:
+          crmLeads > 0
+            ? Math.round((agg.spend / crmLeads) * 100) / 100
+            : null,
+      };
+    })
+    .sort((a, b) => b.spend - a.spend);
+
+  const googleConversionsTotal = rows.reduce(
+    (sum, row) => sum + row.googleConversions,
+    0,
+  );
+
+  return {
+    rows,
+    attribution: {
+      crmLeadsInRange,
+      crmLeadsMatched,
+      crmGoogleUnmatched,
+      googleConversionsTotal: Math.round(googleConversionsTotal * 100) / 100,
+    },
+  };
 }
 
 export function defaultMarketingDateRange(days = 30): {
@@ -258,29 +428,154 @@ async function loadFilteredGoogleCampaignIds(
   return (data ?? []).map((row) => row.id as string);
 }
 
+const DEVICE_LABELS: Record<string, string> = {
+  MOBILE: "Mobil",
+  DESKTOP: "Masaüstü",
+  TABLET: "Tablet",
+  CONNECTED_TV: "TV",
+  OTHER: "Diğer",
+};
+
+function emptyGoogleInsights(): GoogleMarketingInsights {
+  return {
+    totalSpend: 0,
+    totalClicks: 0,
+    totalConversions: 0,
+    avgCtr: null,
+    avgCpc: null,
+    avgImpressionShare: null,
+    budgetLostShare: null,
+    rankLostShare: null,
+    googleCostPerConversion: null,
+    devices: [],
+    conversionActions: [],
+    searchTerms: [],
+    landingPages: [],
+  };
+}
+
+function num(value: unknown): number {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function numOrNull(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseGoogleInsightsRpc(data: unknown): GoogleMarketingInsights | null {
+  if (!data || typeof data !== "object") return null;
+  const row = data as Record<string, unknown>;
+  const totalSpend = num(row.totalSpend);
+  const totalClicks = num(row.totalClicks);
+  const totalConversions = num(row.totalConversions);
+
+  const devices = Array.isArray(row.devices)
+    ? row.devices.map((item) => {
+        const d = item as Record<string, unknown>;
+        const key = String(d.device ?? "");
+        return {
+          device: DEVICE_LABELS[key] ?? key,
+          spend: Math.round(num(d.spend) * 100) / 100,
+          clicks: num(d.clicks),
+          conversions: num(d.conversions),
+        };
+      })
+    : [];
+
+  const conversionActions = Array.isArray(row.conversionActions)
+    ? row.conversionActions.map((item) => {
+        const d = item as Record<string, unknown>;
+        return {
+          name: String(d.name ?? ""),
+          conversions: Math.round(num(d.conversions) * 100) / 100,
+          spend: Math.round(num(d.spend) * 100) / 100,
+        };
+      })
+    : [];
+
+  const searchTerms = Array.isArray(row.searchTerms)
+    ? row.searchTerms.map((item) => {
+        const d = item as Record<string, unknown>;
+        return {
+          term: String(d.term ?? ""),
+          spend: Math.round(num(d.spend) * 100) / 100,
+          clicks: num(d.clicks),
+          conversions: num(d.conversions),
+        };
+      })
+    : [];
+
+  const landingPages = Array.isArray(row.landingPages)
+    ? row.landingPages.map((item) => {
+        const d = item as Record<string, unknown>;
+        return {
+          url: String(d.url ?? ""),
+          spend: Math.round(num(d.spend) * 100) / 100,
+          clicks: num(d.clicks),
+          conversions: num(d.conversions),
+        };
+      })
+    : [];
+
+  return {
+    totalSpend: Math.round(totalSpend * 100) / 100,
+    totalClicks,
+    totalConversions: Math.round(totalConversions * 100) / 100,
+    avgCtr: numOrNull(row.avgCtr),
+    avgCpc:
+      totalClicks > 0
+        ? Math.round((totalSpend / totalClicks) * 100) / 100
+        : numOrNull(row.avgCpc),
+    avgImpressionShare: numOrNull(row.avgImpressionShare),
+    budgetLostShare: numOrNull(row.budgetLostShare),
+    rankLostShare: numOrNull(row.rankLostShare),
+    googleCostPerConversion:
+      totalConversions > 0
+        ? Math.round((totalSpend / totalConversions) * 100) / 100
+        : null,
+    devices,
+    conversionActions,
+    searchTerms,
+    landingPages,
+  };
+}
+
 export async function loadGoogleMarketingInsights(
   startDate: string,
   endDate: string,
   siteFilter: string | null,
-): Promise<GoogleMarketingInsights | null> {
+): Promise<GoogleMarketingInsights> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_google_marketing_insights", {
+    start_date: startDate,
+    end_date: endDate,
+    site_filter: siteFilter,
+  });
+
+  if (!error && data) {
+    const parsed = parseGoogleInsightsRpc(data);
+    if (parsed) return parsed;
+  }
+
+  if (error) {
+    console.warn("[marketing] insights rpc:", error.message);
+  }
+
+  return loadGoogleMarketingInsightsLegacy(startDate, endDate, siteFilter);
+}
+
+async function loadGoogleMarketingInsightsLegacy(
+  startDate: string,
+  endDate: string,
+  siteFilter: string | null,
+): Promise<GoogleMarketingInsights> {
   const supabase = await createClient();
   const campaignIds = await loadFilteredGoogleCampaignIds(siteFilter);
   if (!campaignIds.length) {
-    return {
-      totalSpend: 0,
-      totalClicks: 0,
-      totalConversions: 0,
-      avgCtr: null,
-      avgCpc: null,
-      avgImpressionShare: null,
-      budgetLostShare: null,
-      rankLostShare: null,
-      googleCostPerConversion: null,
-      devices: [],
-      conversionActions: [],
-      searchTerms: [],
-      landingPages: [],
-    };
+    return emptyGoogleInsights();
   }
 
   const { data: dailyRows } = await supabase
@@ -391,14 +686,6 @@ export async function loadGoogleMarketingInsights(
     landingMap.set(row.landing_page, current);
   }
 
-  const deviceLabels: Record<string, string> = {
-    MOBILE: "Mobil",
-    DESKTOP: "Masaüstü",
-    TABLET: "Tablet",
-    CONNECTED_TV: "TV",
-    OTHER: "Diğer",
-  };
-
   return {
     totalSpend: Math.round(totalSpend * 100) / 100,
     totalClicks,
@@ -429,7 +716,7 @@ export async function loadGoogleMarketingInsights(
         : null,
     devices: [...deviceMap.entries()]
       .map(([device, agg]) => ({
-        device: deviceLabels[device] ?? device,
+        device: DEVICE_LABELS[device] ?? device,
         ...agg,
         spend: Math.round(agg.spend * 100) / 100,
       }))
@@ -456,6 +743,113 @@ export async function loadGoogleMarketingInsights(
         spend: Math.round(agg.spend * 100) / 100,
       }))
       .sort((a, b) => b.spend - a.spend)
-      .slice(0, 10),
+      .slice(0, 15),
+  };
+}
+
+export async function loadGoogleLeadsSummary(
+  startDate: string,
+  endDate: string,
+  siteFilter: string | null,
+  googleConversionsTotal: number,
+): Promise<GoogleLeadsSummary> {
+  const supabase = await createClient();
+  const startIso = `${startDate}T00:00:00+03:00`;
+  const endIso = `${endDate}T23:59:59+03:00`;
+
+  let campaignIds: string[] | null = null;
+  if (siteFilter) {
+    const { data: campaigns } = await supabase
+      .from("ad_campaigns")
+      .select("id")
+      .eq("platform", "google_ads")
+      .eq("site", siteFilter);
+    campaignIds = (campaigns ?? []).map((row) => row.id as string);
+    if (!campaignIds.length) {
+      return {
+        leadFormCount: 0,
+        conversionTotal: googleConversionsTotal,
+        conversionByAction: [],
+        recentSubmissions: [],
+        configuredActions: [],
+      };
+    }
+  }
+
+  let submissionsQuery = supabase
+    .from("google_ad_lead_submissions")
+    .select(
+      "id, submitted_at, gclid, form_fields, campaign_id, ad_campaigns(name, site)",
+      { count: "exact" },
+    )
+    .gte("submitted_at", startIso)
+    .lte("submitted_at", endIso)
+    .order("submitted_at", { ascending: false })
+    .limit(20);
+
+  if (campaignIds) {
+    submissionsQuery = submissionsQuery.in("campaign_id", campaignIds);
+  }
+
+  const { data: submissions, count: leadFormCount } = await submissionsQuery;
+
+  let conversionRowsQuery = supabase
+    .from("ad_segment_daily_stats")
+    .select("segment_value, conversions, campaign_id")
+    .eq("segment_type", "conversion_action")
+    .gte("date", startDate)
+    .lte("date", endDate);
+
+  if (campaignIds) {
+    conversionRowsQuery = conversionRowsQuery.in("campaign_id", campaignIds);
+  }
+
+  const { data: conversionRows } = await conversionRowsQuery;
+  const { data: actionDefs } = await supabase
+    .from("ad_conversion_actions")
+    .select("name, category, action_type")
+    .order("name");
+
+  const conversionByActionMap = new Map<string, number>();
+  for (const row of conversionRows ?? []) {
+    const name = String(row.segment_value ?? "");
+    if (!name) continue;
+    conversionByActionMap.set(
+      name,
+      (conversionByActionMap.get(name) ?? 0) + Number(row.conversions ?? 0),
+    );
+  }
+
+  const recentSubmissions = (submissions ?? []).map((row) => {
+    const campaign = row.ad_campaigns as
+      | { name?: string; site?: string }
+      | { name?: string; site?: string }[]
+      | null;
+    const campaignRow = Array.isArray(campaign) ? campaign[0] : campaign;
+    return {
+      id: row.id as string,
+      submitted_at: row.submitted_at as string,
+      gclid: row.gclid as string | null,
+      form_fields: row.form_fields as GoogleLeadsSummary["recentSubmissions"][0]["form_fields"],
+      campaign_name: campaignRow?.name ?? null,
+      campaign_site: campaignRow?.site ?? null,
+    };
+  });
+
+  return {
+    leadFormCount: leadFormCount ?? recentSubmissions.length,
+    conversionTotal: googleConversionsTotal,
+    conversionByAction: [...conversionByActionMap.entries()]
+      .map(([name, conversions]) => ({
+        name,
+        conversions: Math.round(conversions * 100) / 100,
+      }))
+      .sort((a, b) => b.conversions - a.conversions),
+    recentSubmissions,
+    configuredActions: (actionDefs ?? []).map((row) => ({
+      name: String(row.name),
+      category: row.category as string | null,
+      actionType: row.action_type as string | null,
+    })),
   };
 }

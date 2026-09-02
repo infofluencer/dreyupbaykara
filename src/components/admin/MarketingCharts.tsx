@@ -77,19 +77,23 @@ export function MarketingDailyChart({
 
 export function MarketingPlatformBars({
   summary,
+  googleConversions,
 }: {
   summary: MarketingSummary;
+  googleConversions?: number;
 }) {
   const rows = [
     {
       id: "google_ads" as const,
       spend: summary.platforms.google_ads.spend,
-      leads: summary.platforms.google_ads.leads,
+      crmLeads: summary.platforms.google_ads.leads,
+      googleConversions: googleConversions ?? 0,
     },
     {
       id: "meta" as const,
       spend: summary.platforms.meta.spend,
-      leads: summary.platforms.meta.leads,
+      crmLeads: summary.platforms.meta.leads,
+      googleConversions: 0,
     },
   ];
   const maxSpend = Math.max(...rows.map((r) => r.spend), 1);
@@ -100,12 +104,24 @@ export function MarketingPlatformBars({
         const pct = Math.round((row.spend / maxSpend) * 100);
         return (
           <div key={row.id}>
-            <div className="mb-1 flex items-center justify-between text-sm">
+            <div className="mb-1 flex items-center justify-between gap-3 text-sm">
               <span className="font-medium text-[#123524]">
                 {PLATFORM_LABEL[row.id]}
               </span>
-              <span className="tabular-nums text-[#466254]">
-                ₺{row.spend.toLocaleString("tr-TR")} · {row.leads} lead
+              <span className="text-right text-xs leading-relaxed text-[#466254] sm:text-sm">
+                <span className="tabular-nums">{formatTry(row.spend)}</span>
+                <span className="mx-1.5 text-[#466254]/50">·</span>
+                {row.id === "google_ads" && row.googleConversions > 0 ? (
+                  <>
+                    <span className="text-[#1a56db]">
+                      {row.googleConversions.toLocaleString("tr-TR")} Google dön.
+                    </span>
+                    <span className="mx-1.5 text-[#466254]/50">·</span>
+                  </>
+                ) : null}
+                <span className="text-[#0b6b45]">
+                  {row.crmLeads} CRM lead
+                </span>
               </span>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-[#eef2f0]">

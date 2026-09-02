@@ -97,6 +97,33 @@ export function pickTrackingParams(
   };
 }
 
+/** URL (referer / landing_url) içinden takip parametrelerini okur. */
+export function pickTrackingParamsFromUrl(
+  url: string | null | undefined,
+): TrackingParams {
+  if (!url?.trim()) return {};
+  try {
+    return pickTrackingParams(new URL(url).searchParams);
+  } catch {
+    return {};
+  }
+}
+
+/** Mevcut alanları koruyarak URL'den eksik parametreleri doldurur. */
+export function mergeTrackingParams(
+  primary: TrackingParams,
+  fallback: TrackingParams,
+): TrackingParams {
+  const merged: TrackingParams = { ...primary };
+  for (const key of TRACKING_QUERY_KEYS) {
+    const current = trimParam(merged[key as keyof TrackingParams] as string | null);
+    if (current) continue;
+    const fb = trimParam(fallback[key as keyof TrackingParams] as string | null);
+    if (fb) merged[key as keyof TrackingParams] = fb;
+  }
+  return merged;
+}
+
 export function hasPaidTrackingParams(params: TrackingParams): boolean {
   return Boolean(
     params.gclid ||

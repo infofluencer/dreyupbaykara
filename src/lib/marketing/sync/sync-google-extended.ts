@@ -4,9 +4,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { googleAdsCustomerIds } from "@/lib/marketing/config";
 import {
   fetchGoogleConversionActionStats,
+  fetchGoogleConversionActions,
   fetchGoogleDeviceStats,
   fetchGoogleGeoStats,
   fetchGoogleLandingPageStats,
+  fetchGoogleLeadFormSubmissions,
   fetchGoogleSearchTermStats,
 } from "@/lib/marketing/google-ads/client";
 import {
@@ -23,6 +25,8 @@ export type GoogleExtendedSyncResult = {
   geoRows: number;
   searchTermRows: number;
   landingPageRows: number;
+  leadSubmissionRows: number;
+  conversionActionDefs: number;
   error?: string;
 };
 
@@ -191,6 +195,73 @@ async function upsertLandingPageRows(
   return deduped.length;
 }
 
+async function upsertLeadSubmissions(
+  supabase: SupabaseClient,
+  accountId: string,
+  campaignIdMap: Map<string, string>,
+  rows: Array<{
+    externalSubmissionId: string;
+    externalCampaignId: string;
+    gclid: string | null;
+    submittedAt: string;
+    formFields: Array<{ fieldType: string; fieldValue: string }>;
+  }>,
+): Promise<number> {
+  if (!rows.length) return 0;
+
+  const payload = rows.map((row) => ({
+    account_id: accountId,
+    external_submission_id: row.externalSubmissionId,
+    external_campaign_id: row.externalCampaignId,
+    campaign_id: campaignIdMap.get(row.externalCampaignId) ?? null,
+    gclid: row.gclid,
+    submitted_at: row.submittedAt,
+    form_fields: row.formFields.length ? row.formFields : null,
+    updated_at: new Date().toISOString(),
+  }));
+
+  for (const batch of chunkRows(payload)) {
+    const { error } = await supabase.from("google_ad_lead_submissions").upsert(
+      batch,
+      { onConflict: "account_id,external_submission_id" },
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  return payload.length;
+}
+
+async function upsertConversionActionDefs(
+  supabase: SupabaseClient,
+  accountId: string,
+  rows: Array<{
+    externalActionId: string;
+    name: string;
+    category: string | null;
+    actionType: string | null;
+  }>,
+): Promise<number> {
+  if (!rows.length) return 0;
+
+  const payload = rows.map((row) => ({
+    account_id: accountId,
+    external_action_id: row.externalActionId,
+    name: row.name,
+    category: row.category,
+    action_type: row.actionType,
+    synced_at: new Date().toISOString(),
+  }));
+
+  for (const batch of chunkRows(payload)) {
+    const { error } = await supabase.from("ad_conversion_actions").upsert(batch, {
+      onConflict: "account_id,external_action_id",
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  return payload.length;
+}
+
 export async function syncGoogleExtendedStats(
   supabase: SupabaseClient,
   startDate: string,
@@ -204,6 +275,8 @@ export async function syncGoogleExtendedStats(
       geoRows: 0,
       searchTermRows: 0,
       landingPageRows: 0,
+      leadSubmissionRows: 0,
+      conversionActionDefs: 0,
     };
   }
 
@@ -221,6 +294,12 @@ export async function syncGoogleExtendedStats(
       [];
     const landingAll: Awaited<ReturnType<typeof fetchGoogleLandingPageStats>> =
       [];
+    const leadSubmissionsAll: Awaited<
+      ReturnType<typeof fetchGoogleLeadFormSubmissions>
+    > = [];
+    const conversionActionDefsAll: Awaited<
+      ReturnType<typeof fetchGoogleConversionActions>
+    > = [];
 
     for (const customerId of customerIds) {
       try {
@@ -283,16 +362,53 @@ export async function syncGoogleExtendedStats(
       } catch (err) {
         console.warn("[marketing] landing page stats:", err);
       }
+      try {
+        leadSubmissionsAll.push(
+          ...(await fetchGoogleLeadFormSubmissions(
+            accessToken,
+            customerId,
+            startDate,
+            endDate,
+          )),
+        );
+      } catch (err) {
+        console.warn("[marketing] lead form submissions:", err);
+      }
+      try {
+        conversionActionDefsAll.push(
+          ...(await fetchGoogleConversionActions(accessToken, customerId)),
+        );
+      } catch (err) {
+        console.warn("[marketing] conversion action defs:", err);
+      }
     }
 
-    const [deviceRows, conversionRows, geoRows, searchTermRows, landingPageRows] =
-      await Promise.all([
-        upsertSegmentRows(supabase, campaignIdMap, deviceAll),
-        upsertSegmentRows(supabase, campaignIdMap, conversionAll),
-        upsertSegmentRows(supabase, campaignIdMap, geoAll),
-        upsertSearchTermRows(supabase, campaignIdMap, searchAll),
-        upsertLandingPageRows(supabase, campaignIdMap, landingAll),
-      ]);
+    const [
+      deviceRows,
+      conversionRows,
+      geoRows,
+      searchTermRows,
+      landingPageRows,
+      leadSubmissionRows,
+      conversionActionDefs,
+    ] = await Promise.all([
+      upsertSegmentRows(supabase, campaignIdMap, deviceAll),
+      upsertSegmentRows(supabase, campaignIdMap, conversionAll),
+      upsertSegmentRows(supabase, campaignIdMap, geoAll),
+      upsertSearchTermRows(supabase, campaignIdMap, searchAll),
+      upsertLandingPageRows(supabase, campaignIdMap, landingAll),
+      upsertLeadSubmissions(
+        supabase,
+        account.id,
+        campaignIdMap,
+        leadSubmissionsAll,
+      ),
+      upsertConversionActionDefs(
+        supabase,
+        account.id,
+        conversionActionDefsAll,
+      ),
+    ]);
 
     return {
       deviceRows,
@@ -300,6 +416,8 @@ export async function syncGoogleExtendedStats(
       geoRows,
       searchTermRows,
       landingPageRows,
+      leadSubmissionRows,
+      conversionActionDefs,
     };
   } catch (err) {
     if (err instanceof MarketingTokenError) {
@@ -311,6 +429,8 @@ export async function syncGoogleExtendedStats(
       geoRows: 0,
       searchTermRows: 0,
       landingPageRows: 0,
+      leadSubmissionRows: 0,
+      conversionActionDefs: 0,
       error: err instanceof Error ? err.message : "Google extended sync hatası",
     };
   }

@@ -6,6 +6,7 @@ import {
   type AdPlatform,
   type SourceEvent,
 } from "@/lib/crm/source-kind";
+import { MARKETING_CLICK_LOGS_SITE } from "@/lib/marketing/constants";
 import { createClient } from "@/lib/supabase/server";
 
 export type ClassifiedLeadSource = {
@@ -37,12 +38,9 @@ export async function loadClassifiedLeadSources(siteFilter?: string | null) {
     .select(
       "id, lead_ref, site, page_path, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, gbraid, wbraid, msclkid, ttclid, matched_lead_id, created_at",
     )
+    .eq("site", siteFilter ?? MARKETING_CLICK_LOGS_SITE)
     .order("created_at", { ascending: false })
     .limit(200);
-
-  if (siteFilter) {
-    query = query.eq("site", siteFilter);
-  }
 
   const { data: rows, error } = await query;
 
