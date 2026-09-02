@@ -2,6 +2,13 @@ export type MarketingPlatform = "google_ads" | "meta";
 
 export type SiteMatchSource = "auto" | "manual" | "unmatched";
 
+export type AdCustomerSiteMapRow = {
+  platform: MarketingPlatform;
+  external_customer_id: string;
+  site: string;
+  label: string | null;
+};
+
 export type AdAccountRow = {
   id: string;
   platform: MarketingPlatform;

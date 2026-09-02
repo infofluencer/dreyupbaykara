@@ -1,10 +1,11 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { matchCampaignSite } from "@/lib/marketing/site-matcher";
+import { resolveCampaignSite } from "@/lib/marketing/site-matcher";
 import type {
   MarketingPlatform,
   SitePrefixMapRow,
+  AdCustomerSiteMapRow,
 } from "@/lib/marketing/types";
 import {
   fetchGoogleAccountDisplayName,
@@ -29,6 +30,34 @@ export type SyncCampaignsResult = {
   error?: string;
 };
 
+async function loadCustomerSiteMap(
+  supabase: SupabaseClient,
+): Promise<AdCustomerSiteMapRow[]> {
+  const { data, error } = await supabase
+    .from("ad_customer_site_map")
+    .select("platform, external_customer_id, site, label");
+
+  if (error) {
+    throw new Error(`ad_customer_site_map read failed: ${error.message}`);
+  }
+
+  return (data as AdCustomerSiteMapRow[]) ?? [];
+}
+
+function siteForGoogleCustomer(
+  map: AdCustomerSiteMapRow[],
+  customerId: string,
+): string | null {
+  const id = customerId.replace(/\D/g, "");
+  return (
+    map.find(
+      (row) =>
+        row.platform === "google_ads" &&
+        row.external_customer_id.replace(/\D/g, "") === id,
+    )?.site ?? null
+  );
+}
+
 async function loadPrefixMap(
   supabase: SupabaseClient,
 ): Promise<SitePrefixMapRow[]> {
@@ -52,6 +81,7 @@ async function upsertCampaign(
     name: string;
     status: string | null;
     prefixMap: SitePrefixMapRow[];
+    accountSite?: string | null;
     existing?: {
       site: string | null;
       site_match_source: string;
@@ -66,7 +96,11 @@ async function upsertCampaign(
         site_match_source: "manual" as const,
       }
     : (() => {
-        const matched = matchCampaignSite(input.name, input.prefixMap);
+        const matched = resolveCampaignSite(
+          input.name,
+          input.prefixMap,
+          input.accountSite,
+        );
         return {
           site: matched.site,
           site_match_source: matched.siteMatchSource,
@@ -116,6 +150,7 @@ async function syncPlatformCampaigns(
   supabase: SupabaseClient,
   platform: MarketingPlatform,
   prefixMap: SitePrefixMapRow[],
+  customerSiteMap: AdCustomerSiteMapRow[],
 ): Promise<SyncCampaignsResult> {
   const account = await getActiveAdAccount(supabase, platform);
   if (!account) {
@@ -124,16 +159,46 @@ async function syncPlatformCampaigns(
 
   try {
     const accessToken = await ensureValidAccessToken(supabase, account);
-    const remoteCampaigns =
-      platform === "google_ads"
-        ? (
-            await Promise.all(
-              googleAdsCustomerIds().map((customerId) =>
-                fetchGoogleCampaigns(accessToken, customerId),
-              ),
-            )
-          ).flat()
-        : await fetchMetaCampaigns(accessToken, account.external_account_id);
+    let remoteCampaigns: Array<{
+      externalId: string;
+      name: string;
+      status: string | null;
+      accountSite?: string | null;
+    }>;
+
+    if (platform === "google_ads") {
+      remoteCampaigns = (
+        await Promise.all(
+          googleAdsCustomerIds().map(async (customerId) => {
+            const campaigns = await fetchGoogleCampaigns(
+              accessToken,
+              customerId,
+            );
+            const accountSite = siteForGoogleCustomer(
+              customerSiteMap,
+              customerId,
+            );
+            return campaigns.map((c) => ({ ...c, accountSite }));
+          }),
+        )
+      ).flat();
+    } else {
+      const metaSite =
+        customerSiteMap.find(
+          (row) =>
+            row.platform === "meta" &&
+            row.external_customer_id.replace(/^act_/, "") ===
+              account.external_account_id.replace(/^act_/, ""),
+        )?.site ?? null;
+      const campaigns = await fetchMetaCampaigns(
+        accessToken,
+        account.external_account_id,
+      );
+      remoteCampaigns = campaigns.map((c) => ({
+        ...c,
+        accountSite: metaSite,
+      }));
+    }
 
     const { data: existingRows } = await supabase
       .from("ad_campaigns")
@@ -161,6 +226,7 @@ async function syncPlatformCampaigns(
         name: remote.name,
         status: remote.status,
         prefixMap,
+        accountSite: remote.accountSite,
         existing: existingByExternal.get(remote.externalId) ?? null,
       });
 
@@ -201,11 +267,21 @@ async function syncPlatformCampaigns(
 export async function syncAllCampaigns(
   supabase: SupabaseClient,
 ): Promise<SyncCampaignsResult[]> {
-  const prefixMap = await loadPrefixMap(supabase);
+  const [prefixMap, customerSiteMap] = await Promise.all([
+    loadPrefixMap(supabase),
+    loadCustomerSiteMap(supabase),
+  ]);
   const results: SyncCampaignsResult[] = [];
 
   for (const platform of ["google_ads", "meta"] as const) {
-    results.push(await syncPlatformCampaigns(supabase, platform, prefixMap));
+    results.push(
+      await syncPlatformCampaigns(
+        supabase,
+        platform,
+        prefixMap,
+        customerSiteMap,
+      ),
+    );
   }
 
   return results;

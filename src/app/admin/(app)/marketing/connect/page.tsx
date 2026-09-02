@@ -58,6 +58,12 @@ export default async function MarketingConnectPage({
     .select("prefix, site")
     .order("prefix");
 
+  const { data: customerSites } = await supabase
+    .from("ad_customer_site_map")
+    .select("platform, external_customer_id, site, label")
+    .order("platform")
+    .order("external_customer_id");
+
   const googleAccount = accounts.find((a) => a.platform === "google_ads");
   const metaAccount = accounts.find((a) => a.platform === "meta");
 
@@ -189,6 +195,42 @@ export default async function MarketingConnectPage({
         <p className="mt-3 text-xs">
           Env token tanımlıysa OAuth butonları gizlenir; cron env&apos;den bootstrap eder.
         </p>
+      </section>
+
+      <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
+        <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
+          Google / Meta hesap → site
+        </h2>
+        <p className="mt-1 text-sm text-[#466254]">
+          Kampanya adında <code>[PREFIX]</code> yoksa reklam hesabı ID&apos;sine
+          göre site atanır. Ajans haritası:
+        </p>
+        <ul className="mt-4 space-y-2">
+          {(customerSites ?? []).map((row) => (
+            <li
+              key={`${row.platform}-${row.external_customer_id}`}
+              className="flex flex-col gap-1 rounded-xl bg-[#f7f9f8] px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+            >
+              <span className="font-mono text-[#123524]">
+                {row.platform === "google_ads" ? "Google" : "Meta"}{" "}
+                {row.external_customer_id.replace(
+                  /(\d{3})(\d{3})(\d{4})/,
+                  "$1-$2-$3",
+                )}
+              </span>
+              <span className="text-[#466254]">
+                {row.label ? `${row.label} → ` : ""}
+                <strong>{row.site}</strong>
+              </span>
+            </li>
+          ))}
+        </ul>
+        {!customerSites?.length ? (
+          <p className="mt-3 text-sm text-amber-900">
+            Harita boş — migration{" "}
+            <code>20260902160000_ad_customer_site_map.sql</code> uygulayın.
+          </p>
+        ) : null}
       </section>
 
       <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">

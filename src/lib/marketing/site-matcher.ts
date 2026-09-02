@@ -54,3 +54,29 @@ export function extractCampaignPrefix(campaignName: string): string | null {
   const match = campaignName.trim().match(CAMPAIGN_PREFIX_RE);
   return match?.[1] ? normalizePrefix(match[1]) : null;
 }
+
+/**
+ * Site eşlemesi: önce kampanya adı [PREFIX], yoksa Google/Meta hesap ID haritası.
+ */
+export function resolveCampaignSite(
+  campaignName: string,
+  prefixMap: SitePrefixMapRow[],
+  accountSite?: string | null,
+): SiteMatchResult {
+  const trimmed = campaignName.trim();
+  const hasPrefixTag = Boolean(trimmed.match(CAMPAIGN_PREFIX_RE)?.[1]);
+
+  if (hasPrefixTag) {
+    return matchCampaignSite(campaignName, prefixMap);
+  }
+
+  if (accountSite?.trim()) {
+    return {
+      prefix: null,
+      site: accountSite.trim(),
+      siteMatchSource: "auto",
+    };
+  }
+
+  return { prefix: null, site: null, siteMatchSource: "unmatched" };
+}

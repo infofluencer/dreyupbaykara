@@ -8,6 +8,7 @@ import {
   CAMPAIGN_PREFIX_RE,
   extractCampaignPrefix,
   matchCampaignSite,
+  resolveCampaignSite,
 } from "../src/lib/marketing/site-matcher.ts";
 
 const prefixMap = [
@@ -61,6 +62,18 @@ function run() {
     "BEL",
   );
   ok("extractCampaignPrefix normalizes");
+
+  assert.equal(
+    resolveCampaignSite("14 Mayıs Tüm Türkiye", prefixMap, "fitikameliyati").site,
+    "fitikameliyati",
+  );
+  ok("Google account site → fitikameliyati (prefix yok)");
+
+  assert.equal(
+    resolveCampaignSite("[BEL] Kampanya", prefixMap, "fitikameliyati").site,
+    "endoskopikbelameliyati",
+  );
+  ok("[PREFIX] account haritasından öncelikli");
 
   console.log("\nAll site-matcher tests passed.");
 }
