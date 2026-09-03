@@ -17,12 +17,19 @@ export function AdminSourcePie({
   totalLabel,
   slices,
   href,
+  centerDefault,
 }: {
   title: string;
   hint?: string;
   totalLabel: string;
   slices: SourcePieSlice[];
   href?: string;
+  centerDefault?: {
+    value: number;
+    label: string;
+    valueSuffix?: string;
+    valuePrefix?: string;
+  };
 }) {
   const [active, setActive] = useState<string | null>(null);
   const total = slices.reduce((sum, slice) => sum + slice.value, 0);
@@ -40,6 +47,17 @@ export function AdminSourcePie({
   });
 
   const hovered = slices.find((slice) => slice.id === active);
+
+  const centerPrimaryText = hovered
+    ? String(hovered.value)
+    : centerDefault
+      ? `${centerDefault.valuePrefix ?? ""}${centerDefault.value}${centerDefault.valueSuffix ?? ""}`
+      : String(total);
+  const centerSecondaryText = hovered
+    ? hovered.label
+    : centerDefault
+      ? centerDefault.label
+      : totalLabel;
 
   return (
     <section className="rounded-2xl border border-[#123524]/08 bg-white p-5 sm:p-6">
@@ -105,10 +123,10 @@ export function AdminSourcePie({
           </svg>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
             <p className="font-[family-name:var(--font-instrument-sans)] text-3xl font-semibold tabular-nums text-[#123524]">
-              {hovered ? hovered.value : total}
+              {centerPrimaryText}
             </p>
             <p className="mt-0.5 max-w-[7.5rem] text-[11px] leading-4 text-[#466254]">
-              {hovered ? hovered.label : totalLabel}
+              {centerSecondaryText}
             </p>
           </div>
         </div>
