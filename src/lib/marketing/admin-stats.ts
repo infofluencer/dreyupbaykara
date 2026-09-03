@@ -64,6 +64,36 @@ export async function loadAdAccountsSafe(): Promise<AdAccountSafe[]> {
   return (data as AdAccountSafe[]) ?? [];
 }
 
+export async function loadCustomerSiteMap(
+  platform?: "google_ads" | "meta",
+): Promise<Record<string, string>> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("ad_customer_site_map")
+    .select("platform, external_customer_id, site");
+
+  if (platform) {
+    query = query.eq("platform", platform);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[marketing] ad_customer_site_map:", error.message);
+    return {};
+  }
+
+  const map: Record<string, string> = {};
+  for (const row of data ?? []) {
+    const id = String(row.external_customer_id ?? "")
+      .replace(/^act_/, "")
+      .trim();
+    if (id && row.site) {
+      map[id] = row.site as string;
+    }
+  }
+  return map;
+}
+
 const KNOWN_MARKETING_SITES = [
   "endospineistanbul",
   "fitikameliyati",
@@ -199,6 +229,7 @@ export async function loadCampaignPerformance(
   startDate: string,
   endDate: string,
   siteFilter: string | null,
+  platformFilter: "google_ads" | "meta" | null = null,
 ): Promise<CampaignPerformanceResult> {
   const supabase = await createClient();
 
@@ -210,6 +241,9 @@ export async function loadCampaignPerformance(
 
   if (siteFilter) {
     campaignQuery = campaignQuery.eq("site", siteFilter);
+  }
+  if (platformFilter) {
+    campaignQuery = campaignQuery.eq("platform", platformFilter);
   }
 
   const { data: campaigns, error: campaignError } = await campaignQuery;

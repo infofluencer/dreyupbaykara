@@ -17,6 +17,7 @@ type MarketingFilterBarProps = {
   startDate: string;
   endDate: string;
   siteFilter: string | null;
+  channel?: string;
   platform: string;
   event: string;
   search: string;
@@ -28,6 +29,7 @@ export function MarketingFilterBar({
   startDate,
   endDate,
   siteFilter,
+  channel,
   platform,
   event,
   search,
@@ -62,6 +64,7 @@ export function MarketingFilterBar({
             start: draftStart,
             end: draftEnd,
             site: draftSite || undefined,
+            channel,
             platform,
             event,
             q: search,
@@ -69,6 +72,7 @@ export function MarketingFilterBar({
         : buildMarketingHref({
             period: draftPeriod,
             site: draftSite || undefined,
+            channel,
             platform,
             event,
             q: search,
@@ -176,6 +180,7 @@ export function MarketingFilterBar({
                 period,
                 start: period === "custom" ? startDate : undefined,
                 end: period === "custom" ? endDate : undefined,
+                channel,
                 platform,
                 event,
                 q: search,

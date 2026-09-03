@@ -97,8 +97,11 @@ export default async function MetaSelectAccountPage({
             </legend>
             <ul className="space-y-2">
               {accounts.map((account) => (
-                <li key={account.id}>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#123524]/10 bg-white px-4 py-3 hover:border-[#0b6b45]/40 has-[:checked]:border-[#0b6b45] has-[:checked]:bg-[#e7f5ed]">
+                <li
+                  key={account.id}
+                  className="rounded-xl border border-[#123524]/10 bg-white px-4 py-3 hover:border-[#0b6b45]/40 has-[:checked]:border-[#0b6b45] has-[:checked]:bg-[#e7f5ed]"
+                >
+                  <label className="flex cursor-pointer items-start gap-3">
                     <input
                       type="checkbox"
                       name="ad_account_id"
@@ -123,6 +126,23 @@ export default async function MetaSelectAccountPage({
                       ) : null}
                     </span>
                   </label>
+                  <div className="mt-2 pl-7">
+                    <label className="text-xs font-medium text-[#466254]">
+                      Bu hesap → site
+                      <select
+                        name={`site_${account.id}`}
+                        defaultValue=""
+                        className="mt-1 min-h-9 w-full rounded-lg border border-[#123524]/12 bg-[#f7f9f8] px-2 text-sm"
+                      >
+                        <option value="">— Varsayılan / sonra —</option>
+                        {siteOptions.map((site) => (
+                          <option key={site} value={site}>
+                            {site}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -147,10 +167,11 @@ export default async function MetaSelectAccountPage({
 
         <div>
           <label className="text-sm font-semibold text-[#123524]">
-            Site eşlemesi (opsiyonel — tüm seçilenlere)
+            Varsayılan site (opsiyonel)
           </label>
           <p className="mt-1 text-xs text-[#466254]">
-            Farklı siteler için sonra connect sayfasındaki haritayı kullanın.
+            Hesap satırında site seçilmediyse burası uygulanır. Sonra Meta
+            sekmesinden de değiştirebilirsiniz.
           </p>
           <select
             name="site"

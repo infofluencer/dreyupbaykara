@@ -3,6 +3,7 @@ export function buildMarketingHref(opts: {
   start?: string;
   end?: string;
   site?: string;
+  channel?: string;
   platform?: string;
   event?: string;
   q?: string;
@@ -16,6 +17,9 @@ export function buildMarketingHref(opts: {
     params.set("end", opts.end);
   }
   if (opts.site) params.set("site", opts.site);
+  if (opts.channel && opts.channel !== "google") {
+    params.set("channel", opts.channel);
+  }
   if (opts.platform && opts.platform !== "all") {
     params.set("platform", opts.platform);
   }
