@@ -157,10 +157,10 @@ export default async function MarketingConnectPage({
       <section className="rounded-2xl border border-[#123524]/08 bg-[#f7f9f8] px-4 py-4 text-sm text-[#466254]">
         <p className="font-semibold text-[#123524]">Meta hesap seçimi</p>
         <p className="mt-2">
-          OAuth sonrası birden fazla reklam hesabı seçebilir veya Ad ID
-          yapıştırabilirsiniz. Env ile:{" "}
-          <code>META_ACCESS_TOKEN</code> +{" "}
-          <code>META_AD_ACCOUNT_IDS=id1,id2</code>.
+          <code>META_AD_ACCOUNT_IDS</code> (veya <code>META_AD_ACCOUNT_ID</code>)
+          env&apos;de tanımlıysa OAuth sonrası hesap seçmeniz gerekmez — ID&apos;ler
+          otomatik bağlanır. Token da env&apos;deyse (
+          <code>META_ACCESS_TOKEN</code>) OAuth hiç gerekmez.
         </p>
       </section>
 

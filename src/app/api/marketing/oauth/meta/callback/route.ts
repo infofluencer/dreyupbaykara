@@ -2,10 +2,13 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   metaAdsConfig,
+  metaAdAccountIds,
   marketingOAuthBaseUrl,
 } from "@/lib/marketing/config";
 import { exchangeMetaShortLivedToken } from "@/lib/marketing/meta/client";
 import { META_PENDING_COOKIE } from "@/lib/marketing/meta/pending";
+import { createServiceClient } from "@/lib/supabase/admin";
+import { upsertAdAccount } from "@/lib/marketing/tokens";
 
 export const runtime = "nodejs";
 
@@ -59,7 +62,36 @@ export async function GET(request: NextRequest) {
   }
 
   const longLived = await exchangeMetaShortLivedToken(tokenJson.access_token);
+  const envAccountIds = metaAdAccountIds();
 
+  // Env'de Ad ID varsa seçim ekranı yok — doğrudan bağla
+  if (envAccountIds.length) {
+    const supabase = createServiceClient();
+    if (!supabase) {
+      return redirectFail("supabase");
+    }
+
+    for (const adAccountId of envAccountIds) {
+      await upsertAdAccount(supabase, {
+        platform: "meta",
+        externalAccountId: adAccountId,
+        displayName: `Meta act_${adAccountId}`,
+        accessToken: longLived.accessToken,
+        refreshToken: null,
+        tokenExpiresAt: longLived.expiresAt,
+      });
+    }
+
+    cookieStore.delete(META_PENDING_COOKIE);
+    return NextResponse.redirect(
+      new URL(
+        `/admin/marketing/connect?connected=meta&meta_count=${envAccountIds.length}`,
+        base,
+      ),
+    );
+  }
+
+  // Env'de ID yoksa hesap seçim ekranına git
   cookieStore.set(
     META_PENDING_COOKIE,
     JSON.stringify({
