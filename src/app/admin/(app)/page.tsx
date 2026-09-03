@@ -11,8 +11,13 @@ import {
 import { Skeleton } from "@/components/admin/AdminSkeleton";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { loadAdminHomeHeaderCounts } from "@/lib/crm/admin-home-stats";
+import { pickMarketingQueryParam } from "@/lib/marketing/date-range";
 
-export default async function AdminHomePage() {
+export default async function AdminHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ site?: string | string[] }>;
+}) {
   const configured =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
@@ -45,6 +50,8 @@ export default async function AdminHomePage() {
   }
 
   const session = await requireAdminSession();
+  const raw = await searchParams;
+  const siteFilter = pickMarketingQueryParam(raw.site) || null;
 
   return (
     <div className="space-y-8">
@@ -65,7 +72,7 @@ export default async function AdminHomePage() {
       </Suspense>
 
       <Suspense fallback={<AdminHomeInsightsFallback />}>
-        <AdminHomeInsights />
+        <AdminHomeInsights siteFilter={siteFilter} />
       </Suspense>
 
       <QuickLinks />

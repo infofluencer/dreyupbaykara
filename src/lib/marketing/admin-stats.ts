@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { istanbulYmd } from "@/lib/date/tr";
 import type {
   AdAccountSafe,
   CampaignPerformanceResult,
@@ -66,7 +67,7 @@ export async function loadAdAccountsSafe(): Promise<AdAccountSafe[]> {
 
 export async function loadCustomerSiteMap(
   platform?: "google_ads" | "meta",
-): Promise<Record<string, string>> {
+): Promise<Record<string, string[]>> {
   const supabase = await createClient();
   let query = supabase
     .from("ad_customer_site_map")
@@ -82,14 +83,15 @@ export async function loadCustomerSiteMap(
     return {};
   }
 
-  const map: Record<string, string> = {};
+  const map: Record<string, string[]> = {};
   for (const row of data ?? []) {
     const id = String(row.external_customer_id ?? "")
       .replace(/^act_/, "")
       .trim();
-    if (id && row.site) {
-      map[id] = row.site as string;
-    }
+    const site = String(row.site ?? "").trim();
+    if (!id || !site) continue;
+    if (!map[id]) map[id] = [];
+    if (!map[id].includes(site)) map[id].push(site);
   }
   return map;
 }
@@ -438,13 +440,19 @@ export function defaultMarketingDateRange(days = 30): {
 export async function loadMonthToDateSummary(): Promise<{
   spend: number;
   cpl: number | null;
+  startDate: string;
+  endDate: string;
 } | null> {
-  const now = new Date();
-  const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  const endDate = now.toISOString().slice(0, 10);
+  const endDate = istanbulYmd(new Date());
+  const startDate = `${endDate.slice(0, 7)}-01`;
   const summary = await loadMarketingSummary(startDate, endDate, null);
   if (!summary) return null;
-  return { spend: summary.total_spend, cpl: summary.cpl };
+  return {
+    spend: summary.total_spend,
+    cpl: summary.cpl,
+    startDate,
+    endDate,
+  };
 }
 
 export type GoogleMarketingInsights = {

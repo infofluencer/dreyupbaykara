@@ -66,7 +66,7 @@ export async function addSitePrefix(formData: FormData): Promise<void> {
   revalidatePath("/admin/marketing/connect");
 }
 
-/** Meta (veya Google) reklam hesabı → CRM site eşlemesi. */
+/** Meta (veya Google) reklam hesabı → CRM site eşlemesi (çoklu site). */
 export async function setAdAccountSite(formData: FormData): Promise<void> {
   await requireAdminSession(["admin", "doctor", "agency"]);
 
@@ -75,7 +75,10 @@ export async function setAdAccountSite(formData: FormData): Promise<void> {
     .trim()
     .replace(/^act_/, "")
     .replace(/\D/g, "");
-  const site = String(formData.get("site") ?? "").trim();
+  const sites = formData
+    .getAll("site")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
   const label = String(formData.get("label") ?? "").trim() || null;
   const accountId = String(formData.get("account_id") ?? "").trim();
 
@@ -85,21 +88,20 @@ export async function setAdAccountSite(formData: FormData): Promise<void> {
 
   const supabase = await createClient();
 
-  if (!site) {
-    await supabase
-      .from("ad_customer_site_map")
-      .delete()
-      .eq("platform", platform)
-      .eq("external_customer_id", externalId);
-  } else {
-    const { error } = await supabase.from("ad_customer_site_map").upsert(
-      {
+  await supabase
+    .from("ad_customer_site_map")
+    .delete()
+    .eq("platform", platform)
+    .eq("external_customer_id", externalId);
+
+  if (sites.length) {
+    const { error } = await supabase.from("ad_customer_site_map").insert(
+      sites.map((site) => ({
         platform,
         external_customer_id: externalId,
         site,
         label,
-      },
-      { onConflict: "platform,external_customer_id" },
+      })),
     );
     if (error) {
       console.error("[marketing] setAdAccountSite:", error.message);
@@ -107,13 +109,14 @@ export async function setAdAccountSite(formData: FormData): Promise<void> {
     }
   }
 
-  // Hesaba bağlı, manuel olmayan kampanyaları hemen güncelle (sync beklemeden).
+  // Tek site: tüm otomatik kampanyalar o siteye. Çoklu: hesap bazlı atama yok
+  // (prefix / manuel); yanlış tek-site atamasını temizle.
   if (accountId) {
-    if (site) {
+    if (sites.length === 1) {
       await supabase
         .from("ad_campaigns")
         .update({
-          site,
+          site: sites[0],
           site_match_source: "auto",
           updated_at: new Date().toISOString(),
         })
@@ -221,7 +224,7 @@ export async function selectMetaAdAccount(formData: FormData): Promise<void> {
           site,
           label: displayName,
         },
-        { onConflict: "platform,external_customer_id" },
+        { onConflict: "platform,external_customer_id,site" },
       );
     }
   }

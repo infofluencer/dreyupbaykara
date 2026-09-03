@@ -268,7 +268,7 @@ export default async function AdminMarketingPage({
           {metaAccounts.length ? (
             <MarketingMetaAccountSites
               accounts={metaAccounts}
-              siteByExternalId={metaSiteMap}
+              sitesByExternalId={metaSiteMap}
               siteOptions={siteOptions}
             />
           ) : (

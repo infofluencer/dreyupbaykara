@@ -10,11 +10,11 @@ type MetaAccountRow = {
 
 export function MarketingMetaAccountSites({
   accounts,
-  siteByExternalId,
+  sitesByExternalId,
   siteOptions,
 }: {
   accounts: MetaAccountRow[];
-  siteByExternalId: Record<string, string>;
+  sitesByExternalId: Record<string, string[]>;
   siteOptions: string[];
 }) {
   if (!accounts.length) return null;
@@ -25,23 +25,21 @@ export function MarketingMetaAccountSites({
         Hesap → site eşlemesi
       </p>
       <p className="text-xs text-[#466254]">
-        Her Meta reklam hesabını bir siteye bağlayın; harcama ve kampanyalar
-        site filtresinde o siteye düşer.
+        Bir hesaba birden fazla site işaretlenebilir. Tek site seçilirse tüm
+        kampanyalar o siteye gider; birden fazlaysa kampanyalar{" "}
+        <code>[PREFIX]</code> veya manuel eşleme ile ayrılır.
       </p>
-      <ul className="space-y-2">
+      <ul className="space-y-3">
         {accounts.map((account) => {
           const externalId = account.external_account_id.replace(/^act_/, "");
-          const currentSite = siteByExternalId[externalId] ?? "";
+          const selected = new Set(sitesByExternalId[externalId] ?? []);
 
           return (
             <li
               key={account.id}
               className="rounded-xl border border-[#123524]/08 bg-[#f7f9f8] px-3 py-3"
             >
-              <form
-                action={setAdAccountSite}
-                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-              >
+              <form action={setAdAccountSite} className="space-y-3">
                 <input type="hidden" name="platform" value="meta" />
                 <input type="hidden" name="account_id" value={account.id} />
                 <input
@@ -65,26 +63,28 @@ export function MarketingMetaAccountSites({
                       : " · token yok"}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <select
-                    name="site"
-                    defaultValue={currentSite}
-                    className="min-h-10 flex-1 rounded-xl border border-[#123524]/12 bg-white px-3 text-sm sm:min-w-[12rem]"
-                  >
-                    <option value="">— Site seç —</option>
-                    {siteOptions.map((site) => (
-                      <option key={site} value={site}>
-                        {site}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="submit"
-                    className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[#123524] px-4 text-sm font-semibold text-white"
-                  >
-                    Kaydet
-                  </button>
+                <div className="flex flex-wrap gap-2">
+                  {siteOptions.map((site) => (
+                    <label
+                      key={site}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#123524]/10 bg-white px-3 py-2 text-sm has-[:checked]:border-[#0b6b45] has-[:checked]:bg-[#e7f5ed]"
+                    >
+                      <input
+                        type="checkbox"
+                        name="site"
+                        value={site}
+                        defaultChecked={selected.has(site)}
+                      />
+                      <span>{site}</span>
+                    </label>
+                  ))}
                 </div>
+                <button
+                  type="submit"
+                  className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[#123524] px-4 text-sm font-semibold text-white"
+                >
+                  Kaydet
+                </button>
               </form>
             </li>
           );

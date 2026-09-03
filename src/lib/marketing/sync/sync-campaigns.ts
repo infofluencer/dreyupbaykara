@@ -46,7 +46,7 @@ async function loadCustomerSiteMap(
 
   const merged = new Map<string, AdCustomerSiteMapRow>();
   for (const row of [...fromDb, ...fromEnv]) {
-    merged.set(`${row.platform}:${row.external_customer_id}`, row);
+    merged.set(`${row.platform}:${row.external_customer_id}:${row.site}`, row);
   }
 
   if (!merged.size && googleAdsCustomerIds().length) {
@@ -63,13 +63,30 @@ function siteForGoogleCustomer(
   customerId: string,
 ): string | null {
   const id = customerId.replace(/\D/g, "");
-  return (
-    map.find(
+  const sites = map
+    .filter(
       (row) =>
         row.platform === "google_ads" &&
         row.external_customer_id.replace(/\D/g, "") === id,
-    )?.site ?? null
-  );
+    )
+    .map((row) => row.site);
+  return sites.length === 1 ? sites[0]! : null;
+}
+
+/** Tek site → hesap varsayılanı; birden fazla → null (prefix/manuel). */
+function siteForMetaAccount(
+  map: AdCustomerSiteMapRow[],
+  accountExternalId: string,
+): string | null {
+  const id = accountExternalId.replace(/^act_/, "");
+  const sites = map
+    .filter(
+      (row) =>
+        row.platform === "meta" &&
+        row.external_customer_id.replace(/^act_/, "") === id,
+    )
+    .map((row) => row.site);
+  return sites.length === 1 ? sites[0]! : null;
 }
 
 async function loadPrefixMap(
@@ -241,13 +258,10 @@ async function syncPlatformCampaigns(
       for (const account of accounts) {
         try {
           const accessToken = await ensureValidAccessToken(supabase, account);
-          const metaSite =
-            customerSiteMap.find(
-              (row) =>
-                row.platform === "meta" &&
-                row.external_customer_id.replace(/^act_/, "") ===
-                  account.external_account_id.replace(/^act_/, ""),
-            )?.site ?? null;
+          const metaSite = siteForMetaAccount(
+            customerSiteMap,
+            account.external_account_id,
+          );
           const campaigns = await fetchMetaCampaigns(
             accessToken,
             account.external_account_id,

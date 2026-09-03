@@ -131,9 +131,13 @@ export async function loadAdminHomeWaStats(): Promise<AdminHomeWaStats> {
   };
 }
 
-export async function loadAdminHomeSourceStats(): Promise<AdminHomeSourceStats> {
+export async function loadAdminHomeSourceStats(
+  siteFilter: string | null = null,
+): Promise<AdminHomeSourceStats> {
   const supabase = await createClient();
-  const rpcResult = await supabase.rpc("admin_dashboard_source_stats");
+  const rpcResult = await supabase.rpc("admin_dashboard_source_stats", {
+    p_site: siteFilter,
+  });
 
   if (!rpcResult.error && rpcResult.data && typeof rpcResult.data === "object") {
     const data = rpcResult.data as {
@@ -146,13 +150,19 @@ export async function loadAdminHomeSourceStats(): Promise<AdminHomeSourceStats> 
     };
   }
 
-  // Fallback: en fazla 500 satır (eski 5000 yerine); sadece classify kolonları.
-  const { data: rows } = await supabase
+  // Fallback: en fazla 500 satır; site filtresi varsa uygula
+  let query = supabase
     .from("lead_source_report")
     .select(
-      "channel, utm_source, utm_medium, utm_campaign, campaign, gclid, fbclid",
+      "channel, utm_source, utm_medium, utm_campaign, campaign, gclid, fbclid, site",
     )
     .limit(500);
+
+  if (siteFilter) {
+    query = query.eq("site", siteFilter);
+  }
+
+  const { data: rows } = await query;
 
   const platforms = emptyPlatforms();
   const events = emptyEvents();

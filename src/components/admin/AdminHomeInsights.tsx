@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { AdminHomeSiteFilter } from "@/components/admin/AdminHomeSiteFilter";
 import { AdminMarketingHomeCard } from "@/components/admin/AdminMarketingHomeCard";
 import { AdminSourcePie } from "@/components/admin/AdminSourcePie";
 import { Skeleton } from "@/components/admin/AdminSkeleton";
@@ -13,6 +14,7 @@ import {
   PLATFORM_COLOR,
   PLATFORM_LABEL,
 } from "@/lib/crm/source-kind";
+import { loadSiteOptions } from "@/lib/marketing/admin-stats";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 
 const PLATFORMS = ["google_ads", "meta", "other", "organic"] as const;
@@ -30,12 +32,21 @@ export function AdminHomeInsightsFallback() {
   );
 }
 
-export async function AdminHomeInsights() {
+export async function AdminHomeInsights({
+  siteFilter = null,
+}: {
+  siteFilter?: string | null;
+}) {
   const apiEnabled = isWhatsAppEnabled();
-  const [wa, sources] = await Promise.all([
+  const [wa, sources, siteOptions] = await Promise.all([
     loadAdminHomeWaStats(),
-    loadAdminHomeSourceStats(),
+    loadAdminHomeSourceStats(siteFilter),
+    loadSiteOptions(),
   ]);
+
+  const marketingHref = siteFilter
+    ? `/admin/marketing?site=${encodeURIComponent(siteFilter)}`
+    : "/admin/marketing";
 
   return (
     <>
@@ -64,33 +75,60 @@ export async function AdminHomeInsights() {
         <AdminMarketingHomeCard />
       </Suspense>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <AdminSourcePie
-          title="Kaynaklar"
-          hint="Reklam / organik dağılım"
-          totalLabel="kayıt"
-          href="/admin/marketing"
-          slices={PLATFORMS.map((id) => ({
-            id,
-            label: PLATFORM_LABEL[id],
-            value: sources.platforms[id],
-            color: PLATFORM_COLOR[id],
-            href: `/admin/marketing?platform=${id}`,
-          }))}
-        />
-        <AdminSourcePie
-          title="Ne yaptı?"
-          hint="Site, WhatsApp veya form"
-          totalLabel="kayıt"
-          href="/admin/marketing"
-          slices={EVENTS.map((id) => ({
-            id,
-            label: EVENT_LABEL[id],
-            value: sources.events[id],
-            color: EVENT_COLOR[id],
-            href: `/admin/marketing?event=${id}`,
-          }))}
-        />
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold text-[#123524]">
+              Kayıt kaynakları
+            </h2>
+            <p className="mt-0.5 text-sm text-[#466254]">
+              Siteye göre filtreleyin
+            </p>
+          </div>
+          <Suspense
+            fallback={
+              <div className="h-10 w-44 animate-pulse rounded-xl bg-[#eef2f0]" />
+            }
+          >
+            <AdminHomeSiteFilter
+              siteOptions={siteOptions}
+              currentSite={siteFilter}
+            />
+          </Suspense>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <AdminSourcePie
+            title="Kaynaklar"
+            hint="Reklam / organik dağılım"
+            totalLabel="kayıt"
+            href={marketingHref}
+            slices={PLATFORMS.map((id) => ({
+              id,
+              label: PLATFORM_LABEL[id],
+              value: sources.platforms[id],
+              color: PLATFORM_COLOR[id],
+              href: siteFilter
+                ? `/admin/marketing?platform=${id}&site=${encodeURIComponent(siteFilter)}`
+                : `/admin/marketing?platform=${id}`,
+            }))}
+          />
+          <AdminSourcePie
+            title="Ne yaptı?"
+            hint="Site, WhatsApp veya form"
+            totalLabel="kayıt"
+            href={marketingHref}
+            slices={EVENTS.map((id) => ({
+              id,
+              label: EVENT_LABEL[id],
+              value: sources.events[id],
+              color: EVENT_COLOR[id],
+              href: siteFilter
+                ? `/admin/marketing?event=${id}&site=${encodeURIComponent(siteFilter)}`
+                : `/admin/marketing?event=${id}`,
+            }))}
+          />
+        </div>
       </div>
     </>
   );
