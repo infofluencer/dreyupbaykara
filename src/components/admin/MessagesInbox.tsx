@@ -48,6 +48,7 @@ import {
   WA_INBOX_REFRESH_EVENT,
   type WaInboxRefreshDetail,
 } from "@/lib/whatsapp/inbox-events";
+import { CANNED_MESSAGES } from "@/lib/whatsapp/canned-messages";
 import {
   matchesNameOrPhone,
   nationalPhoneDigits,
@@ -240,6 +241,7 @@ export function MessagesInbox({
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [sendingQuickId, setSendingQuickId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const threadRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef(selectedId);
@@ -639,14 +641,16 @@ export function MessagesInbox({
     return () => window.clearInterval(timer);
   }, [selectedId, fetchMessages]);
 
-  async function handleSend() {
+  async function handleSend(presetBody?: string) {
     if (!selected) return;
-    const body = draftRef.current.trim();
+    const body = (presetBody ?? draftRef.current).trim();
     if (!body) return;
     if (apiEnabled && !windowOpen) return;
 
-    draftRef.current = "";
-    setDraft("");
+    if (!presetBody) {
+      draftRef.current = "";
+      setDraft("");
+    }
 
     const conversationId = selected.id;
     const phone = selected.wa_phone ?? "";
@@ -1080,6 +1084,33 @@ export function MessagesInbox({
                   Serbest mesaj penceresi kapalı — template gerekli
                 </p>
               ) : null}
+              <div
+                className="mb-2 flex flex-wrap gap-1.5"
+                role="group"
+                aria-label="Hazır mesajlar"
+              >
+                {CANNED_MESSAGES.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={
+                      Boolean(sendingQuickId) || (apiEnabled && !windowOpen)
+                    }
+                    onClick={() => {
+                      if (sendingQuickId) return;
+                      setSendingQuickId(item.id);
+                      void handleSend(item.body).finally(() => {
+                        setSendingQuickId((current) =>
+                          current === item.id ? null : current,
+                        );
+                      });
+                    }}
+                    className="rounded-full border border-[#123524]/15 bg-[#e7f5ed] px-3 py-1.5 text-left text-[12px] font-semibold text-[#0b6b45] disabled:opacity-50"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
               <form
                 className="flex items-end gap-2"
                 onSubmit={(event) => {

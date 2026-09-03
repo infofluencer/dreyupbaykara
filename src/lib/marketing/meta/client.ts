@@ -197,3 +197,53 @@ export async function exchangeMetaShortLivedToken(
 export function defaultMetaAdAccountId(): string {
   return metaAdsConfig().adAccountId;
 }
+
+export type MetaAdAccountOption = {
+  id: string;
+  name: string;
+  accountStatus: number | null;
+  currency: string | null;
+  businessName: string | null;
+};
+
+/** Kullanıcının erişebildiği reklam hesapları (BM altı dahil). */
+export async function fetchMetaAdAccounts(
+  accessToken: string,
+): Promise<MetaAdAccountOption[]> {
+  type Row = {
+    account_id?: string;
+    id?: string;
+    name?: string;
+    account_status?: number;
+    currency?: string;
+    business?: { name?: string };
+  };
+
+  const accounts: MetaAdAccountOption[] = [];
+  let nextUrl: string | null =
+    "me/adaccounts?fields=account_id,id,name,account_status,currency,business{name}&limit=100";
+
+  while (nextUrl) {
+    const currentUrl = nextUrl;
+    const json: PagedResponse<Row> = await fetchGraphPage<Row>(
+      currentUrl,
+      accessToken,
+    );
+
+    for (const row of json.data ?? []) {
+      const rawId = (row.account_id || row.id || "").replace(/^act_/, "");
+      if (!rawId) continue;
+      accounts.push({
+        id: rawId,
+        name: row.name?.trim() || `act_${rawId}`,
+        accountStatus: row.account_status ?? null,
+        currency: row.currency ?? null,
+        businessName: row.business?.name?.trim() || null,
+      });
+    }
+
+    nextUrl = json.paging?.next ?? null;
+  }
+
+  return accounts.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+}

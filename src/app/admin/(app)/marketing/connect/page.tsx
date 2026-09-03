@@ -21,16 +21,17 @@ const ERROR_LABEL: Record<string, string> = {
   google_env: "Google OAuth env değişkenleri eksik.",
   google_state: "Google OAuth state doğrulanamadı — tekrar deneyin.",
   google_token: "Google token alınamadı.",
-  meta_env: "Meta OAuth env değişkenleri eksik.",
+  meta_env: "Meta OAuth env değişkenleri eksik (META_APP_ID / META_APP_SECRET).",
   meta_state: "Meta OAuth state doğrulanamadı — tekrar deneyin.",
   meta_token: "Meta token alınamadı.",
+  meta_pick: "Meta reklam hesabı seçilmedi.",
   supabase: "Supabase service role yapılandırılmadı.",
 };
 
 export default async function MarketingConnectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ connected?: string; error?: string }>;
+  searchParams: Promise<{ connected?: string; error?: string; meta_count?: string }>;
 }) {
   const session = await requireAdminSession(["admin", "doctor", "agency"]);
   const query = await searchParams;
@@ -65,7 +66,8 @@ export default async function MarketingConnectPage({
     .order("external_customer_id");
 
   const googleAccount = accounts.find((a) => a.platform === "google_ads");
-  const metaAccount = accounts.find((a) => a.platform === "meta");
+  const metaAccounts = accounts.filter((a) => a.platform === "meta");
+  const metaAccount = metaAccounts[0];
 
   return (
     <div className="space-y-6">
@@ -104,7 +106,8 @@ export default async function MarketingConnectPage({
       ) : null}
       {query.connected === "meta" ? (
         <Notice ok>
-          Meta reklam hesabı bağlandı.
+          Meta reklam hesabı bağlandı
+          {query.meta_count ? ` (${query.meta_count} hesap)` : ""}.
           {session.role === "admin" && envExport?.metaAccessToken ? (
             <MarketingEnvCopy
               lines={[`META_ACCESS_TOKEN=${envExport.metaAccessToken}`]}
@@ -135,8 +138,30 @@ export default async function MarketingConnectPage({
           hasEnvToken={hasMetaEnvToken()}
           account={metaAccount}
           connectHref="/api/marketing/oauth/meta"
-          envHint="META_* + META_ACCESS_TOKEN (kalıcı) veya OAuth"
+          envHint="META_APP_ID + META_APP_SECRET (hesap OAuth sonrası seçilir)"
+          extra={
+            metaAccounts.length > 1 ? (
+              <ul className="mt-3 space-y-1 text-xs text-[#466254]">
+                {metaAccounts.map((row) => (
+                  <li key={row.id} className="font-mono">
+                    {row.display_name || row.external_account_id} ·{" "}
+                    act_{row.external_account_id.replace(/^act_/, "")}
+                  </li>
+                ))}
+              </ul>
+            ) : null
+          }
         />
+      </section>
+
+      <section className="rounded-2xl border border-[#123524]/08 bg-[#f7f9f8] px-4 py-4 text-sm text-[#466254]">
+        <p className="font-semibold text-[#123524]">Meta hesap seçimi</p>
+        <p className="mt-2">
+          OAuth sonrası birden fazla reklam hesabı seçebilir veya Ad ID
+          yapıştırabilirsiniz. Env ile:{" "}
+          <code>META_ACCESS_TOKEN</code> +{" "}
+          <code>META_AD_ACCOUNT_IDS=id1,id2</code>.
+        </p>
       </section>
 
       <section className="rounded-2xl border border-[#123524]/08 bg-[#f7f9f8] px-4 py-4 text-sm text-[#466254]">
@@ -298,6 +323,7 @@ function AccountCard({
   account,
   connectHref,
   envHint,
+  extra,
 }: {
   title: string;
   configured: boolean;
@@ -312,6 +338,7 @@ function AccountCard({
   };
   connectHref: string;
   envHint: string;
+  extra?: ReactNode;
 }) {
   const connected = account?.is_active && account?.has_token;
 
@@ -346,6 +373,8 @@ function AccountCard({
           </span>
         )}
       </div>
+
+      {extra}
 
       {!configured ? (
         <p className="mt-3 text-sm text-amber-900">

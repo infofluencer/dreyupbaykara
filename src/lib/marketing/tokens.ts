@@ -5,6 +5,7 @@ import type { AdAccountRow, MarketingPlatform } from "@/lib/marketing/types";
 import {
   googleAdsConfig,
   metaAdsConfig,
+  metaAdAccountIds,
 } from "@/lib/marketing/config";
 
 export class MarketingTokenError extends Error {
@@ -21,6 +22,15 @@ export async function getActiveAdAccount(
   supabase: SupabaseClient,
   platform: MarketingPlatform,
 ): Promise<AdAccountRow | null> {
+  const accounts = await getActiveAdAccounts(supabase, platform);
+  return accounts[0] ?? null;
+}
+
+/** Platformdaki tüm aktif reklam hesapları (Meta çoklu hesap). */
+export async function getActiveAdAccounts(
+  supabase: SupabaseClient,
+  platform: MarketingPlatform,
+): Promise<AdAccountRow[]> {
   const { data, error } = await supabase
     .from("ad_accounts")
     .select(
@@ -28,15 +38,13 @@ export async function getActiveAdAccount(
     )
     .eq("platform", platform)
     .eq("is_active", true)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("updated_at", { ascending: false });
 
   if (error) {
     throw new Error(`[marketing] ad_accounts read failed: ${error.message}`);
   }
 
-  return (data as AdAccountRow | null) ?? null;
+  return (data as AdAccountRow[]) ?? [];
 }
 
 export async function deactivateAdAccount(
@@ -280,18 +288,20 @@ export async function bootstrapAdAccountsFromEnv(
   }
 
   const metaToken = process.env.META_ACCESS_TOKEN?.trim();
-  const { adAccountId } = metaAdsConfig();
+  const metaIds = metaAdAccountIds();
 
-  if (metaToken && adAccountId) {
+  if (metaToken && metaIds.length) {
     try {
-      await upsertAdAccount(supabase, {
-        platform: "meta",
-        externalAccountId: adAccountId,
-        displayName: "Meta (env)",
-        accessToken: metaToken,
-        refreshToken: null,
-        tokenExpiresAt: null,
-      });
+      for (const adAccountId of metaIds) {
+        await upsertAdAccount(supabase, {
+          platform: "meta",
+          externalAccountId: adAccountId,
+          displayName: `Meta act_${adAccountId}`,
+          accessToken: metaToken,
+          refreshToken: null,
+          tokenExpiresAt: null,
+        });
+      }
       result.meta.applied = true;
     } catch (err) {
       result.meta.error =

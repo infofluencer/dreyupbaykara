@@ -18,7 +18,7 @@ import {
 import {
   deactivateAdAccount,
   ensureValidAccessToken,
-  getActiveAdAccount,
+  getActiveAdAccounts,
   MarketingTokenError,
 } from "@/lib/marketing/tokens";
 import { googleAdsConfig, googleAdsCustomerIds, googleAdsCustomerSiteMapFromEnv } from "@/lib/marketing/config";
@@ -166,54 +166,16 @@ async function syncPlatformCampaigns(
   prefixMap: SitePrefixMapRow[],
   customerSiteMap: AdCustomerSiteMapRow[],
 ): Promise<SyncCampaignsResult> {
-  const account = await getActiveAdAccount(supabase, platform);
-  if (!account) {
+  const accounts = await getActiveAdAccounts(supabase, platform);
+  if (!accounts.length) {
     return { platform, synced: 0, skippedManual: 0 };
   }
 
+  let synced = 0;
+  let skippedManual = 0;
+  const errors: string[] = [];
+
   try {
-    const accessToken = await ensureValidAccessToken(supabase, account);
-    let remoteCampaigns: Array<{
-      externalId: string;
-      name: string;
-      status: string | null;
-      accountSite?: string | null;
-    }>;
-
-    if (platform === "google_ads") {
-      remoteCampaigns = (
-        await Promise.all(
-          googleAdsCustomerIds().map(async (customerId) => {
-            const campaigns = await fetchGoogleCampaigns(
-              accessToken,
-              customerId,
-            );
-            const accountSite = siteForGoogleCustomer(
-              customerSiteMap,
-              customerId,
-            );
-            return campaigns.map((c) => ({ ...c, accountSite }));
-          }),
-        )
-      ).flat();
-    } else {
-      const metaSite =
-        customerSiteMap.find(
-          (row) =>
-            row.platform === "meta" &&
-            row.external_customer_id.replace(/^act_/, "") ===
-              account.external_account_id.replace(/^act_/, ""),
-        )?.site ?? null;
-      const campaigns = await fetchMetaCampaigns(
-        accessToken,
-        account.external_account_id,
-      );
-      remoteCampaigns = campaigns.map((c) => ({
-        ...c,
-        accountSite: metaSite,
-      }));
-    }
-
     const { data: existingRows } = await supabase
       .from("ad_campaigns")
       .select("external_campaign_id, site, site_match_source")
@@ -229,45 +191,102 @@ async function syncPlatformCampaigns(
       ]),
     );
 
-    let synced = 0;
-    let skippedManual = 0;
+    if (platform === "google_ads") {
+      const account = accounts[0]!;
+      const accessToken = await ensureValidAccessToken(supabase, account);
+      const remoteCampaigns = (
+        await Promise.all(
+          googleAdsCustomerIds().map(async (customerId) => {
+            const campaigns = await fetchGoogleCampaigns(
+              accessToken,
+              customerId,
+            );
+            const accountSite = siteForGoogleCustomer(
+              customerSiteMap,
+              customerId,
+            );
+            return campaigns.map((c) => ({ ...c, accountSite }));
+          }),
+        )
+      ).flat();
 
-    for (const remote of remoteCampaigns) {
-      const result = await upsertCampaign(supabase, {
-        accountId: account.id,
-        platform,
-        externalId: remote.externalId,
-        name: remote.name,
-        status: remote.status,
-        prefixMap,
-        accountSite: remote.accountSite,
-        existing: existingByExternal.get(remote.externalId) ?? null,
-      });
+      for (const remote of remoteCampaigns) {
+        const result = await upsertCampaign(supabase, {
+          accountId: account.id,
+          platform,
+          externalId: remote.externalId,
+          name: remote.name,
+          status: remote.status,
+          prefixMap,
+          accountSite: remote.accountSite,
+          existing: existingByExternal.get(remote.externalId) ?? null,
+        });
+        if (result === "skipped_manual") skippedManual += 1;
+        else synced += 1;
+      }
 
-      if (result === "skipped_manual") {
-        skippedManual += 1;
-      } else {
-        synced += 1;
+      if (!account.display_name) {
+        const displayName = await fetchGoogleAccountDisplayName(
+          accessToken,
+          account.external_account_id,
+        );
+        if (displayName) {
+          await supabase
+            .from("ad_accounts")
+            .update({ display_name: displayName })
+            .eq("id", account.id);
+        }
+      }
+    } else {
+      for (const account of accounts) {
+        try {
+          const accessToken = await ensureValidAccessToken(supabase, account);
+          const metaSite =
+            customerSiteMap.find(
+              (row) =>
+                row.platform === "meta" &&
+                row.external_customer_id.replace(/^act_/, "") ===
+                  account.external_account_id.replace(/^act_/, ""),
+            )?.site ?? null;
+          const campaigns = await fetchMetaCampaigns(
+            accessToken,
+            account.external_account_id,
+          );
+
+          for (const remote of campaigns) {
+            const result = await upsertCampaign(supabase, {
+              accountId: account.id,
+              platform,
+              externalId: remote.externalId,
+              name: remote.name,
+              status: remote.status,
+              prefixMap,
+              accountSite: metaSite,
+              existing: existingByExternal.get(remote.externalId) ?? null,
+            });
+            if (result === "skipped_manual") skippedManual += 1;
+            else synced += 1;
+          }
+        } catch (err) {
+          if (err instanceof MarketingTokenError) {
+            await deactivateAdAccount(supabase, account.id);
+          }
+          errors.push(
+            err instanceof Error ? err.message : "Meta sync hatası",
+          );
+        }
       }
     }
 
-    if (platform === "google_ads" && !account.display_name) {
-      const displayName = await fetchGoogleAccountDisplayName(
-        accessToken,
-        account.external_account_id,
-      );
-      if (displayName) {
-        await supabase
-          .from("ad_accounts")
-          .update({ display_name: displayName })
-          .eq("id", account.id);
-      }
-    }
-
-    return { platform, synced, skippedManual };
+    return {
+      platform,
+      synced,
+      skippedManual,
+      error: errors.length ? errors.join("; ") : undefined,
+    };
   } catch (err) {
-    if (err instanceof MarketingTokenError) {
-      await deactivateAdAccount(supabase, account.id);
+    if (err instanceof MarketingTokenError && accounts[0]) {
+      await deactivateAdAccount(supabase, accounts[0].id);
     }
     return {
       platform,

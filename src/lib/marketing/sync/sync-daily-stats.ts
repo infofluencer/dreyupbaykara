@@ -10,6 +10,7 @@ import {
   deactivateAdAccount,
   ensureValidAccessToken,
   getActiveAdAccount,
+  getActiveAdAccounts,
   MarketingTokenError,
 } from "@/lib/marketing/tokens";
 import { chunkRows, mergeRowsByKey } from "@/lib/marketing/sync/upsert-rows";
@@ -40,6 +41,10 @@ async function syncPlatformDailyStats(
   startDate: string,
   endDate: string,
 ): Promise<SyncDailyStatsResult> {
+  if (platform === "meta") {
+    return syncMetaDailyStatsAllAccounts(supabase, startDate, endDate);
+  }
+
   const account = await getActiveAdAccount(supabase, platform);
   if (!account) {
     return { platform, rows: 0 };
@@ -47,26 +52,18 @@ async function syncPlatformDailyStats(
 
   try {
     const accessToken = await ensureValidAccessToken(supabase, account);
-    const remoteStats =
-      platform === "google_ads"
-        ? (
-            await Promise.all(
-              googleAdsCustomerIds().map((customerId) =>
-                fetchGoogleDailyStats(
-                  accessToken,
-                  customerId,
-                  startDate,
-                  endDate,
-                ),
-              ),
-            )
-          ).flat()
-        : await fetchMetaDailyStats(
+    const remoteStats = (
+      await Promise.all(
+        googleAdsCustomerIds().map((customerId) =>
+          fetchGoogleDailyStats(
             accessToken,
-            account.external_account_id,
+            customerId,
             startDate,
             endDate,
-          );
+          ),
+        ),
+      )
+    ).flat();
 
     if (!remoteStats.length) {
       return { platform, rows: 0 };
@@ -161,6 +158,97 @@ async function syncPlatformDailyStats(
       error: err instanceof Error ? err.message : "Stats sync hatası",
     };
   }
+}
+
+async function syncMetaDailyStatsAllAccounts(
+  supabase: SupabaseClient,
+  startDate: string,
+  endDate: string,
+): Promise<SyncDailyStatsResult> {
+  const accounts = await getActiveAdAccounts(supabase, "meta");
+  if (!accounts.length) {
+    return { platform: "meta", rows: 0 };
+  }
+
+  let totalRows = 0;
+  const errors: string[] = [];
+
+  for (const account of accounts) {
+    try {
+      const accessToken = await ensureValidAccessToken(supabase, account);
+      const remoteStats = await fetchMetaDailyStats(
+        accessToken,
+        account.external_account_id,
+        startDate,
+        endDate,
+      );
+      if (!remoteStats.length) continue;
+
+      const externalIds = [
+        ...new Set(remoteStats.map((s) => s.externalCampaignId)),
+      ];
+      const { data: campaigns, error: campaignError } = await supabase
+        .from("ad_campaigns")
+        .select("id, external_campaign_id")
+        .eq("platform", "meta")
+        .eq("account_id", account.id)
+        .in("external_campaign_id", externalIds);
+
+      if (campaignError) throw new Error(campaignError.message);
+
+      const campaignIdByExternal = new Map(
+        (campaigns ?? []).map((row) => [
+          row.external_campaign_id as string,
+          row.id as string,
+        ]),
+      );
+
+      const rows = remoteStats
+        .map((stat) => {
+          const campaignId = campaignIdByExternal.get(stat.externalCampaignId);
+          if (!campaignId) return null;
+          return {
+            campaign_id: campaignId,
+            date: stat.date,
+            spend: stat.spend,
+            impressions: stat.impressions,
+            clicks: stat.clicks,
+            conversions: stat.conversions,
+            currency: stat.currency,
+            updated_at: new Date().toISOString(),
+          };
+        })
+        .filter((row): row is NonNullable<typeof row> => row !== null);
+
+      if (!rows.length) continue;
+
+      const deduped = mergeRowsByKey(
+        rows,
+        (row) => `${row.campaign_id}|${row.date}`,
+        ["spend", "impressions", "clicks", "conversions"],
+      );
+
+      for (const batch of chunkRows(deduped)) {
+        const { error } = await supabase.from("ad_daily_stats").upsert(batch, {
+          onConflict: "campaign_id,date",
+        });
+        if (error) throw new Error(error.message);
+      }
+
+      totalRows += deduped.length;
+    } catch (err) {
+      if (err instanceof MarketingTokenError) {
+        await deactivateAdAccount(supabase, account.id);
+      }
+      errors.push(err instanceof Error ? err.message : "Meta stats hatası");
+    }
+  }
+
+  return {
+    platform: "meta",
+    rows: totalRows,
+    error: errors.length ? errors.join("; ") : undefined,
+  };
 }
 
 export async function syncAllDailyStats(

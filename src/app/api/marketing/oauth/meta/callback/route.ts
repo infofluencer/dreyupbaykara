@@ -1,15 +1,11 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
-import { createServiceClient } from "@/lib/supabase/admin";
 import {
   metaAdsConfig,
   marketingOAuthBaseUrl,
 } from "@/lib/marketing/config";
-import {
-  defaultMetaAdAccountId,
-  exchangeMetaShortLivedToken,
-} from "@/lib/marketing/meta/client";
-import { upsertAdAccount } from "@/lib/marketing/tokens";
+import { exchangeMetaShortLivedToken } from "@/lib/marketing/meta/client";
+import { META_PENDING_COOKIE } from "@/lib/marketing/meta/pending";
 
 export const runtime = "nodejs";
 
@@ -18,7 +14,9 @@ const STATE_COOKIE = "marketing_oauth_meta_state";
 export async function GET(request: NextRequest) {
   const base = marketingOAuthBaseUrl();
   const redirectFail = (code: string) =>
-    NextResponse.redirect(new URL(`/admin/marketing/connect?error=${code}`, base));
+    NextResponse.redirect(
+      new URL(`/admin/marketing/connect?error=${code}`, base),
+    );
 
   const { searchParams } = request.nextUrl;
   const error = searchParams.get("error");
@@ -37,8 +35,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { appId, appSecret } = metaAdsConfig();
-  const adAccountId = defaultMetaAdAccountId();
-  if (!appId || !appSecret || !adAccountId) {
+  if (!appId || !appSecret) {
     return redirectFail("meta_env");
   }
 
@@ -63,21 +60,22 @@ export async function GET(request: NextRequest) {
 
   const longLived = await exchangeMetaShortLivedToken(tokenJson.access_token);
 
-  const supabase = createServiceClient();
-  if (!supabase) {
-    return redirectFail("supabase");
-  }
-
-  await upsertAdAccount(supabase, {
-    platform: "meta",
-    externalAccountId: adAccountId,
-    displayName: `Meta act_${adAccountId}`,
-    accessToken: longLived.accessToken,
-    refreshToken: null,
-    tokenExpiresAt: longLived.expiresAt,
-  });
+  cookieStore.set(
+    META_PENDING_COOKIE,
+    JSON.stringify({
+      accessToken: longLived.accessToken,
+      expiresAt: longLived.expiresAt,
+    }),
+    {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 600,
+      path: "/",
+    },
+  );
 
   return NextResponse.redirect(
-    new URL("/admin/marketing/connect?connected=meta", base),
+    new URL("/admin/marketing/connect/meta-select", base),
   );
 }

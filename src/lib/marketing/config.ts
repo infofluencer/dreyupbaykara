@@ -45,6 +45,22 @@ export function metaAdsConfig() {
   };
 }
 
+/** Env'deki Meta reklam hesap ID'leri (virgülle; act_ opsiyonel). */
+export function metaAdAccountIds(): string[] {
+  const multi = process.env.META_AD_ACCOUNT_IDS?.trim();
+  const single = metaAdsConfig().adAccountId;
+  const raw = multi || single;
+  if (!raw) return [];
+  return [
+    ...new Set(
+      raw
+        .split(/[,;\s]+/)
+        .map((id) => id.replace(/^act_/, "").replace(/\D/g, ""))
+        .filter(Boolean),
+    ),
+  ];
+}
+
 export function isGoogleAdsConfigured(): boolean {
   const c = googleAdsConfig();
   return Boolean(c.clientId && c.clientSecret && c.developerToken);
@@ -52,7 +68,8 @@ export function isGoogleAdsConfigured(): boolean {
 
 export function isMetaAdsConfigured(): boolean {
   const c = metaAdsConfig();
-  return Boolean(c.appId && c.appSecret && c.adAccountId);
+  // Ad account OAuth sonrası seçilir; OAuth için App ID + Secret yeterli.
+  return Boolean(c.appId && c.appSecret);
 }
 
 export function hasGoogleEnvTokens(): boolean {
@@ -80,7 +97,7 @@ export function isGoogleAdsEnvReady(): boolean {
 export function isMetaEnvReady(): boolean {
   const c = metaAdsConfig();
   return Boolean(
-    c.appId && c.appSecret && c.adAccountId && hasMetaEnvToken(),
+    c.appId && c.appSecret && metaAdAccountIds().length && hasMetaEnvToken(),
   );
 }
 
