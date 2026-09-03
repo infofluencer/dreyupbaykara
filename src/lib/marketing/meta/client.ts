@@ -27,8 +27,15 @@ async function graphGet<T>(
   accessToken: string,
   params: Record<string, string> = {},
 ): Promise<T> {
-  const search = new URLSearchParams({ ...params, access_token: accessToken });
-  const res = await fetch(`${GRAPH_API}${path}?${search}`);
+  const cleanPath = path.replace(/^\//, "");
+  const [pathname, existingQuery] = cleanPath.split("?");
+  const search = new URLSearchParams(existingQuery ?? "");
+  for (const [key, value] of Object.entries(params)) {
+    search.set(key, value);
+  }
+  search.set("access_token", accessToken);
+
+  const res = await fetch(`${GRAPH_API}/${pathname}?${search}`);
   const json = (await res.json()) as T & GraphError;
 
   if (!res.ok || json.error) {
