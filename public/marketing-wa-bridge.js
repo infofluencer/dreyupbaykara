@@ -26,7 +26,9 @@
   ];
   var STORAGE = "eyupbaykara_xsite_attr";
 
-  var script = document.currentScript;
+  var script =
+    document.currentScript ||
+    document.querySelector('script[src*="marketing-wa-bridge.js"]');
   var site = (script && script.getAttribute("data-site")) || "endospineistanbul";
   var bridgeOrigin =
     (script && script.getAttribute("data-bridge")) ||
@@ -100,20 +102,49 @@
     return /wa\.me|whatsapp\.com|api\.whatsapp/i.test(href);
   }
 
+  /** Click to Chat (HoliThemes) floating button is a div, not <a href>. */
+  function isClickToChat(el) {
+    if (!el || !el.closest) return false;
+    return Boolean(
+      el.closest(
+        "#ht-ctc-chat, .ht-ctc-chat, .ht-ctc-sc-chat, .ctc_chat, #ctc_chat",
+      ),
+    );
+  }
+
+  function redirectToBridge(event) {
+    var stored = captureAttribution();
+    if (!hasPaidParams(stored)) return false;
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    }
+    window.location.href = buildBridgeUrl(stored);
+    return true;
+  }
+
   function onClick(event) {
     var target = event.target;
     if (!target || !target.closest) return;
 
     var anchor = target.closest("a");
-    if (!anchor || !isWhatsAppLink(anchor.href)) return;
+    var isWaAnchor = anchor && isWhatsAppLink(anchor.href);
+    if (!isWaAnchor && !isClickToChat(target)) return;
 
-    var stored = captureAttribution();
-    if (!hasPaidParams(stored)) return;
-
-    event.preventDefault();
-    window.location.href = buildBridgeUrl(stored);
+    redirectToBridge(event);
   }
 
   captureAttribution();
   document.addEventListener("click", onClick, true);
+
+  /** CTC opens WhatsApp via window.open — catch that if click missed the widget. */
+  var nativeOpen = window.open;
+  window.open = function (url) {
+    if (isWhatsAppLink(String(url || "")) && hasPaidParams(captureAttribution())) {
+      window.location.href = buildBridgeUrl(captureAttribution());
+      return null;
+    }
+    return nativeOpen.apply(this, arguments);
+  };
 })();
