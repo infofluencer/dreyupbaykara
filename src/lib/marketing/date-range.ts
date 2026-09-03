@@ -29,7 +29,8 @@ export const MARKETING_PERIOD_OPTIONS: {
   { value: "custom", label: "Özel tarih" },
 ];
 
-export const DEFAULT_MARKETING_PERIOD = "24" as const satisfies Exclude<
+/** Varsayılan kısa tut — 720 gün veri var ama her filtrede çekilmesin. */
+export const DEFAULT_MARKETING_PERIOD = "1" as const satisfies Exclude<
   MarketingPeriod,
   "custom"
 >;

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { istanbulYmd } from "@/lib/date/tr";
 import type {
@@ -30,7 +31,7 @@ function parseSummary(data: unknown): MarketingSummary | null {
   return data as MarketingSummary;
 }
 
-export async function loadMarketingSummary(
+async function loadMarketingSummaryUncached(
   startDate: string,
   endDate: string,
   siteFilter: string | null,
@@ -49,6 +50,9 @@ export async function loadMarketingSummary(
 
   return parseSummary(data);
 }
+
+/** Aynı request içinde özet + kampanya paylaşır. */
+export const loadMarketingSummary = cache(loadMarketingSummaryUncached);
 
 export async function loadAdAccountsSafe(): Promise<AdAccountSafe[]> {
   const supabase = await createClient();
@@ -203,32 +207,60 @@ async function loadLeadSourceMap(
   return map;
 }
 
-async function loadGclidAttributionMaps(): Promise<GclidAttributionMaps> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("google_ad_clicks")
-    .select("gclid, external_campaign_id, ad_campaigns(site)")
-    .not("gclid", "is", null);
-
+async function loadGclidAttributionMaps(
+  gclids: string[],
+): Promise<GclidAttributionMaps> {
   const gclidToSite = new Map<string, string>();
   const gclidToExternalCampaignId = new Map<string, string>();
+  const unique = [...new Set(gclids.map((id) => id.trim()).filter(Boolean))];
+  if (!unique.length) return { gclidToSite, gclidToExternalCampaignId };
 
-  for (const row of data ?? []) {
-    const gclid = String(row.gclid ?? "").trim();
-    if (!gclid) continue;
+  const supabase = await createClient();
+  const chunkSize = 200;
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const chunk = unique.slice(i, i + chunkSize);
+    const { data } = await supabase
+      .from("google_ad_clicks")
+      .select("gclid, external_campaign_id, ad_campaigns(site)")
+      .in("gclid", chunk);
 
-    const campaign = row.ad_campaigns as
-      | { site?: string | null }
-      | { site?: string | null }[]
-      | null;
-    const site = Array.isArray(campaign) ? campaign[0]?.site : campaign?.site;
-    if (site) gclidToSite.set(gclid, site);
+    for (const row of data ?? []) {
+      const gclid = String(row.gclid ?? "").trim();
+      if (!gclid) continue;
 
-    const externalId = String(row.external_campaign_id ?? "").trim();
-    if (externalId) gclidToExternalCampaignId.set(gclid, externalId);
+      const campaign = row.ad_campaigns as
+        | { site?: string | null }
+        | { site?: string | null }[]
+        | null;
+      const site = Array.isArray(campaign) ? campaign[0]?.site : campaign?.site;
+      if (site) gclidToSite.set(gclid, site);
+
+      const externalId = String(row.external_campaign_id ?? "").trim();
+      if (externalId) gclidToExternalCampaignId.set(gclid, externalId);
+    }
   }
 
   return { gclidToSite, gclidToExternalCampaignId };
+}
+
+type AttributedLeadRow = {
+  utm_campaign: string | null;
+  campaign: string | null;
+  gclid: string | null;
+  gbraid: string | null;
+  wbraid: string | null;
+  site: string | null;
+  lead_ref: string | null;
+  utm_source: string | null;
+  fbclid: string | null;
+  ctwa_clid: string | null;
+};
+
+function daysBetweenInclusive(startDate: string, endDate: string): number {
+  const start = Date.parse(`${startDate}T12:00:00.000Z`);
+  const end = Date.parse(`${endDate}T12:00:00.000Z`);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
+  return Math.floor((end - start) / 86_400_000) + 1;
 }
 
 export async function loadCampaignPerformance(
@@ -266,12 +298,24 @@ export async function loadCampaignPerformance(
   }
 
   const campaignIds = campaigns.map((c) => c.id);
-  const { data: stats } = await supabase
-    .from("ad_daily_stats")
-    .select("campaign_id, spend, clicks, impressions, conversions")
-    .in("campaign_id", campaignIds)
-    .gte("date", startDate)
-    .lte("date", endDate);
+  const daySpan = daysBetweenInclusive(startDate, endDate);
+  // Uzun aralıkta binlerce lead çekmek filtreyi dakikalarca kilitler; harcama yeterli.
+  const skipCrmLeadMatch = daySpan > 93;
+
+  const [{ data: statsAgg, error: statsError }, rawLeads] = await Promise.all([
+    supabase.rpc("admin_campaign_stats_agg", {
+      p_campaign_ids: campaignIds,
+      p_start: startDate,
+      p_end: endDate,
+    }),
+    skipCrmLeadMatch
+      ? Promise.resolve([] as AttributedLeadRow[])
+      : loadAttributedLeadsInRange(supabase, startDate, endDate, siteFilter),
+  ]);
+
+  if (statsError) {
+    console.error("[marketing] campaign stats agg:", statsError.message);
+  }
 
   const statsByCampaign = new Map<
     string,
@@ -282,58 +326,13 @@ export async function loadCampaignPerformance(
       conversions: number;
     }
   >();
-  for (const row of stats ?? []) {
-    const id = row.campaign_id as string;
-    const current = statsByCampaign.get(id) ?? {
-      spend: 0,
-      clicks: 0,
-      impressions: 0,
-      conversions: 0,
-    };
-    current.spend += Number(row.spend ?? 0);
-    current.clicks += Number(row.clicks ?? 0);
-    current.impressions += Number(row.impressions ?? 0);
-    current.conversions += Number(row.conversions ?? 0);
-    statsByCampaign.set(id, current);
-  }
-
-  const leadPageSize = 1000;
-  const rawLeads: Array<{
-    utm_campaign: string | null;
-    campaign: string | null;
-    gclid: string | null;
-    gbraid: string | null;
-    wbraid: string | null;
-    site: string | null;
-    lead_ref: string | null;
-    utm_source: string | null;
-    fbclid: string | null;
-    ctwa_clid: string | null;
-  }> = [];
-
-  for (let from = 0; ; from += leadPageSize) {
-    let pageQuery = supabase
-      .from("leads")
-      .select(
-        "utm_campaign, campaign, gclid, gbraid, wbraid, site, lead_ref, utm_source, fbclid, ctwa_clid",
-      )
-      .gte("created_at", `${startDate}T00:00:00+03:00`)
-      .lte("created_at", `${endDate}T23:59:59+03:00`)
-      .order("created_at", { ascending: true })
-      .range(from, from + leadPageSize - 1);
-
-    if (siteFilter && filterLeadsBySiteColumn(siteFilter)) {
-      pageQuery = pageQuery.eq("site", siteFilter);
-    }
-
-    const { data: page, error: leadsError } = await pageQuery;
-    if (leadsError) {
-      console.error("[marketing] leads page:", leadsError.message);
-      break;
-    }
-    const rows = page ?? [];
-    rawLeads.push(...(rows as typeof rawLeads));
-    if (rows.length < leadPageSize) break;
+  for (const row of statsAgg ?? []) {
+    statsByCampaign.set(row.campaign_id as string, {
+      spend: Number(row.spend ?? 0),
+      clicks: Number(row.clicks ?? 0),
+      impressions: Number(row.impressions ?? 0),
+      conversions: Number(row.conversions ?? 0),
+    });
   }
 
   const sourceMap = await loadLeadSourceMap(
@@ -342,12 +341,25 @@ export async function loadCampaignPerformance(
       .filter((ref): ref is string => Boolean(ref)),
   );
 
+  const needsGclid =
+    platformFilter !== "meta" ||
+    (siteFilter != null && isMarketingAdSite(siteFilter));
+
+  const gclidMaps = needsGclid
+    ? await loadGclidAttributionMaps(
+        rawLeads
+          .map((lead) => lead.gclid)
+          .filter((id): id is string => Boolean(id?.trim())),
+      )
+    : {
+        gclidToSite: new Map<string, string>(),
+        gclidToExternalCampaignId: new Map<string, string>(),
+      };
+
   const landingUtmSlugs =
     siteFilter && isMarketingAdSite(siteFilter)
       ? await loadLandingUtmSlugs(campaignIds)
       : new Set<string>();
-
-  const gclidMaps = await loadGclidAttributionMaps();
 
   const campaignsForMatch = campaigns.map((c) => ({
     id: c.id as string,
@@ -450,6 +462,56 @@ export async function loadCampaignPerformance(
       googleConversionsTotal: Math.round(googleConversionsTotal * 100) / 100,
     },
   };
+}
+
+/** Kampanya eşlemesi için yalnızca attribution'ı olan lead'ler. */
+async function loadAttributedLeadsInRange(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  startDate: string,
+  endDate: string,
+  siteFilter: string | null,
+): Promise<AttributedLeadRow[]> {
+  const leadPageSize = 1000;
+  const rawLeads: AttributedLeadRow[] = [];
+
+  for (let from = 0; ; from += leadPageSize) {
+    let pageQuery = supabase
+      .from("leads")
+      .select(
+        "utm_campaign, campaign, gclid, gbraid, wbraid, site, lead_ref, utm_source, fbclid, ctwa_clid",
+      )
+      .gte("created_at", `${startDate}T00:00:00+03:00`)
+      .lte("created_at", `${endDate}T23:59:59+03:00`)
+      .or(
+        [
+          "gclid.not.is.null",
+          "gbraid.not.is.null",
+          "wbraid.not.is.null",
+          "fbclid.not.is.null",
+          "ctwa_clid.not.is.null",
+          "utm_source.not.is.null",
+          "utm_campaign.not.is.null",
+          "campaign.not.is.null",
+        ].join(","),
+      )
+      .order("created_at", { ascending: true })
+      .range(from, from + leadPageSize - 1);
+
+    if (siteFilter && filterLeadsBySiteColumn(siteFilter)) {
+      pageQuery = pageQuery.eq("site", siteFilter);
+    }
+
+    const { data: page, error: leadsError } = await pageQuery;
+    if (leadsError) {
+      console.error("[marketing] leads page:", leadsError.message);
+      break;
+    }
+    const rows = (page ?? []) as AttributedLeadRow[];
+    rawLeads.push(...rows);
+    if (rows.length < leadPageSize) break;
+  }
+
+  return rawLeads;
 }
 
 export function defaultMarketingDateRange(days = 30): {

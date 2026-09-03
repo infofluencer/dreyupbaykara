@@ -4,10 +4,7 @@ import { AlertTriangle, Link2, TrendingUp } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
   loadAdAccountsSafe,
-  loadCampaignPerformance,
   loadCustomerSiteMap,
-  loadGoogleLeadsSummary,
-  loadMarketingSummary,
   loadSiteOptions,
   loadUnmatchedCampaigns,
 } from "@/lib/marketing/admin-stats";
@@ -15,25 +12,25 @@ import { MARKETING_CLICK_LOGS_SITE, isMarketingAdSite } from "@/lib/marketing/co
 import {
   resolveMarketingDateRange,
   pickMarketingQueryParam,
-  formatMarketingDateRangeTr,
 } from "@/lib/marketing/date-range";
-import {
-  MarketingDailyChart,
-  MarketingPlatformBars,
-} from "@/components/admin/MarketingCharts";
 import {
   MarketingGoogleInsightsFallback,
   MarketingGoogleInsightsSection,
 } from "@/components/admin/MarketingGoogleInsightsSection";
+import {
+  MarketingCampaignPerformanceFallback,
+  MarketingCampaignPerformanceSection,
+} from "@/components/admin/MarketingCampaignPerformanceSection";
+import {
+  MarketingSummaryFallback,
+  MarketingSummarySection,
+} from "@/components/admin/MarketingSummarySection";
 import { MarketingLeadSourcesSection } from "@/components/admin/MarketingLeadSourcesSection";
 import { MarketingFilterBar } from "@/components/admin/MarketingFilterBar";
-import { MarketingCampaignTable } from "@/components/admin/MarketingCampaignTable";
-import { MarketingGoogleLeadsSection } from "@/components/admin/MarketingGoogleLeadsSection";
 import {
   MarketingChannelTabs,
   type MarketingChannel,
 } from "@/components/admin/MarketingChannelTabs";
-import { formatPct, formatTry } from "@/lib/marketing/format";
 import { buildMarketingHref } from "@/lib/marketing/urls";
 import { UnmatchedCampaignRow } from "@/components/admin/UnmatchedCampaignRow";
 import { MarketingMetaAccountSites } from "@/components/admin/MarketingMetaAccountSites";
@@ -41,7 +38,6 @@ import {
   type AdPlatform,
   type SourceEvent,
 } from "@/lib/crm/source-kind";
-import { createClient } from "@/lib/supabase/server";
 
 const PLATFORMS = ["google_ads", "meta", "other", "organic"] as const;
 const EVENTS = ["landing", "whatsapp", "form"] as const;
@@ -95,25 +91,13 @@ export default async function AdminMarketingPage({
   const event = parseEvent(query.event);
   const search = query.q?.trim() || "";
 
-  const [summary, campaignPerformance, unmatched, siteOptions, accounts, metaSiteMap] =
-    await Promise.all([
-      loadMarketingSummary(startDate, endDate, siteFilter),
-      loadCampaignPerformance(startDate, endDate, siteFilter, adPlatform),
-      loadUnmatchedCampaigns(),
-      loadSiteOptions(),
-      loadAdAccountsSafe(),
-      channel === "meta" ? loadCustomerSiteMap("meta") : Promise.resolve({}),
-    ]);
-
-  const googleLeads =
-    channel === "google"
-      ? await loadGoogleLeadsSummary(
-          startDate,
-          endDate,
-          siteFilter,
-          campaignPerformance.attribution.googleConversionsTotal,
-        )
-      : null;
+  // Sadece hafif sorgular — özet/kampanya Suspense ile ayrı
+  const [unmatched, siteOptions, accounts, metaSiteMap] = await Promise.all([
+    loadUnmatchedCampaigns(),
+    loadSiteOptions(),
+    loadAdAccountsSafe(),
+    channel === "meta" ? loadCustomerSiteMap("meta") : Promise.resolve({}),
+  ]);
 
   const inactiveAccounts = accounts.filter((a) => !a.is_active || !a.has_token);
   const hasAccounts = accounts.some((a) => a.is_active && a.has_token);
@@ -124,19 +108,6 @@ export default async function AdminMarketingPage({
     (a) => a.platform === "meta" && a.is_active && a.has_token,
   );
   const metaAccounts = accounts.filter((a) => a.platform === "meta");
-
-  const channelSpend =
-    channel === "meta"
-      ? (summary?.platforms.meta.spend ?? 0)
-      : (summary?.platforms.google_ads.spend ?? 0);
-  const channelCrmLeads =
-    channel === "meta"
-      ? (summary?.platforms.meta.leads ?? 0)
-      : (summary?.platforms.google_ads.leads ?? 0);
-  const channelCpl =
-    channel === "meta"
-      ? summary?.platforms.meta.cpl
-      : summary?.platforms.google_ads.cpl;
 
   const unmatchedForChannel = unmatched.filter((c) =>
     channel === "meta" ? c.platform === "meta" : c.platform === "google_ads",
@@ -152,7 +123,8 @@ export default async function AdminMarketingPage({
           <p className="mt-2 text-sm text-[#466254]">
             Google Ads ve Meta harcama, dönüşüm ve CRM lead — kanal seçerek
             yönetin. Veri gece 02:00’de otomatik yenilenir (son 30 gün). 720
-            günlük geçmiş bir kez curl ile çekilir.
+            günlük geçmiş bir kez curl ile çekilir. Uzun aralıklar için
+            varsayılan 1–3 ay kullanın.
           </p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
@@ -275,25 +247,11 @@ export default async function AdminMarketingPage({
               <code>META_AD_ACCOUNT_IDS</code> ekleyin.
             </p>
           )}
-
-          {metaConnected &&
-          campaignPerformance.rows.length === 0 ? (
-            <p className="mt-4 rounded-lg border border-[#123524]/08 bg-[#f7f9f8] px-3 py-2 text-sm text-[#466254]">
-              Henüz Meta kampanya verisi yok. Cron bir sonraki turda doldurur
-              (sabah/akşam). Hesap bağlı değilse{" "}
-              <Link href="/admin/marketing/connect" className="font-semibold">
-                hesap bağla
-              </Link>
-              .
-            </p>
-          ) : null}
         </section>
       )}
 
       {channel === "google" &&
-      siteFilter === "endoskopikbelameliyati" &&
-      summary &&
-      channelSpend === 0 ? (
+      siteFilter === "endoskopikbelameliyati" ? (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
           <p className="font-semibold">Bu sitede aktif Google reklamı yok</p>
           <p className="mt-1">
@@ -332,21 +290,11 @@ export default async function AdminMarketingPage({
 
       {channel === "google" &&
       siteFilter &&
-      isMarketingAdSite(siteFilter) &&
-      channelCrmLeads === 0 &&
-      campaignPerformance.attribution.googleConversionsTotal > 0 ? (
+      isMarketingAdSite(siteFilter) ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          <p className="font-semibold">
-            CRM lead bu reklam sitesine eşleşmedi — Google dönüşüm var
-          </p>
+          <p className="font-semibold">CRM lead genelde ana sitede</p>
           <p className="mt-1">
-            Google dönüşüm:{" "}
-            <strong>
-              {campaignPerformance.attribution.googleConversionsTotal.toLocaleString(
-                "tr-TR",
-              )}
-            </strong>
-            . CRM lead eşleşmesi için gclid/utm gerekir.
+            Reklam sitesi filtresinde CRM eşleşmesi için gclid/utm gerekir.
           </p>
           <Link
             href={buildMarketingHref({
@@ -364,7 +312,7 @@ export default async function AdminMarketingPage({
         </div>
       ) : null}
 
-      {channel === "meta" && channelSpend > 0 && channelCrmLeads <= 5 ? (
+      {channel === "meta" ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <p className="font-semibold">
             CRM lead, Meta Ads Manager&apos;daki mesaj/lead sayısı değil
@@ -372,96 +320,36 @@ export default async function AdminMarketingPage({
           <p className="mt-1">
             Kart yalnızca CRM kaydında <strong>fbclid</strong>,{" "}
             <strong>Click-to-WhatsApp (ctwa_clid)</strong> veya Meta UTM olan
-            lead&apos;leri sayar. Reklam doğrudan WhatsApp&apos;a gidiyorsa lead,
-            ilk mesajdaki Meta referral ile açılır — sitede Ref olmadan gelen
-            sohbetler daha önce sayıya girmiyordu.
+            lead&apos;leri sayar.
           </p>
         </div>
       ) : null}
 
-      {summary ? (
-        <>
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryCard
-              label={`Toplam harcama (${channel === "meta" ? "Meta" : "Google"})`}
-              value={formatTry(channelSpend)}
-              hint={formatMarketingDateRangeTr(startDate, endDate)}
-            />
-            <SummaryCard
-              label={`CRM lead (${channel === "meta" ? "Meta" : "Google"})`}
-              value={String(channelCrmLeads)}
-              hint={
-                channel === "meta"
-                  ? "fbclid / Click-to-WhatsApp / Meta UTM"
-                  : "gclid / Google UTM ile eşleşen"
-              }
-            />
-            <SummaryCard
-              label="CPL (CRM)"
-              value={formatTry(channelCpl)}
-              hint="Harcama ÷ CRM lead"
-            />
-            <SummaryCard
-              label="Lead → Randevu"
-              value={formatPct(summary.appointment_rate)}
-              hint={`${summary.appointment_leads} randevulu/bitti (tüm CRM)`}
-            />
-          </section>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <section className="rounded-2xl border border-[#123524]/08 bg-white p-5 sm:p-6">
-              <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
-                Günlük harcama vs lead
-              </h2>
-              <p className="mt-1 text-sm text-[#466254]">
-                Seçili tarih aralığı (site filtresi)
-              </p>
-              <div className="mt-4">
-                <MarketingDailyChart daily={summary.daily} />
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-[#123524]/08 bg-white p-5 sm:p-6">
-              <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
-                Platform özeti
-              </h2>
-              <p className="mt-1 text-sm text-[#466254]">
-                Google Ads vs Meta (karşılaştırma)
-              </p>
-              <div className="mt-5">
-                <MarketingPlatformBars
-                  summary={summary}
-                  googleConversions={
-                    campaignPerformance.attribution.googleConversionsTotal
-                  }
-                />
-              </div>
-            </section>
-          </div>
-        </>
-      ) : (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Özet alınamadı. Migration uygulandı mı? (
-          <code>20260901180000_marketing_api.sql</code>)
-        </p>
-      )}
-
-      <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
-        <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
-          Kampanya performansı — {channel === "meta" ? "Meta" : "Google Ads"}
-        </h2>
-        <p className="mt-1 text-sm text-[#466254]">
-          Yalnızca seçili kanalın kampanyaları.
-        </p>
-        <MarketingCampaignTable performance={campaignPerformance} />
-      </section>
-
-      {channel === "google" && googleLeads ? (
-        <MarketingGoogleLeadsSection
-          summary={googleLeads}
-          crmLeads={channelCrmLeads}
+      <Suspense
+        key={`summary-${startDate}-${endDate}-${siteFilter ?? "all"}-${channel}`}
+        fallback={<MarketingSummaryFallback />}
+      >
+        <MarketingSummarySection
+          startDate={startDate}
+          endDate={endDate}
+          siteFilter={siteFilter}
+          channel={channel}
         />
-      ) : null}
+      </Suspense>
+
+      <Suspense
+        key={`campaigns-${adPlatform}-${startDate}-${endDate}-${siteFilter ?? "all"}`}
+        fallback={<MarketingCampaignPerformanceFallback />}
+      >
+        <MarketingCampaignPerformanceSection
+          startDate={startDate}
+          endDate={endDate}
+          siteFilter={siteFilter}
+          adPlatform={adPlatform}
+          channelLabel={channel === "meta" ? "Meta" : "Google Ads"}
+          showGoogleLeads={channel === "google"}
+        />
+      </Suspense>
 
       {unmatchedForChannel.length ? (
         <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
@@ -500,25 +388,5 @@ export default async function AdminMarketingPage({
         />
       ) : null}
     </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-}) {
-  return (
-    <article className="rounded-2xl border border-[#123524]/08 bg-white px-4 py-4">
-      <p className="text-sm font-semibold text-[#466254]">{label}</p>
-      <p className="mt-2 font-[family-name:var(--font-instrument-sans)] text-3xl font-semibold tabular-nums text-[#123524]">
-        {value}
-      </p>
-      <p className="mt-1 text-[11px] text-[#466254]/80">{hint}</p>
-    </article>
   );
 }
