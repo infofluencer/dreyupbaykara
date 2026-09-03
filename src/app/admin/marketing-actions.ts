@@ -5,8 +5,6 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { marketingSyncDays } from "@/lib/marketing/config";
-import { runMarketingSync } from "@/lib/marketing/sync/sync-daily-stats";
 import { createClient } from "@/lib/supabase/server";
 import { upsertAdAccount } from "@/lib/marketing/tokens";
 import { META_PENDING_COOKIE } from "@/lib/marketing/meta/pending";
@@ -235,65 +233,4 @@ export async function selectMetaAdAccount(formData: FormData): Promise<void> {
   redirect(
     `/admin/marketing/connect?connected=meta&meta_count=${accounts.length}`,
   );
-}
-
-export async function triggerMarketingSyncNow(): Promise<{
-  ok: boolean;
-  message: string;
-}> {
-  await requireAdminSession(["admin"]);
-
-  const supabase = createServiceClient();
-  if (!supabase) {
-    return { ok: false, message: "Supabase service role yapılandırılmadı." };
-  }
-
-  try {
-    const result = await runMarketingSync(supabase, {
-      days: marketingSyncDays(),
-      mode: "full",
-    });
-    revalidatePath("/admin/marketing");
-    revalidatePath("/admin/marketing/connect");
-
-    const google = result.campaigns.find((c) => c.platform === "google_ads");
-    const googleStats = result.stats.find((s) => s.platform === "google_ads");
-    const meta = result.campaigns.find((c) => c.platform === "meta");
-    const metaStats = result.stats.find((s) => s.platform === "meta");
-
-    const googleErr = google?.error || googleStats?.error;
-    const metaErr = meta?.error || metaStats?.error;
-
-    const ext = result.googleExtended;
-    const extSummary = ext.error
-      ? `Google ek: ${ext.error}`
-      : `Google ek: cihaz ${ext.deviceRows}, gclid ${ext.gclidRows}, terim ${ext.searchTermRows}, LP ${ext.landingPageRows}`;
-
-    const parts = [
-      `Google: ${google?.synced ?? 0} kampanya, ${googleStats?.rows ?? 0} gün`,
-      `Meta: ${meta?.synced ?? 0} kampanya, ${metaStats?.rows ?? 0} gün`,
-      `(${result.range.days}g)`,
-      extSummary,
-    ];
-
-    if (metaErr) {
-      parts.push(`Meta uyarı: ${metaErr}`);
-    }
-    if (googleErr) {
-      return {
-        ok: false,
-        message: `Google sync hatası: ${googleErr}. ${parts.join(" · ")}`,
-      };
-    }
-
-    return {
-      ok: !metaErr,
-      message: parts.join(" · "),
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      message: err instanceof Error ? err.message : "Sync hatası",
-    };
-  }
 }

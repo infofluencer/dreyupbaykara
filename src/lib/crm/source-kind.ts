@@ -27,6 +27,7 @@ export type SourceRow = {
   campaign?: string | null;
   gclid?: string | null;
   fbclid?: string | null;
+  ctwa_clid?: string | null;
   gbraid?: string | null;
   wbraid?: string | null;
   msclkid?: string | null;
@@ -41,11 +42,13 @@ function hasGoogleClickId(row: SourceRow): boolean {
 
 export function classifyAdPlatform(row: SourceRow): AdPlatform {
   if (hasGoogleClickId(row)) return "google_ads";
-  if (row.fbclid?.trim()) return "meta";
+  if (row.fbclid?.trim() || row.ctwa_clid?.trim()) return "meta";
+  if ((row.channel || "").trim().toLowerCase() === "meta_ctwa") return "meta";
 
   const source = (row.utm_source || "").trim().toLowerCase();
+  const medium = (row.utm_medium || "").trim().toLowerCase();
   if (GOOGLE_SOURCES.has(source)) return "google_ads";
-  if (META_SOURCES.has(source)) return "meta";
+  if (META_SOURCES.has(source) || META_SOURCES.has(medium)) return "meta";
   if (
     source ||
     row.utm_medium?.trim() ||

@@ -43,9 +43,12 @@ function slugMatchesCampaignName(utmRaw: string, campaignName: string): boolean 
 export type LeadForCampaignMatch = {
   utm_campaign?: string | null;
   campaign?: string | null;
+  utm_source?: string | null;
   gclid?: string | null;
   gbraid?: string | null;
   wbraid?: string | null;
+  fbclid?: string | null;
+  ctwa_clid?: string | null;
   site?: string | null;
 };
 

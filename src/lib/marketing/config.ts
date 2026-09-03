@@ -1,5 +1,10 @@
 import "server-only";
 
+import {
+  MARKETING_CRON_LOOKBACK_DAYS,
+  MARKETING_HISTORY_DAYS,
+} from "@/lib/marketing/constants";
+
 export function marketingOAuthBaseUrl(): string {
   return (
     process.env.MARKETING_OAUTH_REDIRECT_BASE?.replace(/\/$/, "") ||
@@ -107,15 +112,19 @@ export function googleAdsApiBaseUrl(): string {
   return `https://googleads.googleapis.com/${version}`;
 }
 
-export function marketingSyncDays(defaultDays = 180): number {
+export function marketingSyncDays(
+  defaultDays = MARKETING_HISTORY_DAYS,
+): number {
   const raw = process.env.MARKETING_SYNC_DAYS?.trim();
   const parsed = raw ? Number.parseInt(raw, 10) : defaultDays;
   if (!Number.isFinite(parsed) || parsed < 1) return defaultDays;
-  return Math.min(parsed, 365);
+  return Math.min(parsed, MARKETING_HISTORY_DAYS);
 }
 
 /** Cron: son N günü tekrar çek + upsert (dönüşüm atribüsyonu güncellenir). */
-export function marketingCronSyncDays(defaultDays = 14): number {
+export function marketingCronSyncDays(
+  defaultDays = MARKETING_CRON_LOOKBACK_DAYS,
+): number {
   const raw = process.env.MARKETING_CRON_SYNC_DAYS?.trim();
   const parsed = raw ? Number.parseInt(raw, 10) : defaultDays;
   if (!Number.isFinite(parsed) || parsed < 1) return defaultDays;

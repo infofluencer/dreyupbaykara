@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { parseTrackingParamsFromUrl } from "@/lib/marketing/attribution";
+import { MARKETING_CLICK_LOGS_SITE } from "@/lib/marketing/constants";
 
 export type MessageSource = "panel" | "app_echo" | "bot" | "system" | "ad";
 
@@ -23,6 +25,7 @@ async function resolveLeadFromRef(
     .maybeSingle();
 
   if (source?.matched_lead_id) {
+    await attachCtwaToLead(supabase, source.matched_lead_id, ctwaClid);
     return source.matched_lead_id;
   }
 
@@ -33,6 +36,7 @@ async function resolveLeadFromRef(
     .maybeSingle();
 
   if (existingByRef?.id) {
+    await attachCtwaToLead(supabase, existingByRef.id, ctwaClid);
     return existingByRef.id;
   }
 
@@ -72,6 +76,92 @@ async function resolveLeadFromRef(
   }
 
   return null;
+}
+
+function siteFromReferralUrl(url: string | null | undefined): string {
+  const lower = (url ?? "").toLowerCase();
+  if (lower.includes("endospineistanbul.com")) return "endospineistanbul";
+  if (lower.includes("fitikameliyati.com")) return "fitikameliyati";
+  if (lower.includes("endoskopikbelameliyati.com")) {
+    return "endoskopikbelameliyati";
+  }
+  return MARKETING_CLICK_LOGS_SITE;
+}
+
+async function attachCtwaToLead(
+  supabase: SupabaseClient,
+  leadId: string,
+  ctwaClid: string | null,
+) {
+  if (!ctwaClid?.trim()) return;
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("ctwa_clid")
+    .eq("id", leadId)
+    .maybeSingle();
+  if (!lead || lead.ctwa_clid) return;
+  await supabase
+    .from("leads")
+    .update({ ctwa_clid: ctwaClid.trim() })
+    .eq("id", leadId);
+}
+
+/** Click-to-WhatsApp: Ref yoksa bile CRM lead aç — yoksa Meta kartı boş kalır. */
+async function resolveLeadFromCtwa(
+  supabase: SupabaseClient,
+  contactId: string,
+  options: {
+    ctwaClid: string | null;
+    sourceUrl: string | null;
+    headline: string | null;
+  },
+): Promise<string | null> {
+  const { data: conversation } = await supabase
+    .from("conversations")
+    .select("lead_id")
+    .eq("contact_id", contactId)
+    .maybeSingle();
+
+  if (conversation?.lead_id) {
+    await attachCtwaToLead(supabase, conversation.lead_id, options.ctwaClid);
+    return conversation.lead_id;
+  }
+
+  const { data: existingLead } = await supabase
+    .from("leads")
+    .select("id")
+    .eq("contact_id", contactId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingLead?.id) {
+    await attachCtwaToLead(supabase, existingLead.id, options.ctwaClid);
+    return existingLead.id;
+  }
+
+  const fromUrl = parseTrackingParamsFromUrl(options.sourceUrl);
+  const { data: lead, error } = await supabase
+    .from("leads")
+    .insert({
+      contact_id: contactId,
+      site: siteFromReferralUrl(options.sourceUrl),
+      channel: "meta_ctwa",
+      campaign: fromUrl.campaign ?? fromUrl.utm_campaign ?? options.headline,
+      utm_source: fromUrl.utm_source ?? "facebook",
+      utm_medium: fromUrl.utm_medium ?? "paid",
+      utm_campaign: fromUrl.utm_campaign,
+      fbclid: fromUrl.fbclid,
+      ctwa_clid: options.ctwaClid,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[whatsapp] ctwa lead:", error.message);
+    return null;
+  }
+  return lead?.id ?? null;
 }
 
 async function findOrCreateConversation(
@@ -162,6 +252,8 @@ export async function ingestInboundWhatsAppMessage(
     rawPayload?: unknown;
     ctwaClid?: string | null;
     fromAd?: boolean;
+    sourceUrl?: string | null;
+    headline?: string | null;
   },
 ): Promise<{
   conversationId: string;
@@ -199,6 +291,14 @@ export async function ingestInboundWhatsAppMessage(
       contact.id,
       options.ctwaClid ?? null,
     );
+  }
+
+  if (!leadId && (options.ctwaClid || options.fromAd)) {
+    leadId = await resolveLeadFromCtwa(supabase, contact.id, {
+      ctwaClid: options.ctwaClid ?? null,
+      sourceUrl: options.sourceUrl ?? null,
+      headline: options.headline ?? null,
+    });
   }
 
   const conversationId = await findOrCreateConversation(

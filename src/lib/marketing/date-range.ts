@@ -1,6 +1,17 @@
 import { istanbulYmd } from "@/lib/date/tr";
+import { MARKETING_HISTORY_DAYS } from "@/lib/marketing/constants";
 
-export type MarketingPeriod = "mtd" | "1" | "2" | "3" | "4" | "5" | "6" | "custom";
+export type MarketingPeriod =
+  | "mtd"
+  | "1"
+  | "2"
+  | "3"
+  | "4"
+  | "5"
+  | "6"
+  | "12"
+  | "24"
+  | "custom";
 
 export const MARKETING_PERIOD_OPTIONS: {
   value: MarketingPeriod;
@@ -13,10 +24,12 @@ export const MARKETING_PERIOD_OPTIONS: {
   { value: "4", label: "Son 4 ay" },
   { value: "5", label: "Son 5 ay" },
   { value: "6", label: "Son 6 ay" },
+  { value: "12", label: "Son 12 ay" },
+  { value: "24", label: "Son 720 gün" },
   { value: "custom", label: "Özel tarih" },
 ];
 
-export const DEFAULT_MARKETING_PERIOD = "6" as const satisfies Exclude<
+export const DEFAULT_MARKETING_PERIOD = "24" as const satisfies Exclude<
   MarketingPeriod,
   "custom"
 >;
@@ -66,6 +79,12 @@ export function marketingDateRangeForPeriod(
       startDate: `${year}-${monthStr}-01`,
       endDate,
     };
+  }
+
+  if (period === "24") {
+    const start = new Date(`${endDate}T12:00:00.000Z`);
+    start.setUTCDate(start.getUTCDate() - (MARKETING_HISTORY_DAYS - 1));
+    return sanitizeMarketingDateRange(start.toISOString().slice(0, 10), endDate);
   }
 
   const months = Number.parseInt(period, 10);

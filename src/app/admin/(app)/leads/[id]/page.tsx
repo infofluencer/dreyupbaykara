@@ -47,7 +47,7 @@ export default async function LeadDetailPage({
     supabase
       .from("leads")
       .select(
-        "id, stage, status, lost_reason, needs_followup, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, lead_ref, notes, assigned_to, created_at, updated_at, contacts(id, phone, name)",
+        "id, stage, status, lost_reason, needs_followup, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, ctwa_clid, lead_ref, notes, assigned_to, created_at, updated_at, contacts(id, phone, name)",
       )
       .eq("id", id)
       .single(),

@@ -27,6 +27,7 @@ export type LeadSourceAttribution = {
   gbraid?: string | null;
   wbraid?: string | null;
   fbclid?: string | null;
+  ctwa_clid?: string | null;
   landing_url?: string | null;
 };
 
@@ -88,11 +89,14 @@ export function resolveLeadAttribution(
 
   const resolved: ResolvedLeadAttribution = {
     site: coalesceField(lead, source, fromUrl, "site") ?? clip(lead.site),
+    utm_source: coalesceField(lead, source, fromUrl, "utm_source"),
     utm_campaign: coalesceField(lead, source, fromUrl, "utm_campaign"),
     campaign: coalesceField(lead, source, fromUrl, "campaign"),
     gclid: coalesceField(lead, source, fromUrl, "gclid"),
     gbraid: coalesceField(lead, source, fromUrl, "gbraid"),
     wbraid: coalesceField(lead, source, fromUrl, "wbraid"),
+    fbclid: coalesceField(lead, source, fromUrl, "fbclid"),
+    ctwa_clid: clip(lead.ctwa_clid) ?? clip(source?.ctwa_clid),
     leadRef: lead.lead_ref ?? source?.lead_ref ?? null,
     landingUrl,
   };

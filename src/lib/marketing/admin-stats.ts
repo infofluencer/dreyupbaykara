@@ -184,16 +184,20 @@ async function loadLeadSourceMap(
   if (!leadRefs.length) return map;
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("lead_sources")
-    .select(
-      "lead_ref, site, utm_source, utm_medium, utm_campaign, campaign, gclid, gbraid, wbraid, fbclid, landing_url",
-    )
-    .in("lead_ref", leadRefs);
+  const chunkSize = 200;
+  for (let i = 0; i < leadRefs.length; i += chunkSize) {
+    const chunk = leadRefs.slice(i, i + chunkSize);
+    const { data } = await supabase
+      .from("lead_sources")
+      .select(
+        "lead_ref, site, utm_source, utm_medium, utm_campaign, campaign, gclid, gbraid, wbraid, fbclid, landing_url",
+      )
+      .in("lead_ref", chunk);
 
-  for (const row of data ?? []) {
-    if (row.lead_ref) {
-      map.set(row.lead_ref as string, row as LeadSourceAttribution);
+    for (const row of data ?? []) {
+      if (row.lead_ref) {
+        map.set(row.lead_ref as string, row as LeadSourceAttribution);
+      }
     }
   }
   return map;
@@ -293,20 +297,44 @@ export async function loadCampaignPerformance(
     statsByCampaign.set(id, current);
   }
 
-  let leadsQuery = supabase
-    .from("leads")
-    .select(
-      "utm_campaign, campaign, gclid, gbraid, wbraid, site, lead_ref, utm_source, fbclid",
-    )
-    .gte("created_at", `${startDate}T00:00:00+03:00`)
-    .lte("created_at", `${endDate}T23:59:59+03:00`);
+  const leadPageSize = 1000;
+  const rawLeads: Array<{
+    utm_campaign: string | null;
+    campaign: string | null;
+    gclid: string | null;
+    gbraid: string | null;
+    wbraid: string | null;
+    site: string | null;
+    lead_ref: string | null;
+    utm_source: string | null;
+    fbclid: string | null;
+    ctwa_clid: string | null;
+  }> = [];
 
-  if (siteFilter && filterLeadsBySiteColumn(siteFilter)) {
-    leadsQuery = leadsQuery.eq("site", siteFilter);
+  for (let from = 0; ; from += leadPageSize) {
+    let pageQuery = supabase
+      .from("leads")
+      .select(
+        "utm_campaign, campaign, gclid, gbraid, wbraid, site, lead_ref, utm_source, fbclid, ctwa_clid",
+      )
+      .gte("created_at", `${startDate}T00:00:00+03:00`)
+      .lte("created_at", `${endDate}T23:59:59+03:00`)
+      .order("created_at", { ascending: true })
+      .range(from, from + leadPageSize - 1);
+
+    if (siteFilter && filterLeadsBySiteColumn(siteFilter)) {
+      pageQuery = pageQuery.eq("site", siteFilter);
+    }
+
+    const { data: page, error: leadsError } = await pageQuery;
+    if (leadsError) {
+      console.error("[marketing] leads page:", leadsError.message);
+      break;
+    }
+    const rows = page ?? [];
+    rawLeads.push(...(rows as typeof rawLeads));
+    if (rows.length < leadPageSize) break;
   }
-
-  const { data: leads } = await leadsQuery;
-  const rawLeads = leads ?? [];
 
   const sourceMap = await loadLeadSourceMap(
     rawLeads

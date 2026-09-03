@@ -54,7 +54,7 @@ export default async function PatientDetailPage({
       supabase
         .from("leads")
         .select(
-          "id, stage, status, lost_reason, needs_followup, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, lead_ref, created_at",
+          "id, stage, status, lost_reason, needs_followup, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, ctwa_clid, lead_ref, created_at",
         )
         .eq("contact_id", id)
         .order("created_at", { ascending: false })

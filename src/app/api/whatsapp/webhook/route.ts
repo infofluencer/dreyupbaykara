@@ -25,7 +25,14 @@ type WebhookMessage = {
   document?: { id?: string; caption?: string; filename?: string };
   audio?: { id?: string };
   video?: { id?: string; caption?: string };
-  referral?: { ctwa_clid?: string; source_url?: string };
+  referral?: {
+    ctwa_clid?: string;
+    source_url?: string;
+    source_id?: string;
+    source_type?: string;
+    headline?: string;
+    body?: string;
+  };
 };
 
 type WebhookMessageEcho = WebhookMessage & { to: string };
@@ -244,6 +251,8 @@ async function handleInboundMessages(
       rawPayload: message,
       ctwaClid: message.referral?.ctwa_clid ?? null,
       fromAd,
+      sourceUrl: message.referral?.source_url ?? null,
+      headline: message.referral?.headline ?? null,
     });
 
     if (!ingested?.created) continue;

@@ -36,7 +36,6 @@ import {
 import { formatPct, formatTry } from "@/lib/marketing/format";
 import { buildMarketingHref } from "@/lib/marketing/urls";
 import { UnmatchedCampaignRow } from "@/components/admin/UnmatchedCampaignRow";
-import { MarketingSyncButton } from "@/components/admin/MarketingSyncButton";
 import { MarketingMetaAccountSites } from "@/components/admin/MarketingMetaAccountSites";
 import {
   type AdPlatform,
@@ -76,7 +75,7 @@ export default async function AdminMarketingPage({
     q?: string | string[];
   }>;
 }) {
-  const session = await requireAdminSession(["admin", "doctor", "assistant", "agency"]);
+  await requireAdminSession(["admin", "doctor", "assistant", "agency"]);
   const raw = await searchParams;
   const query = {
     period: pickMarketingQueryParam(raw.period),
@@ -152,13 +151,11 @@ export default async function AdminMarketingPage({
           </h1>
           <p className="mt-2 text-sm text-[#466254]">
             Google Ads ve Meta harcama, dönüşüm ve CRM lead — kanal seçerek
-            yönetin.
+            yönetin. Veri gece 02:00’de otomatik yenilenir (son 30 gün). 720
+            günlük geçmiş bir kez curl ile çekilir.
           </p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
-          {session.role === "admin" && hasAccounts ? (
-            <MarketingSyncButton channel={channel} />
-          ) : null}
           <Link
             href="/admin/marketing/connect"
             className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#123524]/12 bg-white px-4 text-sm font-semibold text-[#123524] hover:border-[#0b6b45]/30"
@@ -249,20 +246,14 @@ export default async function AdminMarketingPage({
         </Suspense>
       ) : (
         <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
-                Meta Ads — veri çekme
-              </h2>
-              <p className="mt-1 text-sm text-[#466254]">
-                Sağ üstteki <strong>Meta verisini çek (sync)</strong> hem Google
-                hem Meta hesaplarını günceller. Kampanya ve harcama aşağıda
-                listelenir.
-              </p>
-            </div>
-            {session.role === "admin" && metaConnected ? (
-              <MarketingSyncButton channel="meta" />
-            ) : null}
+          <div>
+            <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
+              Meta hesapları
+            </h2>
+            <p className="mt-1 text-sm text-[#466254]">
+              Kampanya ve harcama her gece 02:00’de yenilenir. 720 günlük
+              geçmiş connect sayfasındaki curl ile bir kez çekilir.
+            </p>
           </div>
 
           {metaAccounts.length ? (
@@ -288,9 +279,12 @@ export default async function AdminMarketingPage({
           {metaConnected &&
           campaignPerformance.rows.length === 0 ? (
             <p className="mt-4 rounded-lg border border-[#123524]/08 bg-[#f7f9f8] px-3 py-2 text-sm text-[#466254]">
-              Henüz Meta kampanya verisi yok. Yukarıdaki{" "}
-              <strong>Meta verisini çek</strong> butonuna basın; sync sonrası
-              kampanya tablosu dolar.
+              Henüz Meta kampanya verisi yok. Cron bir sonraki turda doldurur
+              (sabah/akşam). Hesap bağlı değilse{" "}
+              <Link href="/admin/marketing/connect" className="font-semibold">
+                hesap bağla
+              </Link>
+              .
             </p>
           ) : null}
         </section>
@@ -370,6 +364,21 @@ export default async function AdminMarketingPage({
         </div>
       ) : null}
 
+      {channel === "meta" && channelSpend > 0 && channelCrmLeads <= 5 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold">
+            CRM lead, Meta Ads Manager&apos;daki mesaj/lead sayısı değil
+          </p>
+          <p className="mt-1">
+            Kart yalnızca CRM kaydında <strong>fbclid</strong>,{" "}
+            <strong>Click-to-WhatsApp (ctwa_clid)</strong> veya Meta UTM olan
+            lead&apos;leri sayar. Reklam doğrudan WhatsApp&apos;a gidiyorsa lead,
+            ilk mesajdaki Meta referral ile açılır — sitede Ref olmadan gelen
+            sohbetler daha önce sayıya girmiyordu.
+          </p>
+        </div>
+      ) : null}
+
       {summary ? (
         <>
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -383,7 +392,7 @@ export default async function AdminMarketingPage({
               value={String(channelCrmLeads)}
               hint={
                 channel === "meta"
-                  ? "fbclid / Meta UTM ile eşleşen"
+                  ? "fbclid / Click-to-WhatsApp / Meta UTM"
                   : "gclid / Google UTM ile eşleşen"
               }
             />
@@ -461,11 +470,11 @@ export default async function AdminMarketingPage({
           </h2>
           <p className="mt-1 text-sm text-[#466254]">
             Sync sonrası hâlâ listede ise{" "}
-            <strong>Veriyi şimdi çek (sync)</strong> çalıştırın.{" "}
             <Link href="/admin/marketing/connect" className="text-[#0b6b45]">
               connect
             </Link>{" "}
-            sayfasında site eşlemesi yapılabilir.
+            sayfasında site eşlemesi yapılabilir. Cron geçmişi doldurunca da
+            kalırlarsa isim öneki veya manuel eşleme gerekir.
           </p>
           <div className="mt-4 space-y-2">
             {unmatchedForChannel.map((campaign) => (

@@ -177,8 +177,8 @@ export function MarketingGoogleInsightsPanel({
           Google Ads detay
         </h2>
         <p className="mt-2 text-sm text-[#466254]">
-          Seçili filtre için Google verisi yok. Farklı site/tarih deneyin veya{" "}
-          <strong>Veriyi şimdi çek (sync)</strong> çalıştırın.
+          Seçili filtre için Google verisi yok. Farklı site/tarih deneyin;
+          cron henüz bu aralığı doldurmamış olabilir.
         </p>
       </section>
     );

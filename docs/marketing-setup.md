@@ -99,18 +99,20 @@ Seed: `BEL` → `endoskopikbelameliyati`
 
 Manuel eşleşme: `/admin/marketing` → Eşleşmemiş kampanyalar
 
-## 6. Cron sync
+## 6. Cron sync (Dokploy)
 
-Vercel (`vercel.json`): günde 06:00 ve 18:00 UTC — son 7 gün rolling sync.
+`vercel.json` cron’u **çalışmaz** — Vercel yok.
 
-Manuel tetikleme:
+Uygulama production’da her gece **02:00 İstanbul** son 30 günü yeniler
+(`[marketing-cron]` log). 720 günlük ilk dolum:
 
 ```bash
-curl -X POST https://ALAN-ADINIZ/api/cron/marketing-sync \
+curl --max-time 900 -X POST https://endoskopikbelameliyati.com/api/cron/marketing-sync \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-Sync sırası: kampanyalar → günlük metrikler.
+Bu istek **Google + Meta** kampanya harcamasını son 720 gün için çeker. Google
+arama terimi / gclid en fazla 90 gün (API limiti). Birkaç dakika sürebilir.
 
 ## 7. Dashboard
 

@@ -50,28 +50,39 @@ async function googleAdsSearch<T extends Record<string, unknown>>(
     headers["login-customer-id"] = loginCustomerId;
   }
 
-  const res = await fetch(
-    `${googleAdsApi()}/customers/${cid}/googleAds:search`,
-    {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ query }),
-    },
-  );
+  const results: T[] = [];
+  let pageToken: string | undefined;
 
-  const json = (await res.json()) as {
-    results?: T[];
-    error?: { message?: string; status?: string };
-  };
+  do {
+    const res = await fetch(
+      `${googleAdsApi()}/customers/${cid}/googleAds:search`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(
+          pageToken ? { query, pageToken } : { query },
+        ),
+      },
+    );
 
-  if (!res.ok) {
-    const msg =
-      json.error?.message ||
-      `Google Ads API ${res.status}: ${JSON.stringify(json)}`;
-    throw new GoogleAdsApiError(msg, res.status);
-  }
+    const json = (await res.json()) as {
+      results?: T[];
+      nextPageToken?: string;
+      error?: { message?: string; status?: string };
+    };
 
-  return json.results ?? [];
+    if (!res.ok) {
+      const msg =
+        json.error?.message ||
+        `Google Ads API ${res.status}: ${JSON.stringify(json)}`;
+      throw new GoogleAdsApiError(msg, res.status);
+    }
+
+    results.push(...(json.results ?? []));
+    pageToken = json.nextPageToken || undefined;
+  } while (pageToken);
+
+  return results;
 }
 
 function microsToTry(micros: string | number | undefined): number {

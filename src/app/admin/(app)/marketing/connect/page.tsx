@@ -301,13 +301,14 @@ export default async function MarketingConnectPage({
       </section>
 
       <section className="rounded-2xl border border-[#123524]/08 bg-[#f7f9f8] px-4 py-4 text-sm text-[#466254]">
-        <p className="font-semibold text-[#123524]">Cron sync</p>
+        <p className="font-semibold text-[#123524]">Cron sync (Dokploy)</p>
         <p className="mt-2">
-          Vercel: <code>vercel.json</code> içinde{" "}
-          <code>/api/cron/marketing-sync</code> (günde 2 kez). Manuel:
+          Vercel cron yok. Elle aşağıdaki curl <strong>Google + Meta, son 720
+          gün</strong> kampanya harcamasını çeker (birkaç dakika sürebilir).
+          Sonrasında her gece 02:00 İstanbul’da son 30 gün yenilenir.
         </p>
         <pre className="mt-2 overflow-x-auto rounded-lg bg-white p-3 text-xs">
-          {`curl -X POST https://ALAN-ADINIZ/api/cron/marketing-sync \\
+          {`curl --max-time 900 -X POST https://endoskopikbelameliyati.com/api/cron/marketing-sync \\
   -H "Authorization: Bearer $CRON_SECRET"`}
         </pre>
       </section>

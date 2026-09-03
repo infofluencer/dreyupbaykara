@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { marketingCronSyncDays } from "@/lib/marketing/config";
+import { marketingSyncDays } from "@/lib/marketing/config";
 import { runMarketingSync } from "@/lib/marketing/sync/sync-daily-stats";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 async function handleMarketingSync(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -24,13 +25,14 @@ async function handleMarketingSync(request: NextRequest) {
 
   try {
     const result = await runMarketingSync(supabase, {
-      days: marketingCronSyncDays(),
-      mode: "cron",
+      mode: "full",
+      days: marketingSyncDays(),
     });
     return NextResponse.json({
       ok: true,
       bootstrap: result.bootstrap,
       range: result.range,
+      backfill: result.backfill,
       campaigns: result.campaigns,
       stats: result.stats,
       googleExtended: result.googleExtended,
@@ -45,7 +47,7 @@ async function handleMarketingSync(request: NextRequest) {
   }
 }
 
-/** Vercel Cron GET; VPS curl genelde POST. Günde 1–2 kez yeterli. */
+/** Elle: 720 gün Google + Meta. Gece cron süreç içinde 30 gün yeniler. */
 export async function GET(request: NextRequest) {
   return handleMarketingSync(request);
 }

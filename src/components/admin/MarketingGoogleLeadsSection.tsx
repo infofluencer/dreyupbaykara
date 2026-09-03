@@ -79,8 +79,8 @@ export function MarketingGoogleLeadsSection({
 
       {!hasData ? (
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">
-          Henüz Google lead form veya dönüşüm aksiyonu detayı yok.{" "}
-          <strong>Veriyi şimdi çek (sync)</strong> çalıştırın ve migration{" "}
+          Henüz Google lead form veya dönüşüm aksiyonu detayı yok. Cron
+          (sabah/akşam) bu tabloyu doldurur; migration{" "}
           <code>20260903150000_google_ad_lead_submissions.sql</code> uygulayın.
           Lead Form Extension kullanmıyorsanız bu tablo 0 kalır — dönüşümler
           yine üstteki mavi kartta görünür.

@@ -18,6 +18,7 @@ export type LeadAttribution = {
   utm_campaign: string | null;
   gclid: string | null;
   fbclid: string | null;
+  ctwa_clid?: string | null;
   gbraid?: string | null;
   wbraid?: string | null;
   msclkid?: string | null;
@@ -70,6 +71,7 @@ function isManual(row: {
   utm_source?: string | null;
   gclid?: string | null;
   fbclid?: string | null;
+  ctwa_clid?: string | null;
   gbraid?: string | null;
   wbraid?: string | null;
   msclkid?: string | null;
@@ -78,11 +80,13 @@ function isManual(row: {
   if (
     row.gclid ||
     row.fbclid ||
+    row.ctwa_clid ||
     row.gbraid ||
     row.wbraid ||
     row.msclkid ||
     row.ttclid ||
-    row.utm_source
+    row.utm_source ||
+    row.channel === "meta_ctwa"
   ) {
     return false;
   }
@@ -181,6 +185,11 @@ export function PatientSourceCard({
       {source.fbclid ? (
         <p className="mt-1 truncate text-[11px] text-[#466254]/70">
           fbclid: {source.fbclid}
+        </p>
+      ) : null}
+      {"ctwa_clid" in source && source.ctwa_clid ? (
+        <p className="mt-1 truncate text-[11px] text-[#466254]/70">
+          ctwa_clid: {source.ctwa_clid}
         </p>
       ) : null}
 

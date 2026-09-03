@@ -106,9 +106,9 @@ export function MarketingCampaignTable({
           </p>
         ) : null}
         <p className="mt-2 text-xs text-[#466254]/80">
-          Özet kartındaki toplam lead: platform bazlı CRM sayımı (gclid / Meta
-          clid). Kampanya satırındaki CRM lead: utm eşleşmesi — farklı
-          metrikler.
+          Özet kartındaki toplam lead: platform bazlı CRM sayımı (gclid / fbclid /
+          Click-to-WhatsApp). Kampanya satırındaki CRM lead: utm eşleşmesi —
+          farklı metrikler.
         </p>
       </div>
 

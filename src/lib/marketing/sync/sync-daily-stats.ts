@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { googleAdsCustomerIds, marketingSyncDays } from "@/lib/marketing/config";
+import { googleAdsCustomerIds, marketingCronSyncDays, marketingSyncDays } from "@/lib/marketing/config";
 import { fetchGoogleDailyStats } from "@/lib/marketing/google-ads/client";
 import { fetchMetaDailyStats } from "@/lib/marketing/meta/client";
 import type { MarketingPlatform } from "@/lib/marketing/types";
@@ -14,6 +14,11 @@ import {
   MarketingTokenError,
 } from "@/lib/marketing/tokens";
 import { chunkRows, mergeRowsByKey } from "@/lib/marketing/sync/upsert-rows";
+import {
+  MARKETING_CRON_BACKFILL_CHUNKS,
+  MARKETING_GOOGLE_EXTENDED_DAYS,
+  MARKETING_SYNC_CHUNK_DAYS,
+} from "@/lib/marketing/constants";
 
 export type SyncDailyStatsResult = {
   platform: MarketingPlatform;
@@ -23,6 +28,29 @@ export type SyncDailyStatsResult = {
 
 function formatYmd(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+export function addDaysYmd(ymd: string, days: number): string {
+  const date = new Date(`${ymd}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return formatYmd(date);
+}
+
+export function dateRangeChunks(
+  startDate: string,
+  endDate: string,
+  chunkDays = MARKETING_SYNC_CHUNK_DAYS,
+): Array<{ startDate: string; endDate: string }> {
+  if (!startDate || !endDate || startDate > endDate) return [];
+  const chunks: Array<{ startDate: string; endDate: string }> = [];
+  let cursor = startDate;
+  while (cursor <= endDate) {
+    const rawEnd = addDaysYmd(cursor, chunkDays - 1);
+    const end = rawEnd < endDate ? rawEnd : endDate;
+    chunks.push({ startDate: cursor, endDate: end });
+    cursor = addDaysYmd(end, 1);
+  }
+  return chunks;
 }
 
 export function rollingSyncDateRange(days = 7): {
@@ -35,7 +63,7 @@ export function rollingSyncDateRange(days = 7): {
   return { startDate: formatYmd(start), endDate: formatYmd(end) };
 }
 
-async function syncPlatformDailyStats(
+async function syncPlatformDailyStatsRange(
   supabase: SupabaseClient,
   platform: MarketingPlatform,
   startDate: string,
@@ -251,6 +279,122 @@ async function syncMetaDailyStatsAllAccounts(
   };
 }
 
+async function syncPlatformDailyStats(
+  supabase: SupabaseClient,
+  platform: MarketingPlatform,
+  startDate: string,
+  endDate: string,
+): Promise<SyncDailyStatsResult> {
+  const chunks = dateRangeChunks(startDate, endDate);
+  if (!chunks.length) {
+    return { platform, rows: 0 };
+  }
+
+  let rows = 0;
+  const errors: string[] = [];
+  for (const chunk of chunks) {
+    const result = await syncPlatformDailyStatsRange(
+      supabase,
+      platform,
+      chunk.startDate,
+      chunk.endDate,
+    );
+    rows += result.rows;
+    if (result.error) errors.push(result.error);
+  }
+
+  return {
+    platform,
+    rows,
+    error: errors.length ? errors.join("; ") : undefined,
+  };
+}
+
+function mergePlatformResults(
+  results: SyncDailyStatsResult[],
+): SyncDailyStatsResult[] {
+  const merged = new Map<MarketingPlatform, SyncDailyStatsResult>();
+  for (const result of results) {
+    const current = merged.get(result.platform) ?? {
+      platform: result.platform,
+      rows: 0,
+    };
+    current.rows += result.rows;
+    if (result.error) {
+      current.error = current.error
+        ? `${current.error}; ${result.error}`
+        : result.error;
+    }
+    merged.set(result.platform, current);
+  }
+  return [...merged.values()];
+}
+
+async function oldestDailyStatDate(
+  supabase: SupabaseClient,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("ad_daily_stats")
+    .select("date")
+    .order("date", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[marketing] oldest daily stat:", error.message);
+    return null;
+  }
+  const date = String(data?.date ?? "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+}
+
+/** Eksik geçmişi 90’ar gün, yeniye yakın parçalardan doldur. */
+async function backfillHistoryDailyStats(
+  supabase: SupabaseClient,
+  historyDays: number,
+  refreshStartDate: string,
+): Promise<{
+  startDate: string | null;
+  endDate: string | null;
+  chunks: number;
+  rows: number;
+  stats: SyncDailyStatsResult[];
+}> {
+  const neededStart = rollingSyncDateRange(historyDays).startDate;
+  const backfillEnd = addDaysYmd(refreshStartDate, -1);
+  if (neededStart > backfillEnd) {
+    return { startDate: null, endDate: null, chunks: 0, rows: 0, stats: [] };
+  }
+
+  const oldest = await oldestDailyStatDate(supabase);
+  if (oldest && oldest <= neededStart) {
+    return { startDate: null, endDate: null, chunks: 0, rows: 0, stats: [] };
+  }
+
+  const fillEnd = oldest ? addDaysYmd(oldest, -1) : backfillEnd;
+  if (neededStart > fillEnd) {
+    return { startDate: null, endDate: null, chunks: 0, rows: 0, stats: [] };
+  }
+
+  const pending = dateRangeChunks(neededStart, fillEnd);
+  const chunks = pending.slice(-MARKETING_CRON_BACKFILL_CHUNKS);
+  const stats: SyncDailyStatsResult[] = [];
+
+  for (const chunk of chunks) {
+    stats.push(
+      ...(await syncAllDailyStats(supabase, chunk.startDate, chunk.endDate)),
+    );
+  }
+
+  return {
+    startDate: chunks[0]?.startDate ?? null,
+    endDate: chunks[chunks.length - 1]?.endDate ?? null,
+    chunks: chunks.length,
+    rows: stats.reduce((sum, row) => sum + row.rows, 0),
+    stats: mergePlatformResults(stats),
+  };
+}
+
 export async function syncAllDailyStats(
   supabase: SupabaseClient,
   startDate: string,
@@ -275,30 +419,59 @@ export async function runMarketingSync(
   googleExtended: Awaited<
     ReturnType<typeof import("./sync-google-extended").syncGoogleExtendedStats>
   >;
+  backfill: {
+    startDate: string | null;
+    endDate: string | null;
+    chunks: number;
+    rows: number;
+  };
   range: { startDate: string; endDate: string; days: number; mode: "cron" | "full" };
 }> {
   const bootstrap = await bootstrapAdAccountsFromEnv(supabase);
   const { syncAllCampaigns } = await import("./sync-campaigns");
-  const mode = options?.mode ?? "full";
-  const days = options?.days ?? marketingSyncDays();
-  const range = rollingSyncDateRange(days);
+  const mode = options?.mode ?? "cron";
+  const historyDays = marketingSyncDays();
+  const refreshDays =
+    mode === "full"
+      ? (options?.days ?? historyDays)
+      : (options?.days ?? marketingCronSyncDays());
+  const range = rollingSyncDateRange(refreshDays);
   const campaigns = await syncAllCampaigns(supabase);
   const stats = await syncAllDailyStats(
     supabase,
     range.startDate,
     range.endDate,
   );
+  const googleExtendedRange = rollingSyncDateRange(
+    Math.min(MARKETING_GOOGLE_EXTENDED_DAYS, historyDays),
+  );
   const { syncGoogleExtendedStats } = await import("./sync-google-extended");
   const googleExtended = await syncGoogleExtendedStats(
     supabase,
-    range.startDate,
-    range.endDate,
+    googleExtendedRange.startDate,
+    googleExtendedRange.endDate,
   );
+
+  const backfill =
+    mode === "cron"
+      ? await backfillHistoryDailyStats(
+          supabase,
+          historyDays,
+          range.startDate,
+        )
+      : { startDate: null, endDate: null, chunks: 0, rows: 0 };
+
   return {
     bootstrap,
     campaigns,
     stats,
     googleExtended,
-    range: { ...range, days, mode },
+    backfill: {
+      startDate: backfill.startDate,
+      endDate: backfill.endDate,
+      chunks: backfill.chunks,
+      rows: backfill.rows,
+    },
+    range: { ...range, days: refreshDays, mode },
   };
 }
