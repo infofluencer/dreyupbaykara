@@ -48,13 +48,6 @@ export async function AdminHomeInsights({
     ? `/admin/marketing?site=${encodeURIComponent(siteFilter)}`
     : "/admin/marketing";
 
-  const totalEvents =
-    sources.events.landing + sources.events.whatsapp + sources.events.form;
-  const conversionRate =
-    totalEvents > 0
-      ? Math.round(((sources.events.whatsapp + sources.events.form) / totalEvents) * 100)
-      : 0;
-
   return (
     <>
       <Link
@@ -125,11 +118,6 @@ export async function AdminHomeInsights({
             hint="Site, WhatsApp veya form"
             totalLabel="kayıt"
             href={marketingHref}
-            centerDefault={{
-              value: conversionRate,
-              label: "Dönüşüm",
-              valueSuffix: "%",
-            }}
             slices={EVENTS.map((id) => ({
               id,
               label: EVENT_LABEL[id],
