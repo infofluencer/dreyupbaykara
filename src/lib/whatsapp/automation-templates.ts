@@ -34,7 +34,7 @@ export const POSTOP_BILGILENDIRME_BODY = `BİLGİLENDİRME
 •Temel mantık: bele dengesiz yük bindirmemek.
 
 Reçetedeki ilaçları bitene kadar kullanın.
-Op. Dr. Eyüp Baykara kliniği.`;
+Op. Dr. Eyüp Baykara.`;
 
 export const WA_AUTOMATION_TEMPLATE_SPECS = [
   {
@@ -42,14 +42,14 @@ export const WA_AUTOMATION_TEMPLATE_SPECS = [
     templateName: "randevu_1_gun",
     bodyParams: ["name", "date", "time"] as const,
     sampleBody:
-      "Merhaba {{1}}, yarın ({{2}}) saat {{3}} randevunuzu hatırlatmak isteriz. Op. Dr. Eyüp Baykara kliniği.",
+      "Merhaba {{1}}, yarın ({{2}}) saat {{3}} randevunuzu hatırlatmak isteriz. Op. Dr. Eyüp Baykara.",
   },
   {
     key: "appt_1h",
     templateName: "randevu_1_saat",
     bodyParams: ["name", "date", "time"] as const,
     sampleBody:
-      "Merhaba {{1}}, bugün saat {{3}} randevunuz var ({{2}}). Op. Dr. Eyüp Baykara kliniği.",
+      "Merhaba {{1}}, bugün saat {{3}} randevunuz var ({{2}}). Op. Dr. Eyüp Baykara.",
   },
   {
     key: "surgery_day",
