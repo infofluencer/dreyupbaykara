@@ -1,19 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
-import { sendWhatsAppTemplate } from "@/lib/whatsapp/cloud-api";
-import { priorAutomationRuleKey } from "@/lib/whatsapp/automation-templates";
+import { sendWhatsAppText } from "@/lib/whatsapp/cloud-api";
+import {
+  priorAutomationRuleKey,
+  resolveAutomationMessageBody,
+} from "@/lib/whatsapp/automation-templates";
 import {
   alreadyDispatched,
-  buildTemplateBodyComponents,
   isPhoneOptedOut,
   isRuleDueNow,
   loadCandidateAppointments,
   loadEnabledRules,
   normalizePhoneDigits,
-  previewAutomationBody,
   priorRuleSent,
 } from "@/lib/whatsapp/automations";
+import { isWithin24hWindowForContact } from "@/lib/whatsapp/service-window";
 
 export const runtime = "nodejs";
 
@@ -73,11 +75,6 @@ async function runReminders(request: NextRequest) {
   const failures: string[] = [];
 
   for (const rule of rules) {
-    if (!rule.template_name?.trim()) {
-      failures.push(`${rule.key}: template_name boş`);
-      continue;
-    }
-
     let appointments;
     try {
       appointments = await loadCandidateAppointments(supabase, rule, now);
@@ -141,25 +138,32 @@ async function runReminders(request: NextRequest) {
         continue;
       }
 
-      const components = rule.include_body_params
-        ? buildTemplateBodyComponents(
-            appointment.contact.name,
-            appointment.starts_at,
-          )
-        : undefined;
+      const windowOpen = await isWithin24hWindowForContact(
+        supabase,
+        appointment.contact.id,
+      );
+      if (!windowOpen) {
+        // Kalıcı skip yazma — pencere açılırsa due süresi içinde tekrar dene
+        skipped += 1;
+        continue;
+      }
+
+      const body = resolveAutomationMessageBody(
+        rule.key,
+        appointment.contact.name,
+        appointment.starts_at,
+      );
+      if (!body?.trim()) {
+        failures.push(`${rule.key}/${appointment.id}: mesaj metni yok`);
+        continue;
+      }
 
       try {
-        const response = await sendWhatsAppTemplate(
-          phone,
-          rule.template_name,
-          rule.language || "tr",
-          components,
-        );
+        const response = await sendWhatsAppText(phone, body);
 
-        console.info("[cron/reminders] template accepted by Meta", {
+        console.info("[cron/reminders] text accepted", {
           rule: rule.key,
           phone,
-          template: rule.template_name,
           waMessageId: response.messageId,
         });
 
@@ -184,17 +188,14 @@ async function runReminders(request: NextRequest) {
             conversation_id: conversation.id,
             wa_message_id: response.messageId,
             direction: "outbound",
-            body: `[Otomatik: ${rule.label}] ${previewAutomationBody(
-              appointment.contact.name,
-              appointment.starts_at,
-            )}`,
+            body,
             status: "sent",
             automated: true,
             source: "system",
             raw_payload: {
               appointment_id: appointment.id,
               rule_key: rule.key,
-              template_name: rule.template_name,
+              channel: "text",
             },
           });
         }

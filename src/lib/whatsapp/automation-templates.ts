@@ -1,18 +1,20 @@
 /**
- * Meta’da onaylanması gereken 4 UTILITY şablon:
- *   randevu_1_gun | randevu_1_saat | ameliyat_sonrasi_bilgi | google_maps_yorum
+ * Otomatik serbest (text) mesaj içerikleri.
+ *   appt_1d | appt_1h | surgery_day | surgery_google_review
  *
  * Dil: Turkish (tr)
  *
- * randevu_1_gun / randevu_1_saat — body değişkenleri:
+ * appt_1d / appt_1h — body değişkenleri:
  *   {{1}} hasta adı · {{2}} tarih · {{3}} saat
  *
- * ameliyat_sonrasi_bilgi / google_maps_yorum — sabit metin (değişken yok).
- * google_maps_yorum: Meta’da URL düğmesi ekleyin (Web sitesini ziyaret et).
+ * surgery_day / surgery_google_review — sabit metin (değişken yok).
  *
- * Onay sonrası /admin/automations’da şablon adını doğrulayıp kuralı açın.
+ * Gönderim yalnızca WhatsApp 24s serbest penceresi açıkken yapılır.
  * Kurallar varsayılan kapalıdır (KVKK / açık rıza).
  */
+
+export const GOOGLE_MAPS_REVIEW_URL =
+  "https://www.google.com/maps/search/?api=1&query=Op.+Dr.+Ey%C3%BCp+Baykara";
 
 export const POSTOP_BILGILENDIRME_BODY = `BİLGİLENDİRME
 İlk 10 gün;
@@ -61,6 +63,8 @@ export const WA_AUTOMATION_TEMPLATE_SPECS = [
     bodyParams: [] as const,
     sampleBody: `Attığım linke yorumlarınızı bekliyoruz mutlaka.
 
+${GOOGLE_MAPS_REVIEW_URL}
+
 Linke tıkladıktan sonra yorumlar kısmına girerek yazabilirsiniz 🙏`,
   },
 ] as const;
@@ -83,4 +87,34 @@ export function automationSampleBody(ruleKey: string): string | null {
     WA_AUTOMATION_TEMPLATE_SPECS.find((s) => s.key === ruleKey)?.sampleBody ??
     null
   );
+}
+
+const TIME_ZONE = "Europe/Istanbul";
+
+/** Kural anahtarına göre gönderilecek serbest mesaj metni. */
+export function resolveAutomationMessageBody(
+  ruleKey: string,
+  contactName: string | null | undefined,
+  startsAt: string,
+): string | null {
+  const sample = automationSampleBody(ruleKey);
+  if (!sample) return null;
+
+  const name = (contactName ?? "").trim() || "Değerli hastamız";
+  const dateLabel = new Intl.DateTimeFormat("tr-TR", {
+    timeZone: TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(startsAt));
+  const timeLabel = new Intl.DateTimeFormat("tr-TR", {
+    timeZone: TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(startsAt));
+
+  return sample
+    .replaceAll("{{1}}", name)
+    .replaceAll("{{2}}", dateLabel)
+    .replaceAll("{{3}}", timeLabel);
 }

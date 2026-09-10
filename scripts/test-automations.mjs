@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * WhatsApp otomasyon: zamanlama + şablon specleri + (opsiyonel) DB kuralları.
- * Meta şablon onayından / kural açmadan ÖNCE çalıştırın — gerçek WA gönderimi yok.
+ * WhatsApp otomasyon: zamanlama + mesaj specleri + (opsiyonel) DB kuralları.
+ * Kural açmadan ÖNCE çalıştırın — gerçek WA gönderimi yok.
  *
  *   npm run test:automations
  *   npm run test:automations -- --db          # message_rules şema kontrolü
@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   buildTemplateBodyComponents,
+  fillAutomationBodyPlaceholders,
   istanbulDayBoundsUtc,
   isRuleDueNow,
   normalizePhoneDigits,
@@ -20,7 +21,9 @@ import {
   previewAutomationBody,
 } from "../src/lib/whatsapp/automation-timing.ts";
 import {
+  GOOGLE_MAPS_REVIEW_URL,
   POSTOP_BILGILENDIRME_BODY,
+  resolveAutomationMessageBody,
   WA_AUTOMATION_TEMPLATE_SPECS,
 } from "../src/lib/whatsapp/automation-templates.ts";
 
@@ -207,43 +210,31 @@ console.log("\n=== Otomasyon zamanlama (unit) ===\n");
   );
 }
 
-console.log("\n=== Şablon / body helpers ===\n");
+console.log("\n=== Mesaj / body helpers ===\n");
 
 {
-  const names = WA_AUTOMATION_TEMPLATE_SPECS.map((s) => s.templateName);
+  const keys = WA_AUTOMATION_TEMPLATE_SPECS.map((s) => s.key);
+  expect("tam 4 otomasyon", keys.length === 4, `count=${keys.length}`);
   expect(
-    "tam 3 şablon",
-    names.length === 3,
-    `count=${names.length}`,
-  );
-  expect(
-    "şablon adları sabit",
-    names.join(",") ===
-      "randevu_1_gun,randevu_1_saat,ameliyat_sonrasi_bilgi",
-    names.join(","),
+    "kural anahtarları sabit",
+    keys.join(",") ===
+      "appt_1d,appt_1h,surgery_day,surgery_google_review",
+    keys.join(","),
   );
 }
 
 {
   const len = [...POSTOP_BILGILENDIRME_BODY].length;
-  expect(
-    "postop body ≤ 1024 (Meta limiti)",
-    len <= 1024,
-    `len=${len}`,
-  );
   expect("postop body boş değil", len > 100);
 }
 
 {
   for (const spec of WA_AUTOMATION_TEMPLATE_SPECS) {
-    if (spec.key === "surgery_day") {
-      expect(
-        `${spec.templateName}: değişken yok`,
-        spec.bodyParams.length === 0,
-      );
+    if (spec.bodyParams.length === 0) {
+      expect(`${spec.key}: değişken yok`, spec.bodyParams.length === 0);
     } else {
       expect(
-        `${spec.templateName}: 3 body param`,
+        `${spec.key}: 3 body param`,
         spec.bodyParams.length === 3 &&
           spec.bodyParams.join(",") === "name,date,time",
       );
@@ -262,6 +253,35 @@ console.log("\n=== Şablon / body helpers ===\n");
     "boş ad → varsayılan",
     buildTemplateBodyComponents("  ", starts)[0].parameters[0].text ===
       "Değerli hastamız",
+  );
+
+  const filled = fillAutomationBodyPlaceholders(
+    "Merhaba {{1}}, yarın ({{2}}) saat {{3}}",
+    "Ayşe Yılmaz",
+    starts,
+  );
+  expect(
+    "fill placeholders",
+    filled === "Merhaba Ayşe Yılmaz, yarın (26.08.2026) saat 10:30",
+    filled,
+  );
+
+  const apptBody = resolveAutomationMessageBody("appt_1d", "Ayşe", starts);
+  expect(
+    "resolve appt_1d",
+    Boolean(apptBody?.includes("Ayşe") && apptBody?.includes("26.08.2026")),
+    apptBody,
+  );
+
+  const reviewBody = resolveAutomationMessageBody(
+    "surgery_google_review",
+    null,
+    starts,
+  );
+  expect(
+    "google review URL in body",
+    Boolean(reviewBody?.includes(GOOGLE_MAPS_REVIEW_URL)),
+    reviewBody?.slice(0, 80),
   );
 }
 
@@ -401,7 +421,7 @@ if (WITH_DB || DRY_RUN) {
         if (surgery.enabled) {
           warn(
             "surgery_day şu an AÇIK",
-            "Meta şablonu onaylı değilse gönderme hatası alırsınız",
+            "Serbest pencere kapalı hastalara mesaj gitmez",
           );
         } else ok("surgery_day kapalı (güvenli varsayılan)");
       }
@@ -499,7 +519,7 @@ if (WITH_DB || DRY_RUN) {
         if (rule.enabled && dueCount > 0) {
           warn(
             `${rule.key}: canlıda ${dueCount} gönderim adayı`,
-            "Meta şablonu yoksa cron hata verir — kuralı kapalı tutun",
+            "Serbest pencere kapalıysa atlanır — kuralı bilinçli açın",
           );
         }
       }

@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertWhatsAppSendConfig, isWhatsAppEnabled } from "@/lib/whatsapp/config";
+import type { WhatsAppMediaKind } from "@/lib/whatsapp/media";
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
 import type { MessageSource } from "@/lib/whatsapp/ingest";
 import { isWithin24hWindow } from "@/lib/whatsapp/service-window";
@@ -153,6 +154,8 @@ async function persistOutbound(
     status: "sent" | "failed";
     body: string;
     rawPayload: Record<string, unknown>;
+    mediaType?: string | null;
+    mediaUrl?: string | null;
   },
 ) {
   const row = {
@@ -164,6 +167,8 @@ async function persistOutbound(
     sent_by: context.sentBy,
     automated: context.automated,
     raw_payload: patch.rawPayload,
+    media_type: patch.mediaType ?? null,
+    media_url: patch.mediaUrl ?? null,
     ...(patch.waMessageId ? { wa_message_id: patch.waMessageId } : {}),
   };
 
@@ -258,6 +263,125 @@ export async function sendMessage(
       body,
       rawPayload: {
         ...(typeof raw === "object" && raw ? (raw as Record<string, unknown>) : { raw }),
+        ...(context.extraPayload ?? {}),
+      },
+    });
+    throw error;
+  }
+}
+
+export type SendMediaOptions = {
+  mediaType: WhatsAppMediaKind;
+  mediaId: string;
+  caption?: string;
+  filename?: string;
+};
+
+/**
+ * Media outbound (image / document / audio / video) inside the 24h window.
+ * Caller uploads first via uploadWhatsAppMedia, then passes mediaId here.
+ */
+export async function sendMediaMessage(
+  to: string,
+  options: SendMediaOptions,
+  context?: OutboundContext,
+): Promise<SendMessageResult> {
+  const caption = options.caption?.trim() || "";
+  const body =
+    context?.bodyOverride?.trim() ||
+    caption ||
+    options.filename ||
+    (options.mediaType === "image" ? "Görsel" : "Belge");
+
+  if (!isWhatsAppEnabled()) {
+    console.info("WA disabled, media message stored only");
+    return {
+      messageId: `local_${crypto.randomUUID()}`,
+      storedOnly: true,
+      success: true,
+    };
+  }
+
+  if (!context) {
+    throw new Error(
+      "sendMediaMessage requires conversation context when WA is enabled.",
+    );
+  }
+
+  const phone = normalizePhone(to);
+  const windowOpen = await isWithin24hWindow(
+    context.supabase,
+    context.conversationId,
+  );
+
+  if (!windowOpen) {
+    console.error("[whatsapp] media send blocked: 24h window closed", {
+      conversationId: context.conversationId,
+    });
+    await persistOutbound(context, {
+      status: "failed",
+      body,
+      mediaType: options.mediaType,
+      mediaUrl: options.mediaId,
+      rawPayload: { error: "24h customer care window closed" },
+    });
+    throw new WhatsAppSendError(
+      "24 saatlik müşteri hizmeti penceresi kapalı; şablon mesaj gerekir.",
+      403,
+    );
+  }
+
+  const mediaObject: Record<string, unknown> = {
+    id: options.mediaId,
+  };
+  if (caption && (options.mediaType === "image" || options.mediaType === "document" || options.mediaType === "video")) {
+    mediaObject.caption = caption;
+  }
+  if (options.mediaType === "document" && options.filename) {
+    mediaObject.filename = options.filename;
+  }
+
+  try {
+    const result = await postWhatsAppCloudPayload({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: phone,
+      type: options.mediaType,
+      [options.mediaType]: mediaObject,
+    });
+
+    await persistOutbound(context, {
+      waMessageId: result.messageId,
+      status: "sent",
+      body,
+      mediaType: options.mediaType,
+      mediaUrl: options.mediaId,
+      rawPayload: {
+        ...result.raw,
+        media_type: options.mediaType,
+        media_id: options.mediaId,
+        filename: options.filename ?? null,
+        ...(context.extraPayload ?? {}),
+      },
+    });
+
+    return {
+      messageId: result.messageId,
+      storedOnly: false,
+      success: true,
+    };
+  } catch (error) {
+    const raw =
+      error instanceof WhatsAppSendError ? error.raw : { error: String(error) };
+    await persistOutbound(context, {
+      status: "failed",
+      body,
+      mediaType: options.mediaType,
+      mediaUrl: options.mediaId,
+      rawPayload: {
+        ...(typeof raw === "object" && raw ? (raw as Record<string, unknown>) : { raw }),
+        media_type: options.mediaType,
+        media_id: options.mediaId,
         ...(context.extraPayload ?? {}),
       },
     });

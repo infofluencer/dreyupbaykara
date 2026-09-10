@@ -132,5 +132,6 @@ Idempotency: `message_dispatches (appointment_id, rule_key)`. Opt-out:
 Açık iletişim izni ve KVKK süreci doğrulanmadan kuralları açmayın / cron’u
 canlıda çalıştırmayın.
 
-Eski tek şablon env’si `WHATSAPP_APPOINTMENT_TEMPLATE` artık zorunlu değil;
-adlar DB `message_rules.template_name` üzerinden gelir.
+Otomasyonlar Meta şablonu değil, serbest metin gönderir. Hasta son 24 saatte
+yazmadıysa mesaj atlanır. `message_rules.template_name` yalnızca kayıt
+etiketidir.

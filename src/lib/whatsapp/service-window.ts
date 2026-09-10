@@ -28,6 +28,21 @@ export async function isWithin24hWindow(
   return isWhatsAppServiceWindowOpen(data?.created_at);
 }
 
+/** Contact’a bağlı konuşmada serbest mesaj penceresi açık mı (DB üzerinden). */
+export async function isWithin24hWindowForContact(
+  supabase: SupabaseClient,
+  contactId: string,
+): Promise<boolean> {
+  const { data: conversation } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("contact_id", contactId)
+    .maybeSingle();
+
+  if (!conversation?.id) return false;
+  return isWithin24hWindow(supabase, conversation.id);
+}
+
 export function isConversationLockFresh(
   lockedAt: string | null | undefined,
 ): boolean {

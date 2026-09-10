@@ -18,7 +18,11 @@ import {
 import { mergeHomeSections, type HomeSections } from "@/lib/cms/home";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { sendMessage, sendTemplateMessage } from "@/lib/whatsapp/send-message";
+import { sendMessage, sendTemplateMessage, sendMediaMessage } from "@/lib/whatsapp/send-message";
+import {
+  resolveWhatsAppMedia,
+  uploadWhatsAppMedia,
+} from "@/lib/whatsapp/media";
 import { clearConversationUnread } from "@/lib/whatsapp/ingest";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import {
@@ -1279,6 +1283,113 @@ export async function sendConversationMessage(formData: FormData) {
   // action from blocking the composer until the full RSC tree refreshes.
 }
 
+export async function sendConversationMedia(formData: FormData) {
+  const session = await requireAdminSession(["admin", "doctor", "assistant"]);
+  const supabase = await createClient();
+  const conversationId = text(formData, "conversation_id");
+  const phone = text(formData, "phone");
+  const caption = text(formData, "caption");
+  const fileValue = formData.get("file");
+
+  if (!(fileValue instanceof File) || !fileValue.size) {
+    throw new Error("Bir dosya seçin (JPEG, PNG veya PDF).");
+  }
+
+  const resolved = resolveWhatsAppMedia(
+    fileValue.type,
+    fileValue.name,
+    fileValue.size,
+  );
+
+  const { data: conversation } = await supabase
+    .from("conversations")
+    .select("locked_by, locked_at, wa_phone")
+    .eq("id", conversationId)
+    .single();
+  if (
+    conversation?.locked_by &&
+    conversation.locked_by !== session.userId &&
+    isConversationLockFresh(conversation.locked_at)
+  ) {
+    throw new Error("Bu konuşma başka bir kullanıcı tarafından işleniyor.");
+  }
+
+  const enabled = isWhatsAppEnabled();
+  if (enabled) {
+    const windowOpen = await isWithin24hWindow(supabase, conversationId);
+    if (!windowOpen) {
+      throw new Error(
+        "24 saatlik müşteri hizmeti penceresi kapalı; şablon mesaj gerekir.",
+      );
+    }
+  }
+
+  const to = phone || conversation?.wa_phone || "";
+  const preview =
+    caption ||
+    resolved.fileName ||
+    (resolved.kind === "image" ? "Görsel" : "Belge");
+
+  if (enabled) {
+    const bytes = await fileValue.arrayBuffer();
+    const { mediaId } = await uploadWhatsAppMedia({
+      bytes,
+      mime: resolved.mime,
+      fileName: resolved.fileName,
+    });
+
+    await sendMediaMessage(
+      to,
+      {
+        mediaType: resolved.kind,
+        mediaId,
+        caption: caption || undefined,
+        filename: resolved.kind === "document" ? resolved.fileName : undefined,
+      },
+      {
+        to,
+        conversationId,
+        supabase,
+        sentBy: session.userId,
+        source: "panel",
+        automated: false,
+        bodyOverride: preview,
+      },
+    );
+  } else {
+    const response = await sendMediaMessage(to, {
+      mediaType: resolved.kind,
+      mediaId: `local_${crypto.randomUUID()}`,
+      caption: caption || undefined,
+      filename: resolved.fileName,
+    });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      wa_message_id: response.messageId,
+      direction: "outbound",
+      body: preview,
+      status: "sent",
+      sent_by: session.userId,
+      automated: false,
+      source: "panel",
+      media_type: resolved.kind,
+      media_url: null,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  await supabase
+    .from("conversations")
+    .update({
+      last_message_at: new Date().toISOString(),
+      last_message_preview: preview.slice(0, 160),
+      last_message_direction: "outbound",
+      unread_count: 0,
+      status: "open",
+    })
+    .eq("id", conversationId);
+}
+
 export async function updateConversationStatus(formData: FormData) {
   await requireAdminSession(["admin", "doctor", "assistant"]);
   const supabase = await createClient();
@@ -1509,7 +1620,7 @@ export async function updateMessageRule(formData: FormData) {
   if (!key) throw new Error("Kural bulunamadı.");
 
   const templateName = text(formData, "template_name");
-  if (!templateName) throw new Error("Şablon adı zorunlu.");
+  if (!templateName) throw new Error("İç etiket zorunlu.");
 
   const sendAtRaw = optionalText(formData, "send_at_local_time");
   const offset = Number(text(formData, "offset_minutes") || "0");

@@ -91,7 +91,9 @@ export default async function AutomationsPage() {
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#466254]">
           Toplam 4 otomatik mesaj: randevudan 1 gün önce, 1 saat önce, ameliyat
           günü saat 16:00 bilgilendirme ve ardından Google Maps yorum isteği.
-          Cron her 15 dakikada uygun hastaları bulup Meta şablonuyla gönderir.
+          Cron her 15 dakikada uygun hastaları bulur; serbest mesaj penceresi
+          açıksa normal metin olarak gönderir. Pencere kapalıysa mesaj
+          gitmez (sonraki turda tekrar dener).
         </p>
       </div>
 
@@ -101,8 +103,8 @@ export default async function AutomationsPage() {
         <div>
           <h2 className="text-lg font-semibold">Kurallar</h2>
           <p className="mt-1 text-sm text-[#466254]">
-            Her kural kapalıysa mesaj gitmez. Açmak için şablonun Meta’da
-            onaylı olması ve KVKK rızası gerekir.
+            Her kural kapalıysa mesaj gitmez. Açmak için hastanın son 24 saatte
+            yazmış olması (serbest pencere) ve KVKK rızası gerekir.
             {!canEdit ? (
               <span className="mt-1 block text-xs">
                 Ayarları yalnızca admin değiştirebilir; bu ekran bilgilendirme
@@ -119,22 +121,22 @@ export default async function AutomationsPage() {
       {canEdit ? (
         <section className="rounded-2xl border border-[#123524]/10 bg-[#f7faf8] p-5 sm:p-6">
           <h2 className="text-sm font-semibold text-[#123524]">
-            Meta şablon checklist — yalnızca bu 4 şablon
+            Gönderim notu — serbest metin
           </h2>
           <ul className="mt-3 space-y-2 text-sm text-[#466254]">
             {WA_AUTOMATION_TEMPLATE_SPECS.map((spec) => (
               <li key={spec.key}>
-                <code className="text-xs text-[#0b6b45]">{spec.templateName}</code>
+                <code className="text-xs text-[#0b6b45]">{spec.key}</code>
                 {" — "}
                 {spec.bodyParams.length === 0
-                  ? "sabit metin (değişken yok), kategori UTILITY"
-                  : `body {{1}} ad, {{2}} tarih, {{3}} saat`}
+                  ? "sabit metin"
+                  : `değişkenler: ad, tarih, saat`}
               </li>
             ))}
           </ul>
           <p className="mt-3 text-xs leading-5 text-[#466254]">
-            Bilgilendirme metni Meta’da 1024 karakter sınırına sığdırılmıştır;
-            paneldeki örnek Meta’ya onaylatılacak metindir.
+            Meta şablon onayı gerekmez. Hasta son 24 saatte yazmadıysa API
+            reddeder; sistem bunu önceden kontrol edip sessizce atlar.
           </p>
         </section>
       ) : null}
@@ -418,18 +420,21 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
 
           <details className="rounded-xl border border-[#123524]/10 bg-[#f7faf8] open:bg-white">
             <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-[#123524]">
-              Teknik ayarlar (şablon / zaman)
+              Teknik ayarlar (zaman / etiket)
             </summary>
             <div className="space-y-4 border-t border-[#123524]/08 px-4 py-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="block text-sm font-medium">
-                  Şablon adı
+                  İç etiket
                   <input
                     name="template_name"
                     required
                     defaultValue={rule.template_name}
                     className={input}
                   />
+                  <span className="mt-1 block text-xs font-normal text-[#466254]">
+                    Gönderim kaydında görünür; Meta şablon adı değil.
+                  </span>
                 </label>
                 <label className="block text-sm font-medium">
                   Dil
@@ -475,7 +480,7 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
                   name="include_body_params"
                   defaultChecked={rule.include_body_params !== false}
                 />
-                Mesaja ad / tarih / saat ekle
+                Mesaj metninde ad / tarih / saat kullan (kayıt alanı)
               </label>
             </div>
           </details>

@@ -7,7 +7,7 @@ import {
   type WhatsAppTemplateComponent,
 } from "@/lib/whatsapp/send-message";
 
-/** Used by cron reminders — no conversation row context. */
+/** Used by cron reminders — free-form text, no conversation row context. */
 export async function sendWhatsAppText(
   to: string,
   body: string,

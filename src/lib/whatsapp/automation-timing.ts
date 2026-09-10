@@ -165,3 +165,24 @@ export function previewAutomationBody(
   const name = (contactName ?? "").trim() || "Değerli hastamız";
   return `${name} — ${formatDateTimeTr(startsAt)}`;
 }
+
+/** {{1}} ad · {{2}} tarih · {{3}} saat — Meta şablon parametreleriyle aynı sıra. */
+export function fillAutomationBodyPlaceholders(
+  sampleBody: string,
+  contactName: string | null | undefined,
+  startsAt: string,
+): string {
+  const name = (contactName ?? "").trim() || "Değerli hastamız";
+  const dateLabel = new Intl.DateTimeFormat("tr-TR", {
+    timeZone: TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(startsAt));
+  const timeLabel = formatTimeTr(startsAt);
+
+  return sampleBody
+    .replaceAll("{{1}}", name)
+    .replaceAll("{{2}}", dateLabel)
+    .replaceAll("{{3}}", timeLabel);
+}

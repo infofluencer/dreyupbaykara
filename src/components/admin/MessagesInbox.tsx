@@ -18,10 +18,13 @@ import {
   Check,
   CheckCheck,
   ChevronLeft,
+  FileText,
   Loader2,
   MessageCircle,
+  Paperclip,
   Search,
   Send,
+  X,
 } from "lucide-react";
 import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
 import {
@@ -31,6 +34,7 @@ import {
 } from "@/lib/crm/lead-status";
 import {
   markConversationRead,
+  sendConversationMedia,
   sendConversationMessage,
 } from "@/app/admin/actions";
 import { createClient } from "@/lib/supabase/client";
@@ -241,9 +245,13 @@ export function MessagesInbox({
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [sendingMedia, setSendingMedia] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const [sendingQuickId, setSendingQuickId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const threadRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
   const draftRef = useRef(draft);
@@ -382,6 +390,9 @@ export function MessagesInbox({
     (id: string) => {
       setSelectedId(id);
       setLoadError(null);
+      setPendingFile(null);
+      setMediaError(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       appliedServerMessagesForRef.current = id;
       setConversations((rows) =>
         rows.map((row) =>
@@ -643,6 +654,10 @@ export function MessagesInbox({
 
   async function handleSend(presetBody?: string) {
     if (!selected) return;
+    if (pendingFile && !presetBody) {
+      await handleSendMedia();
+      return;
+    }
     const body = (presetBody ?? draftRef.current).trim();
     if (!body) return;
     if (apiEnabled && !windowOpen) return;
@@ -702,6 +717,120 @@ export function MessagesInbox({
           row.id === optimistic.id ? { ...row, status: "failed" } : row,
         ),
       );
+    }
+  }
+
+  function clearPendingFile() {
+    setPendingFile(null);
+    setMediaError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function onPickFile(file: File | undefined) {
+    setMediaError(null);
+    if (!file) return;
+    const mime = (file.type || "").toLowerCase();
+    const name = file.name.toLowerCase();
+    const ok =
+      mime === "image/jpeg" ||
+      mime === "image/png" ||
+      mime === "application/pdf" ||
+      name.endsWith(".jpg") ||
+      name.endsWith(".jpeg") ||
+      name.endsWith(".png") ||
+      name.endsWith(".pdf");
+    if (!ok) {
+      setMediaError("JPEG, PNG veya PDF seçin.");
+      clearPendingFile();
+      return;
+    }
+    const isPdf = mime === "application/pdf" || name.endsWith(".pdf");
+    const max = isPdf ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > max) {
+      setMediaError(isPdf ? "PDF en fazla 20 MB olabilir." : "Görsel en fazla 5 MB olabilir.");
+      clearPendingFile();
+      return;
+    }
+    setPendingFile(file);
+  }
+
+  async function handleSendMedia() {
+    if (!selected || !pendingFile) return;
+    if (apiEnabled && !windowOpen) return;
+    if (sendingMedia) return;
+
+    const file = pendingFile;
+    const caption = draftRef.current.trim();
+    const conversationId = selected.id;
+    const phone = selected.wa_phone ?? "";
+    const isPdf =
+      file.type === "application/pdf" ||
+      file.name.toLowerCase().endsWith(".pdf");
+    const mediaType = isPdf ? "document" : "image";
+    const preview = caption || file.name;
+    const localPreviewUrl = URL.createObjectURL(file);
+
+    setSendingMedia(true);
+    setMediaError(null);
+    draftRef.current = "";
+    setDraft("");
+    clearPendingFile();
+
+    const optimistic: InboxMessage = {
+      id: `local_${crypto.randomUUID()}`,
+      direction: "outbound",
+      body: preview,
+      status: "pending",
+      automated: false,
+      created_at: new Date().toISOString(),
+      media_type: mediaType,
+      media_url: localPreviewUrl,
+      source: "panel",
+    };
+    setMessages((rows) => [...rows, optimistic]);
+    setConversations((rows) =>
+      rows.map((row) =>
+        row.id === conversationId
+          ? {
+              ...row,
+              last_message_at: optimistic.created_at,
+              last_message_preview: preview.slice(0, 160),
+              last_message_direction: "outbound",
+              unread_count: 0,
+            }
+          : row,
+      ),
+    );
+
+    const fd = new FormData();
+    fd.set("conversation_id", conversationId);
+    fd.set("phone", phone);
+    fd.set("caption", caption);
+    fd.set("file", file);
+    try {
+      await sendConversationMedia(fd);
+      if (selectedIdRef.current !== conversationId) return;
+      setMessages((rows) =>
+        rows.map((row) =>
+          row.id === optimistic.id && row.status === "pending"
+            ? { ...row, status: "sent" }
+            : row,
+        ),
+      );
+    } catch (error) {
+      console.error("[inbox] media send:", error);
+      const message =
+        error instanceof Error ? error.message : "Medya gönderilemedi.";
+      if (selectedIdRef.current === conversationId) {
+        setMediaError(message);
+        setMessages((rows) =>
+          rows.map((row) =>
+            row.id === optimistic.id ? { ...row, status: "failed" } : row,
+          ),
+        );
+      }
+    } finally {
+      setSendingMedia(false);
     }
   }
 
@@ -1084,6 +1213,25 @@ export function MessagesInbox({
                   Serbest mesaj penceresi kapalı — template gerekli
                 </p>
               ) : null}
+              {mediaError ? (
+                <p className="mb-2 text-xs text-red-700">{mediaError}</p>
+              ) : null}
+              {pendingFile ? (
+                <div className="mb-2 flex items-center gap-2 rounded-xl border border-[#123524]/12 bg-[#f4f6f5] px-3 py-2 text-sm text-[#123524]">
+                  <FileText className="h-4 w-4 shrink-0 text-[#0b6b45]" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {pendingFile.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearPendingFile}
+                    className="rounded-full p-1 text-[#466254] hover:bg-white"
+                    aria-label="Dosyayı kaldır"
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
               <div
                 className="mb-2 flex flex-wrap gap-1.5"
                 role="group"
@@ -1094,7 +1242,9 @@ export function MessagesInbox({
                     key={item.id}
                     type="button"
                     disabled={
-                      Boolean(sendingQuickId) || (apiEnabled && !windowOpen)
+                      Boolean(sendingQuickId) ||
+                      sendingMedia ||
+                      (apiEnabled && !windowOpen)
                     }
                     onClick={() => {
                       if (sendingQuickId) return;
@@ -1118,27 +1268,59 @@ export function MessagesInbox({
                   void handleSend();
                 }}
               >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf"
+                  className="sr-only"
+                  tabIndex={-1}
+                  onChange={(event) => {
+                    onPickFile(event.target.files?.[0]);
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={
+                    sendingMedia || (apiEnabled && !windowOpen)
+                  }
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Dosya ekle (JPEG, PNG, PDF)"
+                  title="JPEG, PNG veya PDF"
+                  className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#123524]/15 text-[#0b6b45] disabled:opacity-50"
+                >
+                  <Paperclip className="h-5 w-5" aria-hidden />
+                </button>
                 <textarea
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={onComposerKeyDown}
                   rows={2}
-                  disabled={apiEnabled && !windowOpen}
+                  disabled={sendingMedia || (apiEnabled && !windowOpen)}
                   placeholder={
                     apiEnabled && !windowOpen
                       ? "Serbest mesaj penceresi kapalı"
-                      : "Mesaj yazın…"
+                      : pendingFile
+                        ? "Açıklama yazın (opsiyonel)…"
+                        : "Mesaj yazın…"
                   }
                   aria-label="Mesaj yazın"
                   className="min-h-12 flex-1 resize-none rounded-xl border border-[#123524]/15 px-3 py-2.5 text-base outline-none focus:border-[#0b6b45] disabled:bg-[#f4f6f5]"
                 />
                 <button
                   type="submit"
-                  disabled={!draft.trim() || (apiEnabled && !windowOpen)}
+                  disabled={
+                    sendingMedia ||
+                    (!draft.trim() && !pendingFile) ||
+                    (apiEnabled && !windowOpen)
+                  }
                   aria-label="Gönder"
                   className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0b6b45] text-white disabled:opacity-50"
                 >
-                  <Send className="h-5 w-5" aria-hidden />
+                  {sendingMedia ? (
+                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                  ) : (
+                    <Send className="h-5 w-5" aria-hidden />
+                  )}
                 </button>
               </form>
             </div>
@@ -1203,7 +1385,10 @@ function MessageMedia({
   type: string;
   mediaId: string;
 }) {
-  const url = `/api/whatsapp/media/${encodeURIComponent(mediaId)}`;
+  const url =
+    mediaId.startsWith("blob:") || mediaId.startsWith("https://")
+      ? mediaId
+      : `/api/whatsapp/media/${encodeURIComponent(mediaId)}`;
   if (type === "image") {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -1225,8 +1410,9 @@ function MessageMedia({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="mb-2 block text-xs font-semibold text-[#0b6b45] underline"
+      className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#0b6b45] underline"
     >
+      <FileText className="h-3.5 w-3.5" aria-hidden />
       Belgeyi aç
     </a>
   );

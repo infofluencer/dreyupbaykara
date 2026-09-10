@@ -7,6 +7,12 @@ const STATIC_ASSET = "public, max-age=604800, stale-while-revalidate=2592000";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  experimental: {
+    // WhatsApp inbox media (PDF/image) via server actions
+    serverActions: {
+      bodySizeLimit: "25mb",
+    },
+  },
   images: {
     // AVIF kodlaması tek konteynerde ilk isteği yavaşlatıyor; WebP yeterli kazanç veriyor.
     formats: ["image/webp"],
