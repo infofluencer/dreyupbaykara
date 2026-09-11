@@ -12,6 +12,7 @@ import {
   type AutomationTimingMode,
 } from "@/lib/whatsapp/automation-timing";
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
+import { istanbulYmd } from "@/lib/date/tr";
 
 export {
   istanbulDayBoundsUtc,
@@ -47,6 +48,8 @@ export type AppointmentForAutomation = {
   ends_at?: string | null;
   appointment_type: string;
   status: string;
+  /** Yalnızca ameliyat sonrası adaylarında dolu (bkz. loadSurgeryPostopCandidates). */
+  status_changed_at?: string | null;
   contact: {
     id: string;
     phone: string | null;
@@ -105,11 +108,11 @@ export async function loadCandidateAppointments(
   const types = rule.appointment_types?.length
     ? rule.appointment_types
     : ["consultation"];
+  // Hatırlatma randevuya bağlıdır: hasta ameliyat olmuş olsa da (10. gün
+  // kontrolü vb.) mesaj gitmeli. Kuralda liste boşsa aktif durumların hepsi.
   const leadStatuses = rule.lead_statuses?.length
     ? rule.lead_statuses
-    : rule.timing_mode === "calendar_day"
-      ? ["randevulu", "bitti"]
-      : ["randevulu"];
+    : ["randevulu", "muayene_edildi", "ameliyat_olacak", "ameliyat_edildi"];
 
   const { from, to } =
     rule.timing_mode === "calendar_day"
@@ -172,31 +175,45 @@ export function isSurgeryPostopRule(ruleKey: string): boolean {
   return ruleKey === "surgery_day" || ruleKey === "surgery_google_review";
 }
 
-/** Lead’in ameliyat_edildi’ye son geçiş zamanı (history). */
-export async function latestAmeliyatEdildiAt(
-  supabase: SupabaseClient,
-  leadId: string,
-): Promise<string | null> {
-  const { data } = await supabase
-    .from("lead_status_history")
-    .select("created_at")
-    .eq("lead_id", leadId)
-    .eq("to_status", "ameliyat_edildi")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data?.created_at ?? null;
-}
+export type SurgeryPostopCandidate = AppointmentForAutomation & {
+  /** Lead'in bugün ameliyat_edildi'ye taşındığı an. */
+  status_changed_at: string;
+};
 
 /**
- * Ameliyat sonrası mesajlar: lead ameliyat_edildi, procedure randevu,
- * ends_at son ~48s (status_day due ayrıca filtrelenir).
+ * Ameliyat sonrası mesaj adayları.
+ *
+ * Aday ölçütü **bugün ameliyat_edildi'ye taşınmış olmak** (lead_status_history).
+ * Anlık lead durumuna bakılmaz: ameliyattan sonra aynı gün kontrol randevusu
+ * açılıp lead "randevulu"ya dönse bile bilgilendirme mesajı kaybolmaz.
+ * Lead başına yalnızca en güncel ameliyat randevusu döner.
  */
 export async function loadSurgeryPostopCandidates(
   supabase: SupabaseClient,
   now = new Date(),
-): Promise<AppointmentForAutomation[]> {
-  const from = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+): Promise<SurgeryPostopCandidate[]> {
+  const { from } = istanbulDayBoundsUtc(now);
+
+  const { data: history, error: historyError } = await supabase
+    .from("lead_status_history")
+    .select("lead_id, created_at")
+    .eq("to_status", "ameliyat_edildi")
+    .gte("created_at", from.toISOString())
+    .lte("created_at", now.toISOString())
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (historyError) throw new Error(historyError.message);
+
+  const changedAtByLead = new Map<string, string>();
+  for (const row of history ?? []) {
+    // created_at desc — lead başına ilk gelen en güncel geçiş
+    if (!changedAtByLead.has(row.lead_id)) {
+      changedAtByLead.set(row.lead_id, row.created_at);
+    }
+  }
+  if (changedAtByLead.size === 0) return [];
+
   const { data, error } = await supabase
     .from("appointments")
     .select(
@@ -209,33 +226,36 @@ export async function loadSurgeryPostopCandidates(
       status,
       leads!inner (
         contact_id,
-        status,
         contacts ( id, phone, name )
       )
     `,
     )
     .eq("appointment_type", "procedure")
-    .in("status", ["scheduled", "confirmed", "completed"])
-    .eq("leads.status", "ameliyat_edildi")
-    .gte("ends_at", from.toISOString())
-    .lte("ends_at", now.toISOString())
-    .order("ends_at", { ascending: false })
-    .limit(200);
+    .neq("status", "cancelled")
+    .in("lead_id", [...changedAtByLead.keys()])
+    .lte("starts_at", now.toISOString())
+    .order("starts_at", { ascending: false })
+    .limit(500);
 
   if (error) throw new Error(error.message);
 
-  const rows: AppointmentForAutomation[] = [];
+  const byLead = new Map<string, SurgeryPostopCandidate>();
   for (const row of data ?? []) {
+    // starts_at desc — lead başına ilk gelen en güncel randevu
+    if (byLead.has(row.lead_id)) continue;
+    const changedAt = changedAtByLead.get(row.lead_id);
+    if (!changedAt) continue;
     const lead = Array.isArray(row.leads) ? row.leads[0] : row.leads;
     const contactRaw = lead?.contacts;
     const contact = Array.isArray(contactRaw) ? contactRaw[0] : contactRaw;
-    rows.push({
+    byLead.set(row.lead_id, {
       id: row.id,
       lead_id: row.lead_id,
       starts_at: row.starts_at,
       ends_at: row.ends_at,
       appointment_type: row.appointment_type,
       status: row.status,
+      status_changed_at: changedAt,
       contact: contact
         ? {
             id: contact.id,
@@ -245,7 +265,7 @@ export async function loadSurgeryPostopCandidates(
         : null,
     });
   }
-  return rows;
+  return [...byLead.values()];
 }
 
 const FAILED_DISPATCH_RETRY_MS = 60 * 60 * 1000;
@@ -293,8 +313,11 @@ export async function alreadyDispatched(
 }
 
 /**
- * Aynı contact veya telefon için bu kural son 48s içinde zaten gittiyse / kilitliyse true.
- * Çoklu randevu → 3–4 saat arayla tekrarlayan “yarın randevunuz var” spam’ini keser.
+ * Aynı kişiye, aynı kuraldan, **aynı randevu günü için** zaten gönderildiyse true.
+ *
+ * Gün kapsamı önemli: aynı hastanın Pazartesi muayenesi ve Salı ameliyatı
+ * varsa ikisi de kendi hatırlatmasını almalı. Yalnızca aynı güne düşen
+ * ikinci bir randevu (çift kayıt vb.) engellenir.
  */
 export async function alreadyDispatchedForRecipient(
   supabase: SupabaseClient,
@@ -302,6 +325,8 @@ export async function alreadyDispatchedForRecipient(
     contactId: string | null;
     phone: string | null;
     ruleKey: string;
+    /** Karşılaştırma günü — bu randevunun starts_at'i (Istanbul). */
+    appointmentStartsAt: string;
     /** Varsa bu randevu satırını yok say (kendi claim’imiz). */
     excludeAppointmentId?: string;
   },
@@ -314,12 +339,14 @@ export async function alreadyDispatchedForRecipient(
 
   let query = supabase
     .from("message_dispatches")
-    .select("id, status, sent_at, wa_message_id, appointment_id")
+    .select(
+      "id, status, sent_at, wa_message_id, appointment_id, appointments(starts_at)",
+    )
     .eq("rule_key", opts.ruleKey)
     .gte("sent_at", since)
     .or(filters.join(","))
     .order("sent_at", { ascending: false })
-    .limit(10);
+    .limit(20);
 
   if (opts.excludeAppointmentId) {
     query = query.neq("appointment_id", opts.excludeAppointmentId);
@@ -332,8 +359,18 @@ export async function alreadyDispatchedForRecipient(
     return false;
   }
 
+  const targetDay = istanbulYmd(opts.appointmentStartsAt);
+
   for (const row of data ?? []) {
-    if (isTerminalOrActiveDispatch(row)) return true;
+    if (!isTerminalOrActiveDispatch(row)) continue;
+    const apptRaw = (row as { appointments?: unknown }).appointments;
+    const appt = (Array.isArray(apptRaw) ? apptRaw[0] : apptRaw) as
+      | { starts_at?: string }
+      | null
+      | undefined;
+    // Randevusu okunamayan satırı güvenli tarafta duplicate say
+    if (!appt?.starts_at) return true;
+    if (istanbulYmd(appt.starts_at) === targetDay) return true;
   }
   return false;
 }
@@ -375,7 +412,14 @@ export async function claimDispatch(
   if (!existing) {
     const { error } = await supabase.from("message_dispatches").insert(base);
     if (!error) return true;
-    // Concurrent insert won the unique key
+    // 23505 = unique violation → başka worker aynı anda claim etti (normal).
+    // Diğer hatalar sessiz kalırsa hiçbir mesaj gitmez; görünür olsun.
+    if (error.code !== "23505") {
+      console.error(
+        "[automations] claim insert failed — 'pending' status migration uygulandı mı? (20260911120000)",
+        { appointmentId: input.appointmentId, ruleKey: input.ruleKey, error: error.message },
+      );
+    }
     return false;
   }
 

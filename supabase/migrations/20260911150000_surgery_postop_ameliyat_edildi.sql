@@ -1,5 +1,6 @@
--- Ameliyat sonrası mesajlar: yalnızca ameliyat_edildi lead’lere.
--- Gönderim zamanı kodda status_day (geçiş günü 16:00 / geçtiyse hemen).
+-- Ameliyat sonrası mesajlar: "ameliyat edildi" durumuna taşınan hastalara.
+-- Gönderim zamanı kodda hesaplanır: geçiş günü 16:00, saat geçtiyse hemen.
+-- Aday filtresi lead_status_history üzerinden (cron), lead_statuses yalnızca panelde bilgi.
 
 update public.message_rules
 set
@@ -23,5 +24,18 @@ set
   updated_at = now()
 where key = 'surgery_google_review';
 
+-- Randevu hatırlatmaları randevuya bağlıdır; hasta ameliyat olmuş olsa da
+-- (ör. 10. gün kontrolü) hatırlatma gitmelidir.
+update public.message_rules
+set
+  lead_statuses = array[
+    'randevulu',
+    'muayene_edildi',
+    'ameliyat_olacak',
+    'ameliyat_edildi'
+  ]::text[],
+  updated_at = now()
+where key in ('appt_1d', 'appt_1h');
+
 comment on column public.message_rules.lead_statuses is
-  'Durum Panosu filtreleri. surgery_* kuralları: ameliyat_edildi (cron status_day).';
+  'Durum Panosu filtreleri. surgery_* kuralları ayrıca lead_status_history (ameliyat_edildi geçiş günü) ile sınırlanır.';

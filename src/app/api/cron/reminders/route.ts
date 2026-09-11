@@ -3,26 +3,8 @@ import { advanceFinishedAppointments } from "@/lib/crm/appointment-pipeline";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import { sendWhatsAppText } from "@/lib/whatsapp/cloud-api";
-import {
-  priorAutomationRuleKey,
-  resolveAutomationMessageBody,
-} from "@/lib/whatsapp/automation-templates";
-import {
-  alreadyDispatched,
-  alreadyDispatchedForRecipient,
-  claimDispatch,
-  isPhoneOptedOut,
-  isPostStatusSendDue,
-  isRuleDueNow,
-  isSurgeryPostopRule,
-  latestAmeliyatEdildiAt,
-  loadCandidateAppointments,
-  loadEnabledRules,
-  loadSurgeryPostopCandidates,
-  normalizePhoneDigits,
-  priorRuleSent,
-} from "@/lib/whatsapp/automations";
-import { isWithin24hWindowForContact } from "@/lib/whatsapp/service-window";
+import { loadEnabledRules } from "@/lib/whatsapp/automations";
+import { runAutomationReminders } from "@/lib/whatsapp/run-reminders";
 
 export const runtime = "nodejs";
 
@@ -44,7 +26,13 @@ async function runReminders(request: NextRequest) {
   }
 
   const now = new Date();
-  let pipeline = { appointmentsCompleted: 0, leadsAdvanced: 0 };
+
+  // Durum taşıması mesajlaşmadan bağımsız — WhatsApp kapalı olsa da çalışır
+  let pipeline = {
+    appointmentsCompleted: 0,
+    leadsAdvanced: 0,
+    pipelineFailures: [] as string[],
+  };
   try {
     pipeline = await advanceFinishedAppointments(supabase, now);
   } catch (err) {
@@ -65,7 +53,7 @@ async function runReminders(request: NextRequest) {
       sent: 0,
       skipped: 0,
       checked: 0,
-      failures: [] as string[],
+      failures: pipeline.pipelineFailures,
       note: "WHATSAPP_ENABLED kapalı — sadece durum taşıması yapıldı",
     });
   }
@@ -92,276 +80,22 @@ async function runReminders(request: NextRequest) {
       checked: 0,
       sent: 0,
       skipped: 0,
-      failures: [] as string[],
+      failures: pipeline.pipelineFailures,
       note: "Aktif kural yok — /admin/automations",
     });
   }
 
-  let sent = 0;
-  let skipped = 0;
-  let checked = 0;
-  const failures: string[] = [];
-
-  for (const rule of rules) {
-    let appointments;
-    try {
-      appointments = isSurgeryPostopRule(rule.key)
-        ? await loadSurgeryPostopCandidates(supabase, now)
-        : await loadCandidateAppointments(supabase, rule, now);
-    } catch (err) {
-      failures.push(
-        `${rule.key}: ${err instanceof Error ? err.message : "randevu sorgu"}`,
-      );
-      continue;
-    }
-
-    for (const appointment of appointments) {
-      checked += 1;
-
-      if (isSurgeryPostopRule(rule.key)) {
-        const changedAt =
-          (await latestAmeliyatEdildiAt(supabase, appointment.lead_id)) ??
-          appointment.ends_at ??
-          appointment.starts_at;
-        if (!isPostStatusSendDue(changedAt, rule.send_at_local_time, now)) {
-          continue;
-        }
-      } else if (!isRuleDueNow(rule, appointment.starts_at, now)) {
-        continue;
-      }
-
-      if (await alreadyDispatched(supabase, appointment.id, rule.key)) {
-        continue;
-      }
-
-      const priorRuleKey = priorAutomationRuleKey(rule.key);
-      if (
-        priorRuleKey &&
-        !(await priorRuleSent(supabase, appointment.id, priorRuleKey))
-      ) {
-        continue;
-      }
-
-      const phone = appointment.contact?.phone
-        ? normalizePhoneDigits(appointment.contact.phone)
-        : "";
-      if (!phone || !appointment.contact) {
-        await supabase.from("message_dispatches").upsert(
-          {
-            appointment_id: appointment.id,
-            rule_key: rule.key,
-            contact_id: appointment.contact?.id ?? null,
-            phone: phone || null,
-            template_name: rule.template_name,
-            status: "skipped",
-            error: "Telefon yok",
-          },
-          { onConflict: "appointment_id,rule_key" },
-        );
-        skipped += 1;
-        continue;
-      }
-
-      if (await isPhoneOptedOut(supabase, phone)) {
-        await supabase.from("message_dispatches").upsert(
-          {
-            appointment_id: appointment.id,
-            rule_key: rule.key,
-            contact_id: appointment.contact.id,
-            phone,
-            template_name: rule.template_name,
-            status: "skipped",
-            error: "Opt-out",
-          },
-          { onConflict: "appointment_id,rule_key" },
-        );
-        skipped += 1;
-        continue;
-      }
-
-      const windowOpen = await isWithin24hWindowForContact(
-        supabase,
-        appointment.contact.id,
-      );
-      if (!windowOpen) {
-        // Kalıcı skip yazma — pencere açılırsa due süresi içinde tekrar dene
-        skipped += 1;
-        continue;
-      }
-
-      const body = resolveAutomationMessageBody(
-        rule.key,
-        appointment.contact.name,
-        appointment.starts_at,
-      );
-      if (!body?.trim()) {
-        failures.push(`${rule.key}/${appointment.id}: mesaj metni yok`);
-        continue;
-      }
-
-      // Aynı kişiye aynı kural 48s içinde bir kez (çoklu randevu spam’i)
-      if (
-        await alreadyDispatchedForRecipient(supabase, {
-          contactId: appointment.contact.id,
-          phone,
-          ruleKey: rule.key,
-        })
-      ) {
-        skipped += 1;
-        continue;
-      }
-
-      // Gönderimden önce kilitle — aynı randevu+kural için çift gönderimi engeller
-      const claimed = await claimDispatch(supabase, {
-        appointmentId: appointment.id,
-        ruleKey: rule.key,
-        contactId: appointment.contact.id,
-        phone,
-        templateName: rule.template_name,
-      });
-      if (!claimed) continue;
-
-      // Claim sonrası: aynı kişiye başka randevudan kilit/gönderim var mı?
-      if (
-        await alreadyDispatchedForRecipient(supabase, {
-          contactId: appointment.contact.id,
-          phone,
-          ruleKey: rule.key,
-          excludeAppointmentId: appointment.id,
-        })
-      ) {
-        await supabase
-          .from("message_dispatches")
-          .update({
-            status: "skipped",
-            error: "Aynı kişiye bu kural zaten gönderildi/kilitli",
-            sent_at: new Date().toISOString(),
-          })
-          .eq("appointment_id", appointment.id)
-          .eq("rule_key", rule.key)
-          .eq("status", "pending");
-        skipped += 1;
-        continue;
-      }
-
-      let waMessageId: string | null = null;
-      try {
-        const response = await sendWhatsAppText(phone, body);
-        waMessageId = response.messageId;
-
-        console.info("[cron/reminders] text accepted", {
-          rule: rule.key,
-          phone,
-          waMessageId,
-        });
-
-        // API kabul eder etmez "sent" yaz — sonraki adımlar patlasa bile tekrar gitmesin
-        const { error: markSentError } = await supabase
-          .from("message_dispatches")
-          .update({
-            contact_id: appointment.contact.id,
-            phone,
-            template_name: rule.template_name,
-            wa_message_id: waMessageId,
-            status: "sent",
-            error: null,
-            sent_at: new Date().toISOString(),
-          })
-          .eq("appointment_id", appointment.id)
-          .eq("rule_key", rule.key);
-
-        if (markSentError) {
-          console.error("[cron/reminders] mark sent failed", {
-            rule: rule.key,
-            appointmentId: appointment.id,
-            waMessageId,
-            error: markSentError.message,
-          });
-          failures.push(
-            `${rule.key}/${appointment.id}: gönderildi ama dispatch yazılamadı (${markSentError.message})`,
-          );
-        }
-
-        if (rule.key === "appt_1d") {
-          await supabase
-            .from("appointments")
-            .update({ reminder_sent_at: new Date().toISOString() })
-            .eq("id", appointment.id)
-            .is("reminder_sent_at", null);
-        }
-
-        const { data: conversation } = await supabase
-          .from("conversations")
-          .upsert(
-            {
-              contact_id: appointment.contact.id,
-              lead_id: appointment.lead_id,
-              wa_phone: phone,
-              contact_name: appointment.contact.name,
-              last_message_at: new Date().toISOString(),
-              status: "open",
-            },
-            { onConflict: "contact_id" },
-          )
-          .select("id")
-          .single();
-
-        if (conversation) {
-          await supabase.from("messages").insert({
-            conversation_id: conversation.id,
-            wa_message_id: waMessageId,
-            direction: "outbound",
-            body,
-            status: "sent",
-            automated: true,
-            source: "system",
-            raw_payload: {
-              appointment_id: appointment.id,
-              rule_key: rule.key,
-              channel: "text",
-            },
-          });
-        }
-
-        sent += 1;
-      } catch (sendError) {
-        const message =
-          sendError instanceof Error ? sendError.message : "Bilinmeyen hata";
-        failures.push(`${rule.key}/${appointment.id}: ${message}`);
-
-        // WhatsApp’a gittiyse failed’e çekme — yoksa sonra yeniden spam olur
-        if (!waMessageId) {
-          await supabase
-            .from("message_dispatches")
-            .update({
-              contact_id: appointment.contact.id,
-              phone,
-              template_name: rule.template_name,
-              status: "failed",
-              error: message,
-              sent_at: new Date().toISOString(),
-              wa_message_id: null,
-            })
-            .eq("appointment_id", appointment.id)
-            .eq("rule_key", rule.key);
-        } else {
-          console.error("[cron/reminders] post-send bookkeeping failed", {
-            rule: rule.key,
-            appointmentId: appointment.id,
-            waMessageId,
-            error: message,
-          });
-        }
-      }
-    }
-  }
+  const run = await runAutomationReminders(supabase, rules, {
+    now,
+    sendText: (phone, body) => sendWhatsAppText(phone, body),
+  });
 
   return NextResponse.json({
     ...pipeline,
-    checked,
-    sent,
-    skipped,
-    failures,
+    checked: run.checked,
+    sent: run.sent,
+    skipped: run.skipped,
+    failures: [...pipeline.pipelineFailures, ...run.failures],
     rules: rules.map((r) => r.key),
   });
 }

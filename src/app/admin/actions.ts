@@ -34,7 +34,10 @@ import {
   LEAD_STATUSES,
   type LeadPipelineStatus,
 } from "@/lib/crm/lead-status";
-import { leadStatusForBookedAppointment } from "@/lib/crm/appointment-pipeline";
+import {
+  advanceLeadForFinishedAppointment,
+  leadStatusForBookedAppointment,
+} from "@/lib/crm/appointment-pipeline";
 import type { LeadStage } from "@/types/crm";
 
 function revalidateMessages(conversationId?: string) {
@@ -1140,8 +1143,26 @@ export async function updateAppointmentStatus(formData: FormData) {
     }
     throw new Error(error.message);
   }
+
+  // Elle "Tamamlandı": cron'u beklemeden lead'i taşı (ameliyat sonrası mesaj buna bağlı)
+  if (status === "completed") {
+    const { data: appointment } = await supabase
+      .from("appointments")
+      .select("lead_id, appointment_type")
+      .eq("id", id)
+      .maybeSingle();
+    if (appointment?.lead_id) {
+      await advanceLeadForFinishedAppointment(supabase, {
+        leadId: appointment.lead_id,
+        appointmentType: appointment.appointment_type,
+      });
+      revalidatePath(`/admin/leads/${appointment.lead_id}`);
+    }
+  }
+
   revalidatePath("/admin/calendar");
   revalidatePath("/admin/leads");
+  revalidatePath("/admin/pipeline");
 }
 
 export async function updateAppointment(formData: FormData) {
@@ -1193,7 +1214,13 @@ export async function updateAppointment(formData: FormData) {
     throw new Error(error.message);
   }
 
-  if (status !== "cancelled") {
+  if (status === "completed") {
+    // Elle tamamlandı → lead ileri (ameliyat sonrası mesaj buna bağlı)
+    await advanceLeadForFinishedAppointment(supabase, {
+      leadId,
+      appointmentType,
+    });
+  } else if (status !== "cancelled") {
     await supabase
       .from("leads")
       .update({
@@ -1202,7 +1229,7 @@ export async function updateAppointment(formData: FormData) {
         needs_followup: false,
       })
       .eq("id", leadId)
-      .not("status", "in", "(ameliyat_edildi,muayene_edildi,bitti)");
+      .not("status", "in", "(bitti)");
   }
 
   revalidatePath("/admin/calendar");

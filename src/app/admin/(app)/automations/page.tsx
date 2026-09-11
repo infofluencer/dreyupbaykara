@@ -333,9 +333,9 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
   const leadStatuses = (
     rule.lead_statuses?.length
       ? rule.lead_statuses
-      : rule.key === "surgery_day" || rule.timing_mode === "calendar_day"
-        ? ["randevulu", "bitti"]
-        : ["randevulu"]
+      : rule.key.startsWith("surgery_")
+        ? ["ameliyat_edildi"]
+        : ["randevulu", "muayene_edildi", "ameliyat_olacak", "ameliyat_edildi"]
   ).filter((s): s is LeadPipelineStatus =>
     LEAD_STATUSES.includes(s as LeadPipelineStatus),
   );
