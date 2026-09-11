@@ -73,7 +73,8 @@ export default async function AutomationsPage() {
         <code>20260823200000_wa_message_automations.sql</code>,{" "}
         <code>20260824140000_message_rules_lead_statuses.sql</code>,{" "}
         <code>20260824150000_postop_bilgilendirme_rule.sql</code>,{" "}
-        <code>20260828150000_google_maps_review_rule.sql</code>.
+        <code>20260828150000_google_maps_review_rule.sql</code>,{" "}
+        <code>20260911120000_message_dispatches_pending_claim.sql</code>.
         <span className="mt-1 block text-xs opacity-80">{rulesError.message}</span>
       </p>
     );

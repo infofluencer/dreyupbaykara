@@ -8,6 +8,8 @@ import {
 } from "@/lib/whatsapp/automation-templates";
 import {
   alreadyDispatched,
+  alreadyDispatchedForRecipient,
+  claimDispatch,
   isPhoneOptedOut,
   isRuleDueNow,
   loadCandidateAppointments,
@@ -158,14 +160,96 @@ async function runReminders(request: NextRequest) {
         continue;
       }
 
+      // Aynı kişiye aynı kural 48s içinde bir kez (çoklu randevu spam’i)
+      if (
+        await alreadyDispatchedForRecipient(supabase, {
+          contactId: appointment.contact.id,
+          phone,
+          ruleKey: rule.key,
+        })
+      ) {
+        skipped += 1;
+        continue;
+      }
+
+      // Gönderimden önce kilitle — aynı randevu+kural için çift gönderimi engeller
+      const claimed = await claimDispatch(supabase, {
+        appointmentId: appointment.id,
+        ruleKey: rule.key,
+        contactId: appointment.contact.id,
+        phone,
+        templateName: rule.template_name,
+      });
+      if (!claimed) continue;
+
+      // Claim sonrası: aynı kişiye başka randevudan kilit/gönderim var mı?
+      if (
+        await alreadyDispatchedForRecipient(supabase, {
+          contactId: appointment.contact.id,
+          phone,
+          ruleKey: rule.key,
+          excludeAppointmentId: appointment.id,
+        })
+      ) {
+        await supabase
+          .from("message_dispatches")
+          .update({
+            status: "skipped",
+            error: "Aynı kişiye bu kural zaten gönderildi/kilitli",
+            sent_at: new Date().toISOString(),
+          })
+          .eq("appointment_id", appointment.id)
+          .eq("rule_key", rule.key)
+          .eq("status", "pending");
+        skipped += 1;
+        continue;
+      }
+
+      let waMessageId: string | null = null;
       try {
         const response = await sendWhatsAppText(phone, body);
+        waMessageId = response.messageId;
 
         console.info("[cron/reminders] text accepted", {
           rule: rule.key,
           phone,
-          waMessageId: response.messageId,
+          waMessageId,
         });
+
+        // API kabul eder etmez "sent" yaz — sonraki adımlar patlasa bile tekrar gitmesin
+        const { error: markSentError } = await supabase
+          .from("message_dispatches")
+          .update({
+            contact_id: appointment.contact.id,
+            phone,
+            template_name: rule.template_name,
+            wa_message_id: waMessageId,
+            status: "sent",
+            error: null,
+            sent_at: new Date().toISOString(),
+          })
+          .eq("appointment_id", appointment.id)
+          .eq("rule_key", rule.key);
+
+        if (markSentError) {
+          console.error("[cron/reminders] mark sent failed", {
+            rule: rule.key,
+            appointmentId: appointment.id,
+            waMessageId,
+            error: markSentError.message,
+          });
+          failures.push(
+            `${rule.key}/${appointment.id}: gönderildi ama dispatch yazılamadı (${markSentError.message})`,
+          );
+        }
+
+        if (rule.key === "appt_1d") {
+          await supabase
+            .from("appointments")
+            .update({ reminder_sent_at: new Date().toISOString() })
+            .eq("id", appointment.id)
+            .is("reminder_sent_at", null);
+        }
 
         const { data: conversation } = await supabase
           .from("conversations")
@@ -186,7 +270,7 @@ async function runReminders(request: NextRequest) {
         if (conversation) {
           await supabase.from("messages").insert({
             conversation_id: conversation.id,
-            wa_message_id: response.messageId,
+            wa_message_id: waMessageId,
             direction: "outbound",
             body,
             status: "sent",
@@ -200,48 +284,35 @@ async function runReminders(request: NextRequest) {
           });
         }
 
-        await supabase.from("message_dispatches").upsert(
-          {
-            appointment_id: appointment.id,
-            rule_key: rule.key,
-            contact_id: appointment.contact.id,
-            phone,
-            template_name: rule.template_name,
-            wa_message_id: response.messageId,
-            status: "sent",
-            error: null,
-            sent_at: new Date().toISOString(),
-          },
-          { onConflict: "appointment_id,rule_key" },
-        );
-
-        // Eski tek-bayrak alanını da doldur (geri uyumluluk)
-        if (rule.key === "appt_1d") {
-          await supabase
-            .from("appointments")
-            .update({ reminder_sent_at: new Date().toISOString() })
-            .eq("id", appointment.id)
-            .is("reminder_sent_at", null);
-        }
-
         sent += 1;
       } catch (sendError) {
         const message =
           sendError instanceof Error ? sendError.message : "Bilinmeyen hata";
         failures.push(`${rule.key}/${appointment.id}: ${message}`);
-        await supabase.from("message_dispatches").upsert(
-          {
-            appointment_id: appointment.id,
-            rule_key: rule.key,
-            contact_id: appointment.contact.id,
-            phone,
-            template_name: rule.template_name,
-            status: "failed",
+
+        // WhatsApp’a gittiyse failed’e çekme — yoksa sonra yeniden spam olur
+        if (!waMessageId) {
+          await supabase
+            .from("message_dispatches")
+            .update({
+              contact_id: appointment.contact.id,
+              phone,
+              template_name: rule.template_name,
+              status: "failed",
+              error: message,
+              sent_at: new Date().toISOString(),
+              wa_message_id: null,
+            })
+            .eq("appointment_id", appointment.id)
+            .eq("rule_key", rule.key);
+        } else {
+          console.error("[cron/reminders] post-send bookkeeping failed", {
+            rule: rule.key,
+            appointmentId: appointment.id,
+            waMessageId,
             error: message,
-            sent_at: new Date().toISOString(),
-          },
-          { onConflict: "appointment_id,rule_key" },
-        );
+          });
+        }
       }
     }
   }

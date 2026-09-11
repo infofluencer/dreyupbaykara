@@ -166,6 +166,10 @@ async function handleStatuses(
         .eq("id", message.id);
     }
 
+    // Delivery failed: kayda hata yaz, ama status'u "sent" bırak.
+    // Eski davranış sent→failed + reminder_sent_at=null yapıyordu; cron ~1 saat
+    // sonra tekrar gönderiyordu → hasta "yarın randevunuz var"ı 4–5 kez alıyordu.
+    // Meta message id aldıysa (API kabul) hatırlatma bir kez sayılır.
     if (status.status !== "failed" || !message?.raw_payload) continue;
 
     const payload = message.raw_payload as Record<string, unknown>;
@@ -178,19 +182,11 @@ async function handleStatuses(
     await supabase
       .from("message_dispatches")
       .update({
-        status: "failed",
         error: deliveryError ?? "WhatsApp iletilemedi",
       })
       .eq("appointment_id", appointmentId)
       .eq("rule_key", ruleKey)
-      .in("status", ["sent", "failed"]);
-
-    if (ruleKey === "appt_1d") {
-      await supabase
-        .from("appointments")
-        .update({ reminder_sent_at: null })
-        .eq("id", appointmentId);
-    }
+      .eq("status", "sent");
   }
 }
 
