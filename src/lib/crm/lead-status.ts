@@ -2,6 +2,9 @@ export const LEAD_STATUSES = [
   "yeni",
   "arandi",
   "randevulu",
+  "muayene_edildi",
+  "ameliyat_olacak",
+  "ameliyat_edildi",
   "bitti",
 ] as const;
 
@@ -12,6 +15,9 @@ export const LEAD_STATUS_LABEL: Record<LeadPipelineStatus, string> = {
   yeni: "Yeni",
   arandi: "Arandı",
   randevulu: "Randevulu",
+  muayene_edildi: "Muayene edildi",
+  ameliyat_olacak: "Ameliyat olacak",
+  ameliyat_edildi: "Ameliyat edildi",
   bitti: "Bitti",
 };
 
@@ -23,27 +29,39 @@ export const LEAD_STATUS_LABEL_I18N: Record<
     yeni: "Yeni",
     arandi: "Arandı",
     randevulu: "Randevulu",
+    muayene_edildi: "Muayene edildi",
+    ameliyat_olacak: "Ameliyat olacak",
+    ameliyat_edildi: "Ameliyat edildi",
     bitti: "Bitti",
   },
   en: {
     yeni: "New",
     arandi: "Called",
     randevulu: "Booked",
+    muayene_edildi: "Examined",
+    ameliyat_olacak: "Surgery planned",
+    ameliyat_edildi: "Surgery done",
     bitti: "Done",
   },
   ar: {
     yeni: "جديد",
     arandi: "تم الاتصال",
     randevulu: "موعد",
+    muayene_edildi: "تم الفحص",
+    ameliyat_olacak: "سيتم إجراء العملية",
+    ameliyat_edildi: "تمت العملية",
     bitti: "انتهى",
   },
 };
 
-/** yeni=gri, arandi=amber, randevulu=teal, bitti=yeşil */
+/** yeni=gri, arandi=amber, randevulu=teal, muayene=sky, ameliyat_olacak=orange, ameliyat_edildi=stone, bitti=yeşil */
 export const LEAD_STATUS_TONE: Record<LeadPipelineStatus, string> = {
   yeni: "bg-slate-100 text-slate-700",
   arandi: "bg-amber-100 text-amber-900",
   randevulu: "bg-teal-100 text-teal-800",
+  muayene_edildi: "bg-sky-100 text-sky-900",
+  ameliyat_olacak: "bg-orange-100 text-orange-900",
+  ameliyat_edildi: "bg-stone-200 text-stone-800",
   bitti: "bg-emerald-100 text-emerald-900",
 };
 
@@ -68,6 +86,9 @@ export const LEAD_STATUS_FILTERS: Array<{
   { id: "yeni", label: "Yeni" },
   { id: "arandi", label: "Arandı" },
   { id: "randevulu", label: "Randevulu" },
+  { id: "muayene_edildi", label: "Muayene edildi" },
+  { id: "ameliyat_olacak", label: "Ameliyat olacak" },
+  { id: "ameliyat_edildi", label: "Ameliyat edildi" },
   { id: "bitti", label: "Bitti" },
 ];
 
@@ -84,9 +105,9 @@ export function statusesForFilter(
 const LEGACY_STATUS_MAP: Record<string, LeadPipelineStatus> = {
   ulasilamadi: "arandi",
   muayene_randevusu: "randevulu",
-  muayeneye_geldi: "bitti",
-  ameliyat_karari: "bitti",
-  ameliyat_oldu: "bitti",
+  muayeneye_geldi: "muayene_edildi",
+  ameliyat_karari: "ameliyat_olacak",
+  ameliyat_oldu: "ameliyat_edildi",
   donustu: "bitti",
   kayip: "bitti",
   iptal: "bitti",

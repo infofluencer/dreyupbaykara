@@ -15,6 +15,7 @@ import {
   buildTemplateBodyComponents,
   fillAutomationBodyPlaceholders,
   istanbulDayBoundsUtc,
+  isPostStatusSendDue,
   isRuleDueNow,
   normalizePhoneDigits,
   offsetDueAtMs,
@@ -26,6 +27,10 @@ import {
   resolveAutomationMessageBody,
   WA_AUTOMATION_TEMPLATE_SPECS,
 } from "../src/lib/whatsapp/automation-templates.ts";
+import {
+  leadStatusAfterAppointmentEnds,
+  leadStatusForBookedAppointment,
+} from "../src/lib/crm/appointment-pipeline.ts";
 
 const WITH_DB = process.argv.includes("--db");
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -207,6 +212,50 @@ console.log("\n=== Otomasyon zamanlama (unit) ===\n");
   expect(
     "istanbulDayBounds: sabah ameliyatı pencerede",
     surgeryMorning >= from && surgeryMorning <= to,
+  );
+}
+
+{
+  console.log("\n=== Pipeline / status_day ===\n");
+  expect(
+    "procedure → ameliyat_olacak",
+    leadStatusForBookedAppointment("procedure") === "ameliyat_olacak",
+  );
+  expect(
+    "consultation → randevulu",
+    leadStatusForBookedAppointment("consultation") === "randevulu",
+  );
+  expect(
+    "procedure ends → ameliyat_edildi",
+    leadStatusAfterAppointmentEnds("procedure") === "ameliyat_edildi",
+  );
+  expect(
+    "consultation ends → muayene_edildi",
+    leadStatusAfterAppointmentEnds("consultation") === "muayene_edildi",
+  );
+
+  const changedMorning = new Date("2026-08-26T08:00:00+03:00");
+  const before16 = new Date("2026-08-26T15:59:00+03:00");
+  const at16 = new Date("2026-08-26T16:00:00+03:00");
+  const changedEvening = new Date("2026-08-26T18:30:00+03:00");
+  const eveningNow = new Date("2026-08-26T18:31:00+03:00");
+  const nextDay = new Date("2026-08-27T17:00:00+03:00");
+
+  expect(
+    "status_day: sabah geçiş, 15:59 due değil",
+    !isPostStatusSendDue(changedMorning, "16:00", before16),
+  );
+  expect(
+    "status_day: sabah geçiş, 16:00 due",
+    isPostStatusSendDue(changedMorning, "16:00", at16),
+  );
+  expect(
+    "status_day: 18:30 geçiş → hemen due",
+    isPostStatusSendDue(changedEvening, "16:00", eveningNow),
+  );
+  expect(
+    "status_day: ertesi gün due değil",
+    !isPostStatusSendDue(changedMorning, "16:00", nextDay),
   );
 }
 
@@ -413,8 +462,8 @@ if (WITH_DB || DRY_RUN) {
         if ("lead_statuses" in surgery) {
           const leads = surgery.lead_statuses || [];
           expect(
-            "surgery lead randevulu|bitti",
-            leads.includes("randevulu") && leads.includes("bitti"),
+            "surgery lead ameliyat_edildi",
+            leads.includes("ameliyat_edildi") && leads.length === 1,
             leads.join(","),
           );
         }

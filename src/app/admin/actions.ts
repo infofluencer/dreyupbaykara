@@ -34,6 +34,7 @@ import {
   LEAD_STATUSES,
   type LeadPipelineStatus,
 } from "@/lib/crm/lead-status";
+import { leadStatusForBookedAppointment } from "@/lib/crm/appointment-pipeline";
 import type { LeadStage } from "@/types/crm";
 
 function revalidateMessages(conversationId?: string) {
@@ -1101,7 +1102,7 @@ export async function createAppointment(formData: FormData): Promise<{
       .from("leads")
       .update({
         stage: "appointment",
-        status: "randevulu",
+        status: leadStatusForBookedAppointment(appointmentType),
         needs_followup: false,
       })
       .eq("id", leadId);
@@ -1191,10 +1192,24 @@ export async function updateAppointment(formData: FormData) {
     }
     throw new Error(error.message);
   }
+
+  if (status !== "cancelled") {
+    await supabase
+      .from("leads")
+      .update({
+        stage: "appointment",
+        status: leadStatusForBookedAppointment(appointmentType),
+        needs_followup: false,
+      })
+      .eq("id", leadId)
+      .not("status", "in", "(ameliyat_edildi,muayene_edildi,bitti)");
+  }
+
   revalidatePath("/admin/calendar");
   revalidatePath(`/admin/calendar/${id}`);
   revalidatePath(`/admin/leads/${leadId}`);
   revalidatePath("/admin/leads");
+  revalidatePath("/admin/pipeline");
 }
 
 export async function deleteAppointment(formData: FormData) {

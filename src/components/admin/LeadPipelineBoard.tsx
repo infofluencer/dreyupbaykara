@@ -29,7 +29,7 @@ function leadsSnapshotKey(leads: PipelineLead[]) {
 }
 
 /**
- * Salt genel bakış: 4 kolonlu kanban.
+ * Salt genel bakış: kanban (LEAD_STATUSES kolonları).
  * Günlük iş akışı WhatsApp'ta; burası sürükle-bırak ile durum günceller.
  */
 export function LeadPipelineBoard({
@@ -51,12 +51,9 @@ export function LeadPipelineBoard({
   }, [snapshotKey]);
 
   const byStatus = useMemo(() => {
-    const map: Record<LeadPipelineStatus, PipelineLead[]> = {
-      yeni: [],
-      arandi: [],
-      randevulu: [],
-      bitti: [],
-    };
+    const map = Object.fromEntries(
+      LEAD_STATUSES.map((key) => [key, [] as PipelineLead[]]),
+    ) as Record<LeadPipelineStatus, PipelineLead[]>;
     for (const row of leads) {
       map[asLeadStatus(row.status)].push(row);
     }
@@ -154,7 +151,7 @@ export function LeadPipelineBoard({
         ))}
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-4">
+      <div className="grid gap-3 lg:grid-cols-4 xl:grid-cols-7">
         {LEAD_STATUSES.map((column) => (
           <section
             key={column}

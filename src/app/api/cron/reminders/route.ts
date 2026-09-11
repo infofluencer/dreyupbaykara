@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { advanceFinishedAppointments } from "@/lib/crm/appointment-pipeline";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import { sendWhatsAppText } from "@/lib/whatsapp/cloud-api";
@@ -11,9 +12,13 @@ import {
   alreadyDispatchedForRecipient,
   claimDispatch,
   isPhoneOptedOut,
+  isPostStatusSendDue,
   isRuleDueNow,
+  isSurgeryPostopRule,
+  latestAmeliyatEdildiAt,
   loadCandidateAppointments,
   loadEnabledRules,
+  loadSurgeryPostopCandidates,
   normalizePhoneDigits,
   priorRuleSent,
 } from "@/lib/whatsapp/automations";
@@ -30,13 +35,6 @@ async function runReminders(request: NextRequest) {
     return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
   }
 
-  if (!isWhatsAppEnabled()) {
-    return NextResponse.json(
-      { error: "WHATSAPP_ENABLED kapalı", sent: 0 },
-      { status: 503 },
-    );
-  }
-
   const supabase = createServiceClient();
   if (!supabase) {
     return NextResponse.json(
@@ -45,12 +43,40 @@ async function runReminders(request: NextRequest) {
     );
   }
 
+  const now = new Date();
+  let pipeline = { appointmentsCompleted: 0, leadsAdvanced: 0 };
+  try {
+    pipeline = await advanceFinishedAppointments(supabase, now);
+  } catch (err) {
+    return NextResponse.json(
+      {
+        error:
+          err instanceof Error
+            ? err.message
+            : "Randevu bitiş / durum taşıma başarısız",
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!isWhatsAppEnabled()) {
+    return NextResponse.json({
+      ...pipeline,
+      sent: 0,
+      skipped: 0,
+      checked: 0,
+      failures: [] as string[],
+      note: "WHATSAPP_ENABLED kapalı — sadece durum taşıması yapıldı",
+    });
+  }
+
   let rules;
   try {
     rules = await loadEnabledRules(supabase);
   } catch (err) {
     return NextResponse.json(
       {
+        ...pipeline,
         error:
           err instanceof Error
             ? err.message
@@ -62,6 +88,7 @@ async function runReminders(request: NextRequest) {
 
   if (!rules.length) {
     return NextResponse.json({
+      ...pipeline,
       checked: 0,
       sent: 0,
       skipped: 0,
@@ -70,7 +97,6 @@ async function runReminders(request: NextRequest) {
     });
   }
 
-  const now = new Date();
   let sent = 0;
   let skipped = 0;
   let checked = 0;
@@ -79,7 +105,9 @@ async function runReminders(request: NextRequest) {
   for (const rule of rules) {
     let appointments;
     try {
-      appointments = await loadCandidateAppointments(supabase, rule, now);
+      appointments = isSurgeryPostopRule(rule.key)
+        ? await loadSurgeryPostopCandidates(supabase, now)
+        : await loadCandidateAppointments(supabase, rule, now);
     } catch (err) {
       failures.push(
         `${rule.key}: ${err instanceof Error ? err.message : "randevu sorgu"}`,
@@ -89,7 +117,18 @@ async function runReminders(request: NextRequest) {
 
     for (const appointment of appointments) {
       checked += 1;
-      if (!isRuleDueNow(rule, appointment.starts_at, now)) continue;
+
+      if (isSurgeryPostopRule(rule.key)) {
+        const changedAt =
+          (await latestAmeliyatEdildiAt(supabase, appointment.lead_id)) ??
+          appointment.ends_at ??
+          appointment.starts_at;
+        if (!isPostStatusSendDue(changedAt, rule.send_at_local_time, now)) {
+          continue;
+        }
+      } else if (!isRuleDueNow(rule, appointment.starts_at, now)) {
+        continue;
+      }
 
       if (await alreadyDispatched(supabase, appointment.id, rule.key)) {
         continue;
@@ -318,6 +357,7 @@ async function runReminders(request: NextRequest) {
   }
 
   return NextResponse.json({
+    ...pipeline,
     checked,
     sent,
     skipped,

@@ -129,6 +129,35 @@ export function isRuleDueNow(
   return nowMinutes >= sendMinutes;
 }
 
+/**
+ * Ameliyat edildi / status_day: durum değişim gününde send_at’ten sonra due.
+ * Transition ≥ send_at ise hemen (aynı gün); değilse o gün send_at’i bekle.
+ * Ertesi gün due değil.
+ */
+export function isPostStatusSendDue(
+  statusChangedAt: string | Date,
+  sendAtLocalTime: string | null,
+  now = new Date(),
+): boolean {
+  const changed = new Date(statusChangedAt);
+  if (Number.isNaN(changed.getTime())) return false;
+  if (istanbulYmd(now) !== istanbulYmd(changed)) return false;
+
+  const local = parseLocalTime(sendAtLocalTime);
+  if (!local) return false;
+
+  const sendMinutes = local.hour * 60 + local.minute;
+  const changedHm = istanbulHm(changed);
+  const changedMinutes = changedHm.hour * 60 + changedHm.minute;
+  const { hour, minute } = istanbulHm(now);
+  const nowMinutes = hour * 60 + minute;
+
+  // Durum 16:00’dan sonra değiştiyse hemen; önceyse 16:00’ı bekle
+  const dueMinutes =
+    changedMinutes >= sendMinutes ? changedMinutes : sendMinutes;
+  return nowMinutes >= dueMinutes && now.getTime() >= changed.getTime();
+}
+
 export function buildTemplateBodyComponents(
   contactName: string | null | undefined,
   startsAt: string,

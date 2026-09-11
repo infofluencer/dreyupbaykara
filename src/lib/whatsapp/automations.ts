@@ -5,6 +5,7 @@ import type { WhatsAppTemplateComponent } from "@/lib/whatsapp/send-message";
 import {
   buildTemplateBodyComponents as buildTimingBodyComponents,
   istanbulDayBoundsUtc,
+  isPostStatusSendDue,
   isRuleDueNow,
   offsetDueAtMs,
   previewAutomationBody,
@@ -14,6 +15,7 @@ import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
 
 export {
   istanbulDayBoundsUtc,
+  isPostStatusSendDue,
   isRuleDueNow,
   normalizeWhatsAppPhone as normalizePhoneDigits,
   offsetDueAtMs,
@@ -32,7 +34,7 @@ export type MessageRule = {
   timing_mode: AutomationTimingMode;
   appointment_types: string[];
   appointment_statuses: string[];
-  /** Durum Panosu: yeni | arandi | randevulu | bitti */
+  /** Durum Panosu: yeni | arandi | randevulu | muayene_edildi | ameliyat_olacak | ameliyat_edildi | bitti */
   lead_statuses: string[];
   include_body_params: boolean;
   sort_order: number;
@@ -42,6 +44,7 @@ export type AppointmentForAutomation = {
   id: string;
   lead_id: string;
   starts_at: string;
+  ends_at?: string | null;
   appointment_type: string;
   status: string;
   contact: {
@@ -151,6 +154,86 @@ export async function loadCandidateAppointments(
       id: row.id,
       lead_id: row.lead_id,
       starts_at: row.starts_at,
+      appointment_type: row.appointment_type,
+      status: row.status,
+      contact: contact
+        ? {
+            id: contact.id,
+            phone: contact.phone,
+            name: contact.name,
+          }
+        : null,
+    });
+  }
+  return rows;
+}
+
+export function isSurgeryPostopRule(ruleKey: string): boolean {
+  return ruleKey === "surgery_day" || ruleKey === "surgery_google_review";
+}
+
+/** Lead’in ameliyat_edildi’ye son geçiş zamanı (history). */
+export async function latestAmeliyatEdildiAt(
+  supabase: SupabaseClient,
+  leadId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("lead_status_history")
+    .select("created_at")
+    .eq("lead_id", leadId)
+    .eq("to_status", "ameliyat_edildi")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.created_at ?? null;
+}
+
+/**
+ * Ameliyat sonrası mesajlar: lead ameliyat_edildi, procedure randevu,
+ * ends_at son ~48s (status_day due ayrıca filtrelenir).
+ */
+export async function loadSurgeryPostopCandidates(
+  supabase: SupabaseClient,
+  now = new Date(),
+): Promise<AppointmentForAutomation[]> {
+  const from = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const { data, error } = await supabase
+    .from("appointments")
+    .select(
+      `
+      id,
+      lead_id,
+      starts_at,
+      ends_at,
+      appointment_type,
+      status,
+      leads!inner (
+        contact_id,
+        status,
+        contacts ( id, phone, name )
+      )
+    `,
+    )
+    .eq("appointment_type", "procedure")
+    .in("status", ["scheduled", "confirmed", "completed"])
+    .eq("leads.status", "ameliyat_edildi")
+    .gte("ends_at", from.toISOString())
+    .lte("ends_at", now.toISOString())
+    .order("ends_at", { ascending: false })
+    .limit(200);
+
+  if (error) throw new Error(error.message);
+
+  const rows: AppointmentForAutomation[] = [];
+  for (const row of data ?? []) {
+    const lead = Array.isArray(row.leads) ? row.leads[0] : row.leads;
+    const contactRaw = lead?.contacts;
+    const contact = Array.isArray(contactRaw) ? contactRaw[0] : contactRaw;
+    rows.push({
+      id: row.id,
+      lead_id: row.lead_id,
+      starts_at: row.starts_at,
+      ends_at: row.ends_at,
       appointment_type: row.appointment_type,
       status: row.status,
       contact: contact

@@ -74,7 +74,9 @@ export default async function AutomationsPage() {
         <code>20260824140000_message_rules_lead_statuses.sql</code>,{" "}
         <code>20260824150000_postop_bilgilendirme_rule.sql</code>,{" "}
         <code>20260828150000_google_maps_review_rule.sql</code>,{" "}
-        <code>20260911120000_message_dispatches_pending_claim.sql</code>.
+        <code>20260911120000_message_dispatches_pending_claim.sql</code>,{" "}
+        <code>20260911140000_lead_statuses_surgery_exam.sql</code>,{" "}
+        <code>20260911150000_surgery_postop_ameliyat_edildi.sql</code>.
         <span className="mt-1 block text-xs opacity-80">{rulesError.message}</span>
       </p>
     );
@@ -281,9 +283,9 @@ function WhoGetsWhatGuide({ rules }: { rules: RuleRow[] }) {
           Kim hangi mesajı alır?
         </h2>
         <p className="mt-1 text-sm leading-6 text-[#466254]">
-          Muayene / kontrol / online randevulara hatırlatma; ameliyat
-          (procedure) randevusuna gün sonunda bilgilendirme gider. Hasta durumu
-          Durum Panosu ile aynıdır.
+          Muayene randevusuna hatırlatma; ameliyat (procedure) bitince lead
+          Ameliyat edildi olur ve o gün 16:00’ta (geçtiyse hemen) bilgilendirme
+          gider. Hasta durumu Durum Panosu ile aynıdır.
         </p>
       </div>
       <div className="divide-y divide-[#123524]/08">
@@ -520,7 +522,16 @@ function formatWhen(rule: Pick<
   const time = rule.send_at_local_time
     ? String(rule.send_at_local_time).slice(0, 5)
     : null;
-  if (rule.timing_mode === "calendar_day" || rule.key === "surgery_day") {
+  if (
+    rule.key === "surgery_day" ||
+    rule.key === "surgery_google_review" ||
+    rule.timing_mode === "calendar_day"
+  ) {
+    if (rule.key.startsWith("surgery_")) {
+      return time
+        ? `Ameliyat edildi günü saat ${time} (geçtiyse hemen)`
+        : "Ameliyat edildi günü";
+    }
     return time
       ? `Ameliyat günü saat ${time} (İstanbul) — ameliyat sonrası`
       : "Ameliyat günü (saat ayarı yok)";

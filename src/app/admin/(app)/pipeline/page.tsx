@@ -22,7 +22,8 @@ export default async function AdminPipelinePage() {
     return (
       <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
         Durum panosu yüklenemedi. Migration{" "}
-        <code>20260824120000_simplify_lead_statuses.sql</code> uygulandı mı?
+        <code>20260824120000_simplify_lead_statuses.sql</code> ve{" "}
+        <code>20260911140000_lead_statuses_surgery_exam.sql</code> uygulandı mı?
         <br />
         <span className="mt-1 block text-xs opacity-80">{error.message}</span>
       </p>
