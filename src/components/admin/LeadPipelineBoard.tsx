@@ -66,6 +66,38 @@ export function LeadPipelineBoard({
     return map;
   }, [leads]);
 
+  /** "Ulaşılamadı, tekrar ara" — durumu değiştirmez, yalnızca takip işareti. */
+  function toggleFollowup(leadId: string, next: boolean) {
+    const prev = leads.find((row) => row.id === leadId);
+    if (!prev) return;
+
+    setLeads((rows) =>
+      rows.map((row) =>
+        row.id === leadId ? { ...row, needs_followup: next } : row,
+      ),
+    );
+    setError(null);
+
+    startTransition(() => {
+      void setLeadStatus(leadId, "arandi", { needsFollowup: next }).catch(
+        (err: unknown) => {
+          setLeads((rows) =>
+            rows.map((row) =>
+              row.id === leadId
+                ? { ...row, needs_followup: prev.needs_followup }
+                : row,
+            ),
+          );
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Takip işareti güncellenemedi.",
+          );
+        },
+      );
+    });
+  }
+
   function moveLead(leadId: string, next: LeadPipelineStatus) {
     const prev = leads.find((row) => row.id === leadId);
     if (!prev) return;
@@ -231,6 +263,22 @@ export function LeadPipelineBoard({
                           ))}
                         </select>
                       </label>
+                      {column === "arandi" ? (
+                        <label
+                          className="mt-2 flex items-center gap-1.5 text-[11px] text-[#466254]"
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={Boolean(row.needs_followup)}
+                            onChange={(event) =>
+                              toggleFollowup(row.id, event.target.checked)
+                            }
+                            className="rounded border-[#123524]/30"
+                          />
+                          Ulaşılamadı, tekrar ara
+                        </label>
+                      ) : null}
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Link
                           href={`/admin/messages?lead=${row.id}`}

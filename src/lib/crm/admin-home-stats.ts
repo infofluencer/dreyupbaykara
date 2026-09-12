@@ -45,9 +45,11 @@ export async function adminHomeDayBounds() {
 }
 
 /**
- * Özet başlık: bugünkü randevu + “yeni talep”.
- * Yeni talep = Durum Panosu / Bugün aranacaklar ile aynı:
- * status=yeni, is_patient=true.
+ * Özet başlık: bugünkü randevu + bugün gelen, henüz dokunulmamış talep.
+ *
+ * `is_patient` filtresi YOK: hasta kaydı ancak randevu açılınca oluşuyor,
+ * dolayısıyla filtre eklenince sayaç her zaman 0 kalıyordu.
+ * Tarih sınırı, "Bugün yapılacaklar" listesindeki blokla aynı olmalı.
  */
 export async function loadAdminHomeHeaderCounts() {
   const supabase = await createClient();
@@ -56,9 +58,10 @@ export async function loadAdminHomeHeaderCounts() {
   const [{ count: fresh }, { count: appointments }] = await Promise.all([
     supabase
       .from("leads")
-      .select("id, contacts!inner(is_patient)", { count: "exact", head: true })
-      .eq("contacts.is_patient", true)
-      .eq("status", "yeni"),
+      .select("id", { count: "exact", head: true })
+      .eq("status", "yeni")
+      .is("last_contacted_at", null)
+      .gte("created_at", todayIso),
     supabase
       .from("appointments")
       .select("*", { count: "exact", head: true })

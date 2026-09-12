@@ -104,7 +104,7 @@ function Header({
       ) : counts ? (
         <p className="mt-2 text-sm text-[#466254]">
           Bugün: {counts.appointmentCount} randevu · {counts.newLeadCount} yeni
-          hasta
+          talep
           {email ? (
             <span className="hidden sm:inline"> · {email}</span>
           ) : null}
@@ -124,7 +124,7 @@ function QuickLinks() {
       <QuickLink
         href="/admin/pipeline"
         title="Durum Panosu"
-        desc="Dört durumun genel görünümü"
+        desc="Hastanın hangi aşamada olduğunun genel görünümü"
       />
       <QuickLink
         href="/admin/patients"

@@ -150,16 +150,9 @@ export function PatientsList({
                           lostReason={row.activeLead.lost_reason}
                           needsFollowup={row.activeLead.needs_followup}
                           showBadge={false}
-                          showFollowupToggle={false}
                           size="sm"
                           className="w-full [&>select]:w-full"
                         />
-                        {row.activeLead.needs_followup &&
-                        asLeadStatus(row.activeLead.status) === "arandi" ? (
-                          <span className="inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-900">
-                            Tekrar ara
-                          </span>
-                        ) : null}
                       </div>
                     ) : (
                       <p className="text-sm text-[#466254]">Aktif talep yok</p>

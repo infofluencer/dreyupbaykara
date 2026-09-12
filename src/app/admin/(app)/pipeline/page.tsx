@@ -50,7 +50,8 @@ export default async function AdminPipelinePage() {
           Durum Panosu
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-[#466254]">
-          Dört durumun genel görünümü. Günlük iş WhatsApp üzerinden yürür.
+          Hastanın hangi aşamada olduğunun genel görünümü. Günlük iş WhatsApp
+          üzerinden yürür.
         </p>
       </div>
       <LeadPipelineBoard leads={leads} />
