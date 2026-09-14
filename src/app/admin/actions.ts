@@ -1685,6 +1685,8 @@ export async function saveBotSettings(formData: FormData) {
     .from("bot_settings")
     .update({
       enabled: checked(formData, "enabled"),
+      intro_enabled: checked(formData, "intro_enabled"),
+      faq_enabled: checked(formData, "faq_enabled"),
       timezone,
       business_days: days,
       business_start: text(formData, "business_start"),

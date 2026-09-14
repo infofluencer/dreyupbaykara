@@ -202,6 +202,11 @@ uzun bir metni elle yazmadan gönderirsiniz:
 Metnin doğru hastaya gittiğinden emin olmak için doğru konuşmayı açtığınızı
 kontrol edin.
 
+**Önemli:** Bir hasta bize ilk kez yazdığında **Genel bilgilendirme** mesajı ve
+işlem bölgesi fotoğrafı otomatik olarak gider. Konuşmayı açtığınızda bu iki
+mesajı zaten gönderilmiş görürsünüz; tekrar göndermeniz gerekmez. Bu otomatik
+gönderim her hasta için yalnızca bir kez, ilk mesajında çalışır.
+
 ### Dosya ve görsel gönderme
 
 Yazı kutusunun solundaki ataç düğmesiyle dosya ekleyebilirsiniz. Yalnızca
@@ -540,8 +545,9 @@ gider.
 
 1. Sağ üstte bildirim gelir ve **WhatsApp** menüsünde okunmamış sayısı artar.
 2. **WhatsApp** ekranını açın, konuşmaya tıklayın.
-3. Mesajı okuyun ve yanıtlayın. Gerekiyorsa **Genel bilgilendirme** hazır
-   mesajını gönderin.
+3. **Genel bilgilendirme** mesajı ve işlem bölgesi fotoğrafı zaten otomatik
+   gitmiştir; konuşmada görürsünüz. Siz hastanın sorusunu yanıtlamaya
+   odaklanın.
 4. Bu kişi hasta olacaksa, üstteki **Hastayı ekle** düğmesiyle kaydını açın.
 
 ### 2) Telefonla arayan hastaya randevu verme

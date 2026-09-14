@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isWithinBusinessHours } from "@/lib/whatsapp/bot-hours";
+import { maybeSendIntroMessage } from "@/lib/whatsapp/bot-intro";
 import { composeBotReply, matchBotFaqs } from "@/lib/whatsapp/bot-match";
 import { resolveUnmatchedReply } from "@/lib/whatsapp/bot-unmatched";
 import { sendMessage } from "@/lib/whatsapp/send-message";
@@ -9,6 +10,10 @@ import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 
 type BotSettings = {
   enabled: boolean;
+  /** Hastanın ilk mesajında genel bilgilendirme + işlem bölgesi görseli. */
+  intro_enabled: boolean;
+  /** SSS + mesai dışı akışı. Şu an askıda; açılınca eski davranış geri gelir. */
+  faq_enabled: boolean;
   timezone: string;
   business_days: number[];
   business_start: string;
@@ -36,7 +41,21 @@ export async function maybeReplyWithBot(options: {
     .eq("id", true)
     .maybeSingle<BotSettings>();
 
-  if (!settings?.enabled || !inboundText.trim()) return;
+  if (!settings?.enabled) return;
+
+  // Birinci kapı: hastanın ilk mesajı. Mesai saatinden bağımsız, metin olmasa
+  // bile (fotoğraf / ses) genel bilgilendirme + işlem bölgesi görseli gider.
+  if (settings.intro_enabled) {
+    const introSent = await maybeSendIntroMessage({
+      supabase,
+      conversationId,
+      phone,
+    });
+    if (introSent) return;
+  }
+
+  // SSS + mesai dışı akışı askıda: kod duruyor, faq_enabled ile geri açılır.
+  if (!settings.faq_enabled || !inboundText.trim()) return;
 
   // Kapı: mesai içinde bot tamamen susar — asistan cevaplar.
   if (isWithinBusinessHours(settings)) return;

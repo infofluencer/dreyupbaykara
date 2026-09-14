@@ -5,9 +5,11 @@
  *
  *   npm run test:automations
  *   npm run test:automations -- --db          # message_rules şema kontrolü
- *   npm run test:automations -- --dry-run     # aday randevu sorgusu (göndermez)
+ *   npm run test:automations -- --dry-run     # kime gidecek (göndermez)
  *
- * --dry-run için .env.local’da SUPABASE anahtarları gerekir.
+ * --dry-run için .env.local’da SUPABASE anahtarları gerekir. Adayları cron'un
+ * kullandığı fonksiyonlardan okur — ayrı sorgu yazılmamalı, yoksa araç canlı
+ * davranıştan sapar ve yanlış isim/sayı gösterir.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -24,9 +26,18 @@ import {
 import {
   GOOGLE_MAPS_REVIEW_URL,
   POSTOP_BILGILENDIRME_BODY,
+  priorAutomationRuleKey,
   resolveAutomationMessageBody,
   WA_AUTOMATION_TEMPLATE_SPECS,
 } from "../src/lib/whatsapp/automation-templates.ts";
+import {
+  alreadyDispatched,
+  isPhoneOptedOut,
+  isSurgeryPostopRule,
+  loadCandidateAppointments,
+  loadSurgeryPostopCandidates,
+  priorRuleSent,
+} from "../src/lib/whatsapp/automations.ts";
 import {
   leadStatusAfterAppointmentEnds,
   leadStatusForBookedAppointment,
@@ -532,89 +543,64 @@ if (WITH_DB || DRY_RUN) {
 
       const now = new Date();
       for (const rule of allRules ?? []) {
-        const timingMode = rule.timing_mode || "before_start";
-        const statuses =
-          rule.appointment_statuses?.length > 0
-            ? rule.appointment_statuses
-            : timingMode === "calendar_day"
-              ? ["scheduled", "confirmed", "completed"]
-              : ["scheduled", "confirmed"];
-        const types =
-          rule.appointment_types?.length > 0
-            ? rule.appointment_types
-            : ["consultation"];
-        const leadStatuses =
-          rule.lead_statuses?.length > 0
-            ? rule.lead_statuses
-            : timingMode === "calendar_day"
-              ? ["randevulu", "bitti"]
-              : ["randevulu"];
-
-        let from;
-        let to;
-        if (timingMode === "calendar_day") {
-          ({ from, to } = istanbulDayBoundsUtc(now));
-        } else {
-          from = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-          to = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-        }
-
-        let query = admin
-          .from("appointments")
-          .select(
-            `
-            id,
-            starts_at,
-            appointment_type,
-            status,
-            leads!inner (
-              status,
-              contacts ( phone, name )
-            )
-          `,
-          )
-          .in("status", statuses)
-          .in("appointment_type", types)
-          .gte("starts_at", from.toISOString())
-          .lte("starts_at", to.toISOString())
-          .limit(50);
-
-        if (rule.lead_statuses != null || "lead_statuses" in rule) {
-          query = query.in("leads.status", leadStatuses);
-        }
-
-        const { data: rows, error: qErr } = await query;
-
-        if (qErr) {
-          fail(`dry-run sorgu ${rule.key}`, qErr.message);
+        // Adaylar cron'un çağırdığı fonksiyonlardan gelir; ayrı bir sorgu
+        // yazmak ikisini ayrıştırır ve dry-run yanlış sayı gösterir.
+        let candidates;
+        try {
+          candidates = isSurgeryPostopRule(rule.key)
+            ? await loadSurgeryPostopCandidates(admin, now)
+            : await loadCandidateAppointments(admin, rule, now);
+        } catch (err) {
+          fail(`dry-run sorgu ${rule.key}`, err?.message ?? String(err));
           continue;
         }
 
+        const lines = [];
         let dueCount = 0;
-        for (const row of rows ?? []) {
-          if (
-            isRuleDueNow(
-              {
-                offset_minutes: rule.offset_minutes,
-                send_at_local_time: rule.send_at_local_time,
-                timing_mode: timingMode,
-              },
-              row.starts_at,
-              now,
-            )
-          ) {
+        for (const appt of candidates) {
+          const due = isSurgeryPostopRule(rule.key)
+            ? Boolean(appt.status_changed_at) &&
+              isPostStatusSendDue(
+                appt.status_changed_at,
+                rule.send_at_local_time,
+                now,
+              )
+            : isRuleDueNow(rule, appt.starts_at, now);
+
+          const phone = appt.contact?.phone
+            ? normalizePhoneDigits(appt.contact.phone)
+            : "";
+          const priorKey = priorAutomationRuleKey(rule.key);
+
+          let verdict;
+          if (!phone) verdict = "atlanacak: telefon yok";
+          else if (await isPhoneOptedOut(admin, phone))
+            verdict = "atlanacak: opt-out";
+          else if (await alreadyDispatched(admin, appt.id, rule.key))
+            verdict = "atlanacak: zaten işlendi";
+          else if (priorKey && !(await priorRuleSent(admin, appt.id, priorKey)))
+            verdict = `bekliyor: önce ${priorKey} gitmeli`;
+          else if (!due) verdict = "bekliyor: saati gelmedi";
+          else {
+            verdict = "GİDECEK";
             dueCount += 1;
           }
+
+          lines.push(
+            `      ${(appt.contact?.name ?? "?").padEnd(20)} ${(phone || "-").padEnd(13)} ${appt.starts_at}  ${verdict}`,
+          );
         }
 
         const enabledLabel = rule.enabled ? "AÇIK" : "kapalı";
         ok(
-          `${rule.key} [${enabledLabel}]: aday=${rows?.length ?? 0}, şu an due=${dueCount}`,
+          `${rule.key} [${enabledLabel}]: aday=${candidates.length}, şu an gidecek=${dueCount}`,
         );
+        for (const line of lines) console.log(line);
+
         if (rule.enabled && dueCount > 0) {
           warn(
             `${rule.key}: canlıda ${dueCount} gönderim adayı`,
-            "Serbest pencere kapalıysa atlanır — kuralı bilinçli açın",
+            "Kuralı bilinçli açın — bu kişilere şablon gidecek",
           );
         }
       }

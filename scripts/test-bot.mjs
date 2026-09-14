@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * WhatsApp bot senaryo testleri (eşleşme + mesai kapısı + after-hours).
+ * WhatsApp bot senaryo testleri (ilk mesaj bilgilendirmesi + eşleşme + mesai kapısı).
  *   npm run test:bot
  *
- * Telefon testi öncesi: eşleşmeleri burada doğrula, sonra mesai dışı + Bot aktif ile WA’dan dene.
+ * Canlı akış: ilk mesajda genel bilgilendirme + işlem bölgesi görseli gider.
+ * SSS / mesai dışı bölümleri (b–f) askıda; faq_enabled açılırsa yeniden devreye girer.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import {
   composeBotReply,
@@ -13,6 +14,7 @@ import {
 } from "../src/lib/whatsapp/bot-match.ts";
 import { isWithinBusinessHours } from "../src/lib/whatsapp/bot-hours.ts";
 import { resolveUnmatchedReply } from "../src/lib/whatsapp/bot-unmatched.ts";
+import { cannedMessageBody } from "../src/lib/whatsapp/canned-messages.ts";
 
 function loadEnvLocal() {
   const envPath = path.join(process.cwd(), ".env.local");
@@ -145,6 +147,73 @@ if (Array.isArray(settings.business_days) && settings.business_days.length) {
   );
 } else fail("mesai günleri boş");
 
+// ── İlk mesaj bilgilendirmesi (canlı akış) ──────────────────────────────────
+console.log("\n== İlk mesaj bilgilendirmesi ==");
+if (settings.intro_enabled === undefined) {
+  fail(
+    "intro_enabled kolonu yok",
+    "20260914140000_bot_first_message_intro.sql migration’ı çalıştırılmalı",
+  );
+} else if (settings.intro_enabled) ok("intro_enabled=true");
+else warn("intro_enabled=false", "Admin → Bot → İlk mesaj bilgilendirmesi");
+
+if (settings.faq_enabled === undefined) {
+  fail("faq_enabled kolonu yok", "aynı migration eksik");
+} else if (settings.faq_enabled) {
+  warn("faq_enabled=true", "SSS + mesai dışı akışı da devrede");
+} else ok("faq_enabled=false → SSS / mesai dışı akışı askıda");
+
+const introBody = cannedMessageBody("genel-bilgilendirme");
+if (introBody.includes("full endoskopik") && introBody.includes("Silivri")) {
+  ok(`bilgilendirme metni hazır (${introBody.length} karakter)`);
+} else fail("bilgilendirme metni", "teknik / adres bilgisi eksik");
+
+const introImage = path.join(
+  process.cwd(),
+  "assets",
+  "whatsapp",
+  "islem_bolgesi.jpeg",
+);
+try {
+  const { size } = statSync(introImage);
+  if (size > 0 && size <= 5 * 1024 * 1024) {
+    ok(`islem_bolgesi.jpeg gönderilebilir (${Math.round(size / 1024)} KB)`);
+  } else fail("islem_bolgesi.jpeg boyutu", `${size} bayt — WA limiti 5 MB`);
+} catch {
+  fail(
+    "assets/whatsapp/islem_bolgesi.jpeg yok",
+    "ilk mesajda görsel gönderilemez",
+  );
+}
+
+// Hasta fotoğrafı siteden herkese açık servis edilmemeli.
+try {
+  statSync(path.join(process.cwd(), "public", "islem_bolgesi.jpeg"));
+  fail(
+    "islem_bolgesi.jpeg public/ altında",
+    "hasta fotoğrafı siteden herkese açık — assets/whatsapp/ altına taşınmalı",
+  );
+} catch {
+  ok("hasta fotoğrafı public/ dışında (herkese açık servis edilmiyor)");
+}
+
+const { data: pendingIntro, error: introColumnError } = await admin
+  .from("conversations")
+  .select("id")
+  .is("intro_sent_at", null)
+  .limit(5);
+
+if (introColumnError) {
+  fail("conversations.intro_sent_at okunamadı", introColumnError.message);
+} else if (!pendingIntro.length) {
+  ok("mevcut konuşmalar bilgilendirilmiş sayılıyor (backfill tamam)");
+} else {
+  warn(
+    `${pendingIntro.length}+ konuşmada intro_sent_at boş`,
+    "bu hastalar bir sonraki mesajlarında bilgilendirme alacak",
+  );
+}
+
 const waReady = Boolean(
   process.env.WHATSAPP_API_BASE &&
     process.env.WHATSAPP_AUTH_TOKEN &&
@@ -159,7 +228,9 @@ else {
   );
 }
 
-console.log(`\n== SSS envanteri (${faqs.length} aktif) ==`);
+console.log(
+  `\n== SSS envanteri (${faqs.length} aktif${settings.faq_enabled ? "" : " — akış askıda, saf fonksiyon testi"}) ==`,
+);
 const emptyKw = faqs.filter((f) => !(f.keywords || []).length);
 if (!emptyKw.length) ok("tüm SSS’lerde keyword var");
 else fail("keyword’süz SSS", emptyKw.map((f) => f.question).join(" | "));
@@ -397,11 +468,13 @@ if (anon) {
 console.log("\n== Telefon kontrol listesi ==");
 console.log(`  1. Admin → Bot → Bot aktif = true (şu an: ${settings.enabled})`);
 console.log(
-  `  2. Mesai dışı yaz (şimdi ${hours.timezone} ${hours.business_start.slice(0, 5)}–${hours.business_end.slice(0, 5)} dışı)`,
+  `  2. İlk mesaj bilgilendirmesi = true (şu an: ${settings.intro_enabled})`,
 );
-console.log("  3. Yukarıdaki a/b/c mesajlarını WA’dan at");
-console.log("  4. SSS cevaplarında 10 dk cooldown; after_hours’ta 30 dk cooldown");
-console.log("  5. Mesai içinde (09–18) aynı mesaj → cevap gelmemeli");
+console.log("  3. Hiç yazmamış bir numaradan tek mesaj at → bilgilendirme + görsel gelmeli");
+console.log("  4. Aynı numaradan tekrar yaz → hiçbir otomatik mesaj gelmemeli");
+console.log(
+  `  5. SSS / mesai dışı akışı askıda (faq_enabled: ${settings.faq_enabled}) — açarsan a/b/c mesajlarını mesai dışında dene`,
+);
 
 console.log(`\nSonuç: ${passed} OK, ${failed} FAIL, ${warned} WARN`);
 if (failed) process.exit(1);

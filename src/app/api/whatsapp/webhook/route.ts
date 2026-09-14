@@ -193,6 +193,8 @@ async function handleStatuses(
 async function handleSmbMessageEchoes(
   supabase: NonNullable<ReturnType<typeof createServiceClient>>,
   change: WebhookChange,
+  /** entry.id — hangi WhatsApp Business hesabından geldiği (Meta faturalandırması buna bağlı). */
+  wabaId?: string | null,
 ) {
   for (const echo of change.value?.message_echoes ?? []) {
     if (!echo?.to || !echo?.id) {
@@ -210,7 +212,7 @@ async function handleSmbMessageEchoes(
       timestamp: echo.timestamp,
       mediaType: media.mediaType,
       mediaId: media.mediaId,
-      rawPayload: change,
+      rawPayload: { ...change, waba_id: wabaId ?? null },
     });
   }
 }
@@ -218,6 +220,7 @@ async function handleSmbMessageEchoes(
 async function handleInboundMessages(
   supabase: NonNullable<ReturnType<typeof createServiceClient>>,
   value: WebhookChangeValue,
+  wabaId?: string | null,
 ) {
   for (const message of value.messages ?? []) {
     if (!message?.from || !message?.id) {
@@ -244,7 +247,7 @@ async function handleInboundMessages(
       timestamp: message.timestamp,
       mediaType: media.mediaType,
       mediaId: media.mediaId,
-      rawPayload: message,
+      rawPayload: { ...message, waba_id: wabaId ?? null },
       ctwaClid: message.referral?.ctwa_clid ?? null,
       fromAd,
       sourceUrl: message.referral?.source_url ?? null,
@@ -324,14 +327,14 @@ export async function POST(request: NextRequest) {
             continue;
           }
           if (field === "smb_message_echoes") {
-            await handleSmbMessageEchoes(supabase, change);
+            await handleSmbMessageEchoes(supabase, change, entry.id);
             continue;
           }
           if (field === "messages" || (!field && value)) {
             await handleStatuses(supabase, value?.statuses ?? []);
-            await handleInboundMessages(supabase, value ?? {});
+            await handleInboundMessages(supabase, value ?? {}, entry.id);
             if (value?.message_echoes?.length) {
-              await handleSmbMessageEchoes(supabase, change);
+              await handleSmbMessageEchoes(supabase, change, entry.id);
             }
             continue;
           }

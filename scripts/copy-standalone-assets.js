@@ -19,6 +19,16 @@ if (existsSync(publicDir)) {
   cpSync(publicDir, path.join(standalone, "public"), { recursive: true });
 }
 
+/*
+  public/ dışında tutulan, sunucunun fs ile okuduğu varlıklar (WhatsApp ilk
+  mesaj görseli). outputFileTracingIncludes bunları zaten kopyalar; burada da
+  kopyalayarak tracing'e bağımlı kalmıyoruz.
+*/
+const assetsDir = path.join(root, "assets");
+if (existsSync(assetsDir)) {
+  cpSync(assetsDir, path.join(standalone, "assets"), { recursive: true });
+}
+
 const staticDir = path.join(root, ".next", "static");
 if (existsSync(staticDir)) {
   mkdirSync(path.join(standalone, ".next"), { recursive: true });
@@ -27,4 +37,4 @@ if (existsSync(staticDir)) {
   });
 }
 
-console.log("[copy-standalone-assets] public + .next/static kopyalandı");
+console.log("[copy-standalone-assets] public + assets + .next/static kopyalandı");

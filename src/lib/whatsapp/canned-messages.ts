@@ -41,3 +41,9 @@ Bu siteden teknikle ilgili yine detaylı bilgilere ulaşabilirsiniz`,
 Reçetedeki ilaçlarımızı bitene kadar kullanıyoruz.`,
   },
 ] as const;
+
+export type CannedMessageId = (typeof CANNED_MESSAGES)[number]["id"];
+
+export function cannedMessageBody(id: CannedMessageId): string {
+  return CANNED_MESSAGES.find((message) => message.id === id)?.body ?? "";
+}

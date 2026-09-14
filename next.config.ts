@@ -7,6 +7,15 @@ const STATIC_ASSET = "public, max-age=604800, stale-while-revalidate=2592000";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  /*
+    `assets/` public/ dışında tutulan hasta görselleridir; runtime'da fs ile
+    okunduğu için tracing bunları kendiliğinden bulamaz. Bu iki rota olmadan
+    ilk mesaj görseli production'da eksik kalır.
+  */
+  outputFileTracingIncludes: {
+    "/api/whatsapp/webhook": ["assets/whatsapp/**/*"],
+    "/api/whatsapp/intro-image": ["assets/whatsapp/**/*"],
+  },
   experimental: {
     // WhatsApp inbox media (PDF/image) via server actions
     serverActions: {

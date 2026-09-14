@@ -1,3 +1,4 @@
+import Image from "next/image";
 import {
   deleteBotFaq,
   saveBotFaq,
@@ -5,6 +6,7 @@ import {
 } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
+import { INTRO_BODY, INTRO_IMAGE_CAPTION } from "@/lib/whatsapp/bot-intro";
 import { faqLang } from "@/lib/whatsapp/bot-match";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,29 +47,91 @@ export default async function BotPage() {
           Otomatik yanıt botu
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#466254]">
-          Bot yalnızca mesai saatleri DIŞINDA otomatik cevap verir. Mesai içinde
-          ekip yanıtlar — bot susar, çakışma olmaz. Mesai dışında SSS tutarsa
-          sabit cevap gider; tutmazsa “mesai dışındayız” mesajı gönderilir.
-          Hastalar TR / EN / AR (Arabizi: wein, se3r) yazar. Tıbbi teşhis yok.
+          Hasta bize ilk kez yazdığında genel bilgilendirme metni ve işlem
+          bölgesi görseli otomatik gider — mesai saatinden bağımsız, konuşma
+          başına yalnızca bir kez. Daha önce yazıştığımız hastalar bu mesajı
+          almaz. SSS ve “mesai dışındayız” akışı şu an askıda; aşağıdan geri
+          açabilirsiniz.
         </p>
       </div>
+
+      <section className="space-y-4 rounded-2xl border border-[#123524]/10 bg-white p-5 sm:p-7">
+        <div>
+          <h2 className="text-lg font-semibold">İlk mesaj bilgilendirmesi</h2>
+          <p className="mt-1 text-sm text-[#466254]">
+            Hastanın ilk mesajına giden içerik. Metin, Inbox’taki “Genel
+            bilgilendirme” hazır mesajıyla aynıdır.
+          </p>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-[1fr_auto]">
+          <p className="rounded-xl bg-[#f4f7f5] p-4 text-sm leading-6 whitespace-pre-line text-[#123524]">
+            {INTRO_BODY}
+          </p>
+          <figure className="space-y-2">
+            {/* Görsel public/ altında değil; yetki kontrollü rotadan gelir. */}
+            <Image
+              src="/api/whatsapp/intro-image"
+              alt="İlk mesajda gönderilen işlem bölgesi görseli"
+              width={1200}
+              height={1600}
+              unoptimized
+              className="h-auto w-40 rounded-xl border border-[#123524]/10"
+            />
+            <figcaption className="w-40 text-xs leading-5 text-[#466254]">
+              {INTRO_IMAGE_CAPTION}
+            </figcaption>
+          </figure>
+        </div>
+      </section>
 
       <form
         action={saveBotSettings}
         className="space-y-5 rounded-2xl border border-[#123524]/10 bg-white p-5 sm:p-7"
       >
-        <label className="flex items-center gap-3 font-semibold">
-          <input
-            name="enabled"
-            type="checkbox"
-            defaultChecked={settings.enabled}
-          />
-          Bot aktif
-        </label>
-        <p className="text-xs leading-5 text-[#466254]">
-          Kapalıysa bot hiç çalışmaz (mesai dışı olsa bile). Açıkken yalnızca
-          aşağıdaki mesai saatlerinin dışında yanıt verir.
-        </p>
+        <div className="space-y-4">
+          <div>
+            <label className="flex items-center gap-3 font-semibold">
+              <input
+                name="enabled"
+                type="checkbox"
+                defaultChecked={settings.enabled}
+              />
+              Bot aktif
+            </label>
+            <p className="mt-1 text-xs leading-5 text-[#466254]">
+              Ana şalter. Kapalıysa hiçbir otomatik mesaj gitmez.
+            </p>
+          </div>
+          <div>
+            <label className="flex items-center gap-3 font-semibold">
+              <input
+                name="intro_enabled"
+                type="checkbox"
+                defaultChecked={settings.intro_enabled}
+              />
+              İlk mesaj bilgilendirmesi
+            </label>
+            <p className="mt-1 text-xs leading-5 text-[#466254]">
+              Hasta ilk kez yazdığında yukarıdaki metin + görsel gider. Mesai
+              saatine bakmaz, konuşma başına bir kez çalışır.
+            </p>
+          </div>
+          <div>
+            <label className="flex items-center gap-3 font-semibold">
+              <input
+                name="faq_enabled"
+                type="checkbox"
+                defaultChecked={settings.faq_enabled}
+              />
+              SSS + mesai dışı yanıtları (şu an askıda)
+            </label>
+            <p className="mt-1 text-xs leading-5 text-[#466254]">
+              Açarsanız eski davranış geri gelir: mesai dışında SSS tutarsa
+              sabit cevap, tutmazsa “mesai dışındayız” mesajı gider. Aşağıdaki
+              mesai ve SSS ayarları yalnızca bu kutu işaretliyken çalışır.
+            </p>
+          </div>
+        </div>
         <Field label="Saat dilimi (IANA)">
           <input
             name="timezone"
@@ -136,9 +200,9 @@ export default async function BotPage() {
           />
         </Field>
         <p className="text-xs leading-5 text-[#466254]">
-          Mesai dışı SSS tekrarı 10 dk, “mesai dışındayız” tekrarı 30 dk içinde
-          spamlenmez. Asistan Inbox’tan son 30 dk içinde yazdıysa bot yine
-          susar.
+          SSS akışı açıldığında: mesai dışı SSS tekrarı 10 dk, “mesai
+          dışındayız” tekrarı 30 dk içinde spamlenmez. Asistan Inbox’tan son 30
+          dk içinde yazdıysa bot yine susar.
         </p>
         <SubmitButton pendingLabel="Bot ayarları kaydediliyor…" className="px-6">
           Bot ayarlarını kaydet
@@ -151,6 +215,8 @@ export default async function BotPage() {
           <p className="mt-1 text-sm text-[#466254]">
             TR / EN / AR ayrı maddeler. Virgülle keyword; biri tutarsa o dildeki
             cevap gider. Arapça maddeye wein, se3r gibi Arabizi de ekleyin.
+            Kayıtlar korunuyor ama “SSS + mesai dışı yanıtları” kapalıyken
+            gönderilmez.
           </p>
         </div>
         {faqs?.map((faq) => (
