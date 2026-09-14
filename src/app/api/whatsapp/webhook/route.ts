@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { recordDispatchDeliveryFailure } from "@/lib/whatsapp/automations";
 import { maybeReplyWithBot } from "@/lib/whatsapp/bot";
 import { getWhatsAppConfig, isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import {
@@ -166,10 +167,11 @@ async function handleStatuses(
         .eq("id", message.id);
     }
 
-    // Delivery failed: kayda hata yaz, ama status'u "sent" bırak.
-    // Eski davranış sent→failed + reminder_sent_at=null yapıyordu; cron ~1 saat
-    // sonra tekrar gönderiyordu → hasta "yarın randevunuz var"ı 4–5 kez alıyordu.
-    // Meta message id aldıysa (API kabul) hatırlatma bir kez sayılır.
+    // Teslim hatası: kural olarak gönderim "sent" kalır. Meta message id aldıysak
+    // (API kabul) hatırlatma bir kez sayılır; koşulsuz tekrar deneme eskiden
+    // hastaya "yarın randevunuz var"ı 4–5 kez göndermişti.
+    // Tek istisna: mesajın hiç teslim edilmediği geçici kodlarda (ödeme
+    // uygunluğu, hız limiti) satırı yeniden açıp cron'a bırakıyoruz.
     if (status.status !== "failed" || !message?.raw_payload) continue;
 
     const payload = message.raw_payload as Record<string, unknown>;
@@ -179,14 +181,26 @@ async function handleStatuses(
       typeof payload.rule_key === "string" ? payload.rule_key : null;
     if (!appointmentId || !ruleKey) continue;
 
-    await supabase
-      .from("message_dispatches")
-      .update({
-        error: deliveryError ?? "WhatsApp iletilemedi",
-      })
-      .eq("appointment_id", appointmentId)
-      .eq("rule_key", ruleKey)
-      .eq("status", "sent");
+    const result = await recordDispatchDeliveryFailure(supabase, {
+      appointmentId,
+      ruleKey,
+      code: deliveryCode,
+      errorText: deliveryError ?? "WhatsApp iletilemedi",
+    });
+
+    if (result.error) {
+      console.error("[whatsapp] dispatch failure bookkeeping failed", {
+        appointmentId,
+        ruleKey,
+        error: result.error,
+      });
+    } else if (result.reopened) {
+      console.warn("[whatsapp] dispatch reopened for retry", {
+        appointmentId,
+        ruleKey,
+        code: deliveryCode,
+      });
+    }
   }
 }
 

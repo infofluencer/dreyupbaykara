@@ -29,9 +29,19 @@ import {
 import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
 import {
   LEAD_STATUS_FILTERS,
+  pickDisplayLead,
   statusesForFilter,
   type LeadStatusFilter,
 } from "@/lib/crm/lead-status";
+import {
+  DEFAULT_INBOX_TIME_RANGE,
+  INBOX_RANGE_LIMIT,
+  INBOX_TIME_RANGES,
+  fetchInboxContactLeads,
+  inboxRangeCutoffIso,
+  inboxRangeExpanded,
+  type InboxTimeRange,
+} from "@/lib/whatsapp/inbox-range";
 import {
   markConversationRead,
   sendConversationMedia,
@@ -275,6 +285,13 @@ export function MessagesInbox({
   const [filter, setFilter] = useState<FilterKey>("all");
   const [leadStatusFilter, setLeadStatusFilter] =
     useState<LeadStatusFilter>("all");
+  const [timeRange, setTimeRange] = useState<InboxTimeRange>(
+    DEFAULT_INBOX_TIME_RANGE,
+  );
+  const [loadingRange, setLoadingRange] = useState(false);
+  const [listCapped, setListCapped] = useState(
+    initialConversations.length >= INBOX_RANGE_LIMIT[DEFAULT_INBOX_TIME_RANGE],
+  );
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [conversations, setConversations] = useState(initialConversations);
@@ -295,6 +312,10 @@ export function MessagesInbox({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
+  const timeRangeRef = useRef(timeRange);
+  timeRangeRef.current = timeRange;
+  const conversationsRef = useRef(conversations);
+  conversationsRef.current = conversations;
   const draftRef = useRef(draft);
   draftRef.current = draft;
   /** Last conversation id whose server `initialMessages` were applied — skip soft-nav echoes. */
@@ -331,56 +352,91 @@ export function MessagesInbox({
   const windowOpen = isWithin24hFromMessages(messages);
 
   const fetchMessages = useCallback(async (conversationId: string) => {
-    const page = await fetchThreadMessages(createClient(), conversationId);
+    const page = await fetchThreadMessages(
+      createClient(),
+      conversationId,
+      inboxRangeCutoffIso(timeRangeRef.current),
+    );
     return {
       rows: sortMessages(page.rows.map((row) => mapInboxMessage(row))),
       hasOlder: page.hasOlder,
     };
   }, []);
 
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (range?: InboxTimeRange) => {
+    const selectedRange = range ?? timeRangeRef.current;
     const supabase = createClient();
-    const { data, error } = await supabase
+    const cutoff = inboxRangeCutoffIso(selectedRange);
+    const limit = INBOX_RANGE_LIMIT[selectedRange];
+    let request = supabase
       .from("conversations")
       .select(CONVERSATION_SELECT)
-      .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(150);
+      .order("last_message_at", { ascending: false, nullsFirst: false });
+    if (cutoff) request = request.gte("last_message_at", cutoff);
+    const { data, error } = await request.limit(limit);
     if (error) throw error;
-    console.log("[inbox] refetched conversations:", data?.length);
-    setConversations((prev) => {
-      const byContact = new Map(
-        prev
-          .filter((row) => row.pipelineLead)
-          .map((row) => [row.contact_id, row.pipelineLead] as const),
-      );
-      const next = (data ?? []).map((row) => {
-        const previous = prev.find((item) => item.id === String(row.id));
-        const mapped = mapConversation(
-          row as Record<string, unknown>,
-          previous,
-        );
-        const preserved = byContact.get(mapped.contact_id);
-        return preserved
-          ? { ...mapped, pipelineLead: preserved }
-          : mapped;
-      });
+    console.log("[inbox] refetched conversations:", data?.length, selectedRange);
 
-      // Açık sohbet son 150'ye girmiyorsa (eski bir hasta) listeden düşürme;
-      // yoksa okurken başlık ve gönderme alanı kayboluyor.
-      const openId = selectedIdRef.current;
-      if (openId && !next.some((row) => row.id === openId)) {
-        const pinned = prev.find((row) => row.id === openId);
-        if (pinned) next.unshift(pinned);
-      }
-      return next;
+    const prev = conversationsRef.current;
+    const byContact = new Map(
+      prev
+        .filter((row) => row.pipelineLead)
+        .map((row) => [row.contact_id, row.pipelineLead] as const),
+    );
+    const next = (data ?? []).map((row) => {
+      const previous = prev.find((item) => item.id === String(row.id));
+      const mapped = mapConversation(row as Record<string, unknown>, previous);
+      const preserved = byContact.get(mapped.contact_id);
+      return preserved ? { ...mapped, pipelineLead: preserved } : mapped;
     });
+
+    const openId = selectedIdRef.current;
+    if (openId && !next.some((row) => row.id === openId)) {
+      const pinned = prev.find((row) => row.id === openId);
+      if (pinned) next.unshift(pinned);
+    }
+
+    const missingContacts = [
+      ...new Set(
+        next.filter((row) => !row.pipelineLead).map((row) => row.contact_id),
+      ),
+    ];
+    if (missingContacts.length) {
+      try {
+        const leads = await fetchInboxContactLeads(supabase, missingContacts);
+        const leadsByContact = new Map<string, typeof leads>();
+        for (const lead of leads) {
+          const list = leadsByContact.get(lead.contact_id) ?? [];
+          list.push(lead);
+          leadsByContact.set(lead.contact_id, list);
+        }
+        for (const row of next) {
+          if (row.pipelineLead) continue;
+          const active = pickDisplayLead(
+            leadsByContact.get(row.contact_id) ?? [],
+          );
+          if (!active) continue;
+          row.pipelineLead = {
+            id: active.id,
+            status: active.status,
+            lost_reason: active.lost_reason,
+            needs_followup: active.needs_followup ?? false,
+          };
+        }
+      } catch (leadError) {
+        console.error("[inbox] pipeline leads:", leadError);
+      }
+    }
+
+    setListCapped((data ?? []).length >= limit);
+    setConversations(next);
   }, []);
   const fetchConversationsRef = useRef(fetchConversations);
   fetchConversationsRef.current = fetchConversations;
 
   /**
-   * Realtime her mesajda tetikleniyor; yoğun saatte saniyede birkaç kez 150
-   * konuşmayı join'leriyle yeniden çekmek yerine 1 saniyede bir topla.
+   * Realtime her mesajda tetikleniyor; yoğun saatte saniyede birkaç kez
+   * konuşmaları join'leriyle yeniden çekmek yerine 1 saniyede bir topla.
    */
   const conversationsRefreshTimerRef = useRef<number | null>(null);
   const scheduleConversationsRefresh = useCallback(() => {
@@ -416,6 +472,7 @@ export function MessagesInbox({
   }, [newestPersistedAt]);
 
   useEffect(() => {
+    if (loadingRange) return;
     const q = query.trim();
     const nameNeedle = sanitizeIlike(q);
     const variants = phoneSearchVariants(q);
@@ -467,7 +524,7 @@ export function MessagesInbox({
     }, 280);
 
     return () => window.clearTimeout(timer);
-  }, [query]);
+  }, [query, timeRange, loadingRange]);
 
   const selectConversation = useCallback(
     (id: string) => {
@@ -509,6 +566,32 @@ export function MessagesInbox({
       });
     },
     [fetchMessages, router],
+  );
+
+  const selectTimeRange = useCallback(
+    async (next: InboxTimeRange) => {
+      if (loadingRange) return;
+      const previous = timeRangeRef.current;
+      if (next === previous) return;
+      timeRangeRef.current = next;
+      setTimeRange(next);
+      setLoadingRange(true);
+      try {
+        await fetchConversations(next);
+        const openId = selectedIdRef.current;
+        if (openId && inboxRangeExpanded(previous, next)) {
+          const page = await fetchMessages(openId);
+          if (selectedIdRef.current !== openId) return;
+          setMessages((prev) => mergeServerMessages(prev, page.rows));
+          setHasOlder(page.hasOlder);
+        }
+      } catch (error) {
+        console.error("[inbox] time range:", error);
+      } finally {
+        setLoadingRange(false);
+      }
+    },
+    [fetchConversations, fetchMessages, loadingRange],
   );
 
   // Phone: never restore the last open thread on a fresh visit.
@@ -1001,6 +1084,34 @@ export function MessagesInbox({
           <div className="space-y-2">
             <div>
               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#6b7d73]">
+                Dönem
+              </p>
+              <div
+                className="-mx-1 flex flex-nowrap gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="tablist"
+                aria-label="Sohbet dönemi"
+              >
+                {INBOX_TIME_RANGES.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={timeRange === item.id}
+                    disabled={loadingRange}
+                    onClick={() => void selectTimeRange(item.id)}
+                    className={`inline-flex min-h-9 shrink-0 items-center rounded-full px-3 text-[11px] font-semibold transition disabled:opacity-60 ${
+                      timeRange === item.id
+                        ? "bg-[#123524] text-white"
+                        : "border border-[#123524]/15 bg-[#f7f9f8] text-[#466254] hover:bg-[#eef2f0]"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#6b7d73]">
                 Hasta durumu
               </p>
               <div
@@ -1051,12 +1162,21 @@ export function MessagesInbox({
           </div>
         </div>
         <div
-          className="min-h-0 flex-1 overflow-y-auto"
+          className="relative min-h-0 flex-1 overflow-y-auto"
           role="listbox"
           aria-label="Konuşmalar"
+          aria-busy={loadingRange}
           tabIndex={0}
           onKeyDown={onListKeyDown}
         >
+          {loadingRange ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+              <Loader2
+                className="h-6 w-6 animate-spin text-[#0b6b45]"
+                aria-label="Sohbetler yükleniyor"
+              />
+            </div>
+          ) : null}
           {!filtered.length ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-6 py-12 text-center">
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e7f5ed] text-[#0b6b45]">
@@ -1064,8 +1184,11 @@ export function MessagesInbox({
               </span>
               <p className="text-sm font-semibold text-[#123524]">Konuşma yok</p>
               <p className="max-w-xs text-sm leading-6 text-[#466254]">
-                Henüz WhatsApp mesajı yok. Hastalar yazdığında konuşmalar burada
-                görünecek.
+                {query.trim()
+                  ? "Aramayla eşleşen konuşma yok."
+                  : timeRange === "all"
+                    ? "Henüz WhatsApp mesajı yok. Hastalar yazdığında konuşmalar burada görünecek."
+                    : "Bu dönemde konuşma yok. Son 10 gün veya tüm sohbetler ile daha eskiye bakın."}
               </p>
             </div>
           ) : (
@@ -1132,6 +1255,13 @@ export function MessagesInbox({
               );
             })
           )}
+          {filtered.length > 0 && listCapped ? (
+            <p className="px-4 py-3 text-center text-[11px] leading-5 text-[#466254]">
+              {timeRange === "all"
+                ? `En yeni ${INBOX_RANGE_LIMIT.all} sohbet gösteriliyor. Daha eski bir kişi için üstten arayın.`
+                : "Listenin sonu. Daha eski sohbetler için son 10 gün veya tüm sohbetleri seçin."}
+            </p>
+          ) : null}
         </div>
       </aside>
 

@@ -4,6 +4,14 @@ import { requireAdminSession } from "@/lib/admin/auth";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import { pickDisplayLead } from "@/lib/crm/lead-status";
 import { createClient } from "@/lib/supabase/server";
+import {
+  DEFAULT_INBOX_TIME_RANGE,
+  INBOX_RANGE_LIMIT,
+  fetchInboxContactFlags,
+  fetchInboxContactLeads,
+  inboxRangeCutoffIso,
+  type InboxContactLead,
+} from "@/lib/whatsapp/inbox-range";
 import { fetchThreadMessages } from "@/lib/whatsapp/thread-history";
 
 const CONVERSATION_SELECT = `
@@ -29,9 +37,6 @@ const CONVERSATION_SELECT = `
   )
 `;
 
-/** Soldaki liste: en son yazışılan konuşmalar. */
-const CONVERSATION_LIST_LIMIT = 150;
-
 export default async function AdminMessagesPage({
   searchParams,
 }: {
@@ -55,12 +60,17 @@ export default async function AdminMessagesPage({
   }
 
   const selectedId = query.c ?? null;
+  const listCutoff = inboxRangeCutoffIso(DEFAULT_INBOX_TIME_RANGE);
+  const listLimit = INBOX_RANGE_LIMIT[DEFAULT_INBOX_TIME_RANGE];
 
-  const { data: conversations, error } = await supabase
+  let conversationQuery = supabase
     .from("conversations")
     .select(CONVERSATION_SELECT)
-    .order("last_message_at", { ascending: false, nullsFirst: false })
-    .limit(CONVERSATION_LIST_LIMIT);
+    .order("last_message_at", { ascending: false, nullsFirst: false });
+  if (listCutoff) {
+    conversationQuery = conversationQuery.gte("last_message_at", listCutoff);
+  }
+  const { data: conversations, error } = await conversationQuery.limit(listLimit);
 
   if (error) {
     return (
@@ -73,8 +83,8 @@ export default async function AdminMessagesPage({
     );
   }
 
-  // Açılmak istenen sohbet son 150'ye girmiyorsa (eski bir hasta) tek tek
-  // getir. Aksi halde liste dışı kalıyor ve panel gelen kutusuna atıyordu.
+  // Açılmak istenen sohbet dönem penceresine girmiyorsa tek tek getir.
+  // Aksi halde liste dışı kalıyor ve panel gelen kutusuna atıyordu.
   let conversationRows = conversations ?? [];
   if (
     selectedId &&
@@ -96,41 +106,12 @@ export default async function AdminMessagesPage({
     ),
   ];
 
-  type LeadRow = {
-    id: string;
-    contact_id: string;
-    status: string | null;
-    stage: string;
-    created_at: string;
-    lost_reason: string | null;
-    needs_followup: boolean | null;
-  };
-
-  const emptyLeads = Promise.resolve({ data: [] as LeadRow[] });
-  const emptyContacts = Promise.resolve({
-    data: [] as Array<{ id: string; is_patient: boolean | null }>,
-  });
-
   const [{ data: contactLeads }, { data: contactRows }, thread] =
     await Promise.all([
-      contactIds.length
-        ? supabase
-            .from("leads")
-            .select(
-              "id, contact_id, status, stage, created_at, lost_reason, needs_followup",
-            )
-            .in("contact_id", contactIds)
-            .order("created_at", { ascending: false })
-            .limit(400)
-        : emptyLeads,
-      contactIds.length
-        ? supabase
-            .from("contacts")
-            .select("id, is_patient")
-            .in("id", contactIds)
-        : emptyContacts,
+      fetchInboxContactLeads(supabase, contactIds).then((data) => ({ data })),
+      fetchInboxContactFlags(supabase, contactIds).then((data) => ({ data })),
       selectedId
-        ? fetchThreadMessages(supabase, selectedId)
+        ? fetchThreadMessages(supabase, selectedId, listCutoff)
         : Promise.resolve({ rows: [], hasOlder: false }),
     ]);
 
@@ -138,7 +119,7 @@ export default async function AdminMessagesPage({
     (contactRows ?? []).map((row) => [row.id, Boolean(row.is_patient)]),
   );
 
-  const leadsByContact = new Map<string, LeadRow[]>();
+  const leadsByContact = new Map<string, InboxContactLead[]>();
   for (const lead of contactLeads ?? []) {
     const list = leadsByContact.get(lead.contact_id) ?? [];
     list.push(lead);

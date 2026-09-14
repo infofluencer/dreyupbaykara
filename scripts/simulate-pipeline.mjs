@@ -16,6 +16,7 @@ import {
   leadStatusForBookedAppointment,
 } from "../src/lib/crm/appointment-pipeline.ts";
 import { runAutomationReminders } from "../src/lib/whatsapp/run-reminders.ts";
+import { recordDispatchDeliveryFailure } from "../src/lib/whatsapp/automations.ts";
 import { LEAD_STATUSES } from "../src/lib/crm/lead-status.ts";
 
 let pass = 0;
@@ -518,6 +519,133 @@ async function scenarioReminderDedup() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// I. TESLİM HATASI SONRASI TEKRAR DENEME
+// ══════════════════════════════════════════════════════════════════════════
+
+/** "n dakika geçti" simülasyonu — claim penceresi sent_at üzerinden ölçülür. */
+function ageDispatches(supabase, minutes) {
+  for (const row of supabase.__db.message_dispatches) {
+    if (!row.sent_at) continue;
+    row.sent_at = new Date(
+      new Date(row.sent_at).getTime() - minutes * 60_000,
+    ).toISOString();
+  }
+}
+
+async function scenarioDeliveryRetry() {
+  const rule = RULE_APPT_1D;
+  const runAt = ist(TODAY, "10:00");
+
+  const setup = () => {
+    const p = patient({ id: "retry", status: "randevulu" });
+    return world({
+      contacts: [p.contact],
+      leads: [p.lead],
+      appointments: [
+        appointment({
+          id: "a-retry",
+          leadId: "l-retry",
+          startsAt: ist(TOMORROW, "10:00"),
+          endsAt: ist(TOMORROW, "10:30"),
+        }),
+      ],
+    });
+  };
+  const row = (w) => w.supabase.__db.message_dispatches[0];
+  const fail = (w, code, text) =>
+    recordDispatchDeliveryFailure(w.supabase, {
+      appointmentId: "a-retry",
+      ruleKey: rule.key,
+      code,
+      errorText: text,
+    });
+
+  // ── Geçici hata (ödeme uygunluğu): sınırlı tekrar ──
+  {
+    const w = setup();
+    const s = makeSender();
+    const run = () =>
+      runAutomationReminders(w.supabase, [rule], {
+        now: runAt,
+        sendTemplate: s.sendTemplate,
+      });
+
+    await run();
+    eq("I1 ilk gönderim yapıldı", s.outbox.length, 1);
+    eq("I1 kayıt sent", row(w).status, "sent");
+
+    const r1 = await fail(w, 131042, "Business eligibility payment issue");
+    check("I2 ödeme hatası kaydı yeniden açar", r1.reopened);
+    eq("I2 durum failed'e çekildi", row(w).status, "failed");
+    eq("I2 wa message id temizlendi", row(w).wa_message_id, null);
+    eq("I2 deneme sayacı 1", row(w).retry_count, 1);
+
+    await run();
+    eq("I3 1 saat dolmadan tekrar YOK", s.outbox.length, 1);
+
+    ageDispatches(w.supabase, 61);
+    await run();
+    eq("I4 1 saat sonra tekrar gönderildi", s.outbox.length, 2);
+    eq("I4 tekrar sonrası kayıt sent", row(w).status, "sent");
+
+    const r2 = await fail(w, 131042, "yine ödeme");
+    check("I5 ikinci hata da yeniden açar", r2.reopened);
+    eq("I5 deneme sayacı 2", row(w).retry_count, 2);
+
+    ageDispatches(w.supabase, 61);
+    await run();
+    eq("I6 son tekrar gönderildi", s.outbox.length, 3);
+
+    const r3 = await fail(w, 131042, "yine ödeme");
+    check("I7 tekrar bütçesi bitti → yeniden açılmaz", !r3.reopened);
+    eq("I7 durum sent kalır", row(w).status, "sent");
+
+    ageDispatches(w.supabase, 300);
+    await run();
+    eq("I8 bütçe bitince tekrar YOK (mükerrer emniyeti)", s.outbox.length, 3);
+  }
+
+  // ── Pazarlama kotası (131049): hiç tekrar denenmez ──
+  {
+    const w = setup();
+    const s = makeSender();
+    const run = () =>
+      runAutomationReminders(w.supabase, [rule], {
+        now: runAt,
+        sendTemplate: s.sendTemplate,
+      });
+
+    await run();
+    const r = await fail(w, 131049, "healthy ecosystem engagement");
+    check("I9 131049 yeniden açmaz", !r.reopened);
+    eq("I9 durum sent kalır", row(w).status, "sent");
+    eq("I9 hata metni kayda yazıldı", row(w).error, "healthy ecosystem engagement");
+
+    ageDispatches(w.supabase, 300);
+    await run();
+    eq("I10 131049 sonrası tekrar YOK", s.outbox.length, 1);
+  }
+
+  // ── Şablon hatası gibi kalıcı kodlar da tekrar almaz ──
+  {
+    const w = setup();
+    const s = makeSender();
+    await runAutomationReminders(w.supabase, [rule], {
+      now: runAt,
+      sendTemplate: s.sendTemplate,
+    });
+    const r = await fail(w, 132001, "template does not exist");
+    check("I11 şablon hatası yeniden açmaz", !r.reopened);
+    ageDispatches(w.supabase, 300);
+    await runAutomationReminders(w.supabase, [rule], {
+      now: runAt,
+      sendTemplate: s.sendTemplate,
+    });
+    eq("I11 kalıcı hata sonrası tekrar YOK", s.outbox.length, 1);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // H. OLUMSUZ SENARYOLAR
 // ══════════════════════════════════════════════════════════════════════════
 async function scenarioNegative() {
@@ -697,6 +825,7 @@ const scenarios = [
   ["Aynı gün kontrol randevusu", scenarioControlBookedSameDay],
   ["Yanlış sürükleme emniyeti", scenarioRevertGuard],
   ["Hatırlatma mükerrerlik", scenarioReminderDedup],
+  ["Teslim hatası tekrar deneme", scenarioDeliveryRetry],
   ["Olumsuz senaryolar", scenarioNegative],
   ["Kural zinciri", scenarioRuleChain],
   ["Tam gün akışı", scenarioFullDay],

@@ -11,6 +11,7 @@ import {
   previewAutomationBody,
   type AutomationTimingMode,
 } from "@/lib/whatsapp/automation-timing";
+import { shouldReopenDispatch } from "@/lib/whatsapp/delivery-errors";
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
 import { istanbulYmd } from "@/lib/date/tr";
 
@@ -520,6 +521,82 @@ export async function claimDispatch(
     .maybeSingle();
 
   return Boolean(reclaimed);
+}
+
+/**
+ * Meta "failed" teslim durumu bildirdiğinde gönderim kaydını günceller.
+ *
+ * Varsayılan davranış hatayı yazıp durumu 'sent' bırakmak: Meta bir message id
+ * verdiyse hatırlatma bir kez sayılır. Koşulsuz tekrar deneme eskiden hastaya
+ * aynı hatırlatmayı 4-5 kez göndermişti.
+ *
+ * Tek istisna, mesajın hiç teslim edilmediği ve sebebin kendiliğinden geçtiği
+ * kodlar (ödeme uygunluğu, hız limiti): satırı 'failed' + wa_message_id=null
+ * yaparak yeniden açarız, cron FAILED_DISPATCH_RETRY_MS sonra devralır.
+ * sent_at'e dokunmayız ki tekrar bütçesi ilk gönderim anından işlesin.
+ */
+export async function recordDispatchDeliveryFailure(
+  supabase: SupabaseClient,
+  opts: {
+    appointmentId: string;
+    ruleKey: string;
+    code: number | null | undefined;
+    errorText: string;
+  },
+): Promise<{ found: boolean; reopened: boolean; error?: string }> {
+  const withRetry = await supabase
+    .from("message_dispatches")
+    .select("id, retry_count")
+    .eq("appointment_id", opts.appointmentId)
+    .eq("rule_key", opts.ruleKey)
+    .eq("status", "sent")
+    .maybeSingle();
+
+  // retry_count migration'ı (20260914160000) henüz uygulanmadıysa tekrar deneme
+  // devre dışı kalsın, ama hata metni yine de kayda yazılabilsin.
+  let dispatchId: string | null = withRetry.data?.id ?? null;
+  let retryCount = withRetry.data?.retry_count ?? 0;
+  let retryColumnMissing = false;
+
+  if (withRetry.error) {
+    retryColumnMissing = true;
+    console.warn(
+      "[automations] retry_count okunamadı — 20260914160000 migration uygulandı mı?",
+      { error: withRetry.error.message },
+    );
+    const fallback = await supabase
+      .from("message_dispatches")
+      .select("id")
+      .eq("appointment_id", opts.appointmentId)
+      .eq("rule_key", opts.ruleKey)
+      .eq("status", "sent")
+      .maybeSingle();
+    dispatchId = fallback.data?.id ?? null;
+    retryCount = 0;
+  }
+
+  if (!dispatchId) return { found: false, reopened: false };
+
+  const reopen =
+    !retryColumnMissing && shouldReopenDispatch({ code: opts.code, retryCount });
+
+  const { error } = await supabase
+    .from("message_dispatches")
+    .update(
+      reopen
+        ? {
+            error: opts.errorText,
+            status: "failed",
+            wa_message_id: null,
+            retry_count: retryCount + 1,
+          }
+        : { error: opts.errorText },
+    )
+    .eq("id", dispatchId)
+    .eq("status", "sent");
+
+  if (error) return { found: true, reopened: false, error: error.message };
+  return { found: true, reopened: reopen };
 }
 
 export async function priorRuleSent(

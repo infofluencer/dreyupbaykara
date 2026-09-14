@@ -73,7 +73,8 @@ export default async function AutomationsPage() {
         <code>20260828150000_google_maps_review_rule.sql</code>,{" "}
         <code>20260911120000_message_dispatches_pending_claim.sql</code>,{" "}
         <code>20260911140000_lead_statuses_surgery_exam.sql</code>,{" "}
-        <code>20260911150000_surgery_postop_ameliyat_edildi.sql</code>.
+        <code>20260911150000_surgery_postop_ameliyat_edildi.sql</code>,{" "}
+        <code>20260914160000_dispatch_transient_retry.sql</code>.
         <span className="mt-1 block text-xs opacity-80">{rulesError.message}</span>
       </p>
     );

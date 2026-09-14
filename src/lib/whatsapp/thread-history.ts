@@ -4,10 +4,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Sohbet geçmişi veritabanında süresiz durur; silen bir iş yok. Buradaki
  * sınırlar yalnızca "tek seferde ne kadarını çekelim" sorusunu yanıtlar.
  *
- * Kural: açılan her sohbette son {@link WA_THREAD_WINDOW_DAYS} günün tamamı
- * garanti yüklenir. Sohbet bu pencerede sayfa boyutundan fazla mesaj
- * içeriyorsa pencerenin başına kadar tamamlanır; daha eskisi "Daha eski
- * mesajlar" ile sayfa sayfa gelir.
+ * Kural: açılan sohbette verilen pencerenin (`windowCutoffIso`) tamamı
+ * garanti yüklenir. Pencere yoksa (tüm sohbetler) ilk sayfa gelir; daha
+ * eskisi "Daha eski mesajlar" ile sayfa sayfa gelir.
  */
 export const WA_THREAD_WINDOW_DAYS = 5;
 
@@ -57,10 +56,14 @@ function select(supabase: SupabaseClient, conversationId: string) {
 /**
  * Sohbetin en yeni mesajları. `messages (conversation_id, created_at)`
  * indeksini tersten tarar: tablo ne kadar büyürse büyüsün sabit maliyet.
+ *
+ * `windowCutoffIso` doluysa o tarihe kadar olan mesajlar da tamamlanır
+ * (gelen kutusu dönem filtresiyle aynı kesit). `null` = yalnızca ilk sayfa.
  */
 export async function fetchThreadMessages(
   supabase: SupabaseClient,
   conversationId: string,
+  windowCutoffIso: string | null = threadWindowStartIso(),
 ): Promise<ThreadPage> {
   const { data, error } = await select(supabase, conversationId)
     .order("created_at", { ascending: false })
@@ -68,25 +71,31 @@ export async function fetchThreadMessages(
   if (error) throw error;
 
   const fetched = (data ?? []) as ThreadMessageRow[];
-  const hasOlder = fetched.length > WA_THREAD_PAGE_SIZE;
+  let hasOlder = fetched.length > WA_THREAD_PAGE_SIZE;
   const rows = hasOlder ? fetched.slice(0, WA_THREAD_PAGE_SIZE) : fetched;
 
-  // Sayfa dolduysa ve en eski satır hâlâ pencerenin içindeyse, 5 günün
-  // tamamı görünsün diye pencerenin başına kadar tamamla. Günde 400'den fazla
-  // mesajlaşılan sohbetlerde devreye girer; normalde bu sorgu hiç çalışmaz.
-  const cutoff = threadWindowStartIso();
+  const cutoff = windowCutoffIso;
   const oldest = rows[rows.length - 1];
   const oldestMs = oldest ? Date.parse(oldest.created_at) : NaN;
-  if (hasOlder && oldest && oldestMs > Date.parse(cutoff)) {
+  if (
+    cutoff &&
+    hasOlder &&
+    oldest &&
+    Number.isFinite(oldestMs) &&
+    oldestMs > Date.parse(cutoff)
+  ) {
     const { data: fill, error: fillError } = await select(
       supabase,
       conversationId,
     )
       .gte("created_at", cutoff)
       .lt("created_at", oldest.created_at)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(2_000);
     if (fillError) throw fillError;
-    rows.push(...((fill ?? []) as ThreadMessageRow[]));
+    const extra = (fill ?? []) as ThreadMessageRow[];
+    rows.push(...extra);
+    if (extra.length >= 2_000) hasOlder = true;
   }
 
   return { rows: rows.reverse(), hasOlder };

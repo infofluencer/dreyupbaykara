@@ -136,6 +136,29 @@ Authorization: Bearer <CRON_SECRET>
 Idempotency: `message_dispatches (appointment_id, rule_key)`. Opt-out:
 `wa_message_opt_outs` veya hasta mesajı `DUR` / `STOP` / `IPTAL`.
 
+### Teslim hatası ve tekrar deneme
+
+Meta API'yi kabul edip mesajı sonradan teslim etmeyebilir; bu durum status
+webhook'undan `failed` olarak gelir. Kural olarak gönderim `sent` kalır ve
+tekrar denenmez — koşulsuz tekrar deneme eskiden hastaya aynı hatırlatmayı 4-5
+kez göndermişti.
+
+Tek istisna, mesajın **hiç teslim edilmediği** ve sebebin kendiliğinden geçtiği
+hata kodları: `131042` (ödeme/uygunluk), `130429` ve `131056` (hız limiti),
+`131000` (Meta iç hatası). Bunlarda satır yeniden açılır ve cron ~1 saat sonra
+devralır; `message_dispatches.retry_count` en fazla `MAX_DISPATCH_RETRIES`
+denemeye izin verir (bkz. `src/lib/whatsapp/delivery-errors.ts`).
+
+`131049` (*healthy ecosystem engagement*) bilinçli olarak dışarıdadır: bu,
+alıcının tüm işletmelerden aldığı pazarlama mesajı kotasıdır ve Meta en az 24
+saat beklenmesini söyler; 1 saatlik pencerede denemek boşa gider. Şablon
+uyuşmazlığı (`132xxx`) ve hesap kısıtlamaları (`133xxx`) da elle düzeltme
+gerektirdiği için tekrar denenmez.
+
+Migration: `20260914160000_dispatch_transient_retry.sql`. Uygulanmadıysa
+tekrar deneme sessizce devre dışı kalır (hata metni yine kaydedilir);
+`npm run db:check` bunu bildirir.
+
 Açık iletişim izni ve KVKK süreci doğrulanmadan kuralları açmayın / cron’u
 canlıda çalıştırmayın.
 

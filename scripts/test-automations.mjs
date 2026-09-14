@@ -46,6 +46,11 @@ import {
   findFreeAppointmentSlot,
   toOccupiedRange,
 } from "../src/lib/crm/surgery-backfill.ts";
+import {
+  isRetryableDeliveryCode,
+  MAX_DISPATCH_RETRIES,
+  shouldReopenDispatch,
+} from "../src/lib/whatsapp/delivery-errors.ts";
 
 const WITH_DB = process.argv.includes("--db");
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -314,6 +319,48 @@ console.log("\n=== Otomasyon zamanlama (unit) ===\n");
       ends_at: null,
     }).endMs === at("10:30"),
   );
+}
+
+{
+  console.log("\n=== Teslim hatası: geçici mi, kalıcı mı ===\n");
+
+  expect(
+    "131042 ödeme sorunu tekrar denenir",
+    isRetryableDeliveryCode(131042),
+  );
+  expect("130429 hız limiti tekrar denenir", isRetryableDeliveryCode(130429));
+  expect("131056 çift hız limiti tekrar denenir", isRetryableDeliveryCode(131056));
+  expect("131000 Meta iç hatası tekrar denenir", isRetryableDeliveryCode(131000));
+
+  // En kritik ayrım: pazarlama kotası alıcıya ait ve Meta 24 saat bekletiyor.
+  // Bizim tekrar penceresi 1 saat olduğu için denemek boşa gider.
+  expect(
+    "131049 pazarlama kotası tekrar DENENMEZ",
+    !isRetryableDeliveryCode(131049),
+  );
+  expect("131026 iletilemez (kalıcı) denenmez", !isRetryableDeliveryCode(131026));
+  expect("132001 şablon hatası denenmez", !isRetryableDeliveryCode(132001));
+  expect("133010 hesap kısıtlı denenmez", !isRetryableDeliveryCode(133010));
+  expect("kod yoksa denenmez", !isRetryableDeliveryCode(undefined));
+  expect("kod null ise denenmez", !isRetryableDeliveryCode(null));
+
+  expect(
+    "geçici hata + bütçe var → yeniden aç",
+    shouldReopenDispatch({ code: 131042, retryCount: 0 }),
+  );
+  expect(
+    "geçici hata + son deneme → yeniden aç",
+    shouldReopenDispatch({ code: 131042, retryCount: MAX_DISPATCH_RETRIES - 1 }),
+  );
+  expect(
+    "bütçe bitti → yeniden açma (mükerrer mesaj emniyeti)",
+    !shouldReopenDispatch({ code: 131042, retryCount: MAX_DISPATCH_RETRIES }),
+  );
+  expect(
+    "kalıcı hata bütçe dolu olsa da açılmaz",
+    !shouldReopenDispatch({ code: 131049, retryCount: 0 }),
+  );
+  expect("tekrar sınırı makul (1-3)", MAX_DISPATCH_RETRIES >= 1 && MAX_DISPATCH_RETRIES <= 3);
 }
 
 console.log("\n=== Mesaj / body helpers ===\n");

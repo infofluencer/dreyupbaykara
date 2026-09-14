@@ -182,6 +182,22 @@ try {
     ok("message_dispatches 'pending' kilidi yazılabiliyor");
   }
 
+  // ── 3b) message_dispatches.retry_count ──────────────────────────────────
+  const { error: rcErr } = await admin
+    .from("message_dispatches")
+    .select("retry_count")
+    .eq("appointment_id", appt.id)
+    .limit(1);
+  if (rcErr) {
+    fail(
+      "message_dispatches.retry_count kolonu yok",
+      "20260914160000_dispatch_transient_retry.sql",
+      `${rcErr.message} — bu kolon olmadan geçici Meta hatalarında (ödeme, hız limiti) tekrar deneme devre dışı kalır.`,
+    );
+  } else {
+    ok("message_dispatches.retry_count var (geçici hatada tekrar deneme aktif)");
+  }
+
   // ── 4) message_rules ayarları ───────────────────────────────────────────
   const { data: rules } = await admin
     .from("message_rules")
