@@ -106,14 +106,21 @@ kaydolur ama Meta’ya gitmez.
 
 ### Randevu / ameliyat hatırlatması (otomatik)
 
-Meta’da üç UTILITY şablon onaylatın (Türkçe, body `{{1}}` ad, `{{2}}` tarih,
-`{{3}}` saat):
+Otomasyonlar Meta’da onaylı şablon gönderir. Dört şablon gerekir (Türkçe):
 
-| Seed adı | Kullanım |
-|----------|----------|
-| `randevu_1_gun` | Muayene vb. — 1 gün önce |
-| `randevu_1_saat` | Muayene vb. — 1 saat önce |
-| `ameliyat_gunu` | `procedure` — ameliyat günü ~08:00 Istanbul |
+| Kural | Şablon adı | Değişken | Kullanım |
+|-------|-----------|----------|----------|
+| `appt_1d` | `randevu_1_gun` | `{{1}}` ad · `{{2}}` tarih · `{{3}}` saat | Muayene vb. — 1 gün önce |
+| `appt_1h` | `randevu_1_saat` | `{{1}}` ad · `{{2}}` tarih · `{{3}}` saat | Muayene vb. — 1 saat önce |
+| `surgery_day` | `ameliyat_sonrasi_bilgi` | yok | `procedure` — ameliyat günü 16:00 Istanbul |
+| `surgery_google_review` | `google_maps_yorum` | yok | `surgery_day` gittikten sonra |
+
+Şablon adı, dil kodu ve değişken sayısı Meta’daki onaylı hâliyle **birebir**
+aynı olmalı; kaynak `message_rules` tablosudur ve `/admin/automations`
+üzerinden düzenlenir. `include_body_params` kapalıysa hiç parametre
+gönderilmez. Yorum isteği şablonu Meta’da büyük olasılıkla MARKETING
+kategorisine girer (mesaj başına ~12 kat pahalı, sıklık limitine tabi);
+diğer üçü UTILITY olmalıdır.
 
 Panel: `/admin/automations` — kural aç/kapa, şablon adı, gönderim logu, opt-out.
 Kurallar varsayılan **kapalıdır**. Migration:
@@ -132,6 +139,27 @@ Idempotency: `message_dispatches (appointment_id, rule_key)`. Opt-out:
 Açık iletişim izni ve KVKK süreci doğrulanmadan kuralları açmayın / cron’u
 canlıda çalıştırmayın.
 
-Otomasyonlar Meta şablonu değil, serbest metin gönderir. Hasta son 24 saatte
-yazmadıysa mesaj atlanır. `message_rules.template_name` yalnızca kayıt
-etiketidir.
+Şablon kullanıldığı için 24 saatlik serbest mesaj penceresi aranmaz; hasta hiç
+yazmamış olsa da mesaj gider. `automation-templates.ts` içindeki metinler
+gönderilmez — yalnızca gelen kutusu kaydı ve panel önizlemesi içindir, bu yüzden
+onaylı şablonla aynı tutulmalıdır.
+
+### Ameliyat mesajlarının tetiklenmesi
+
+Aday ölçütü, `lead_status_history` üzerinde **bugün** atılmış bir
+`ameliyat_edildi` geçişi ve lead'e bağlı iptal edilmemiş bir `procedure`
+randevusudur. `message_dispatches.appointment_id` boş bırakılamadığı ve mükerrer
+engeli bu kolona dayandığı için randevu zorunludur.
+
+Durum Panosu'nda elle taşıma yapıldığında randevu yoksa `setLeadStatus` onu
+geriye dönük oluşturur (`src/lib/crm/surgery-backfill.ts`). Slot, günün dolu
+aralıklarına bakılarak seçilir; `appointments_no_overlap` exclusion
+constraint'ine takılmamak için gereklidir. Aynı gün ileri saatli bir ameliyat
+randevusu varsa yeni kayıt açılmaz.
+
+Yanlış sürükleme emniyeti: lead `ameliyat_edildi`'ye taşındıktan sonra aynı gün
+`yeni`, `arandi`, `muayene_edildi` veya `ameliyat_olacak` durumuna geri
+alınırsa aday listesinden düşer. `randevulu` ve `bitti` geri alma sayılmaz —
+ameliyattan sonra kontrol randevusu açılınca lead `randevulu`ya döner ve mesaj
+yine gitmelidir. Yalnızca **en son** geçişe bakılır, gün içindeki ileri geri
+hareketler sonucu değiştirmez.

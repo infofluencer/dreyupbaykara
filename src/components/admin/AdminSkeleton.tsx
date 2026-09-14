@@ -54,9 +54,13 @@ export function SkeletonRows({
 /** Özet */
 export function AdminHomeSkeleton() {
   return (
-    <div className="space-y-8" aria-busy="true" aria-label="Özet yükleniyor">
+    <div
+      className="space-y-6 sm:space-y-8"
+      aria-busy="true"
+      aria-label="Özet yükleniyor"
+    >
       <SkeletonPageHeader titleWidth="w-24" />
-      <div className="rounded-2xl border border-[#123524]/08 bg-white px-4 py-5 sm:px-5">
+      <div className="rounded-2xl border border-[#123524]/08 bg-white px-4 py-4 sm:px-5 sm:py-5">
         <Skeleton className="mb-4 h-6 w-40" />
         <div className="space-y-3">
           {Array.from({ length: 4 }, (_, index) => (
@@ -64,14 +68,14 @@ export function AdminHomeSkeleton() {
           ))}
         </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
-          <Skeleton key={index} className="h-24 w-full rounded-2xl" />
+          <Skeleton key={index} className="h-20 w-full rounded-2xl sm:h-24" />
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Skeleton className="h-56 w-full rounded-2xl" />
-        <Skeleton className="h-56 w-full rounded-2xl" />
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
+        <Skeleton className="h-72 w-full rounded-2xl sm:h-56" />
+        <Skeleton className="h-72 w-full rounded-2xl sm:h-56" />
       </div>
     </div>
   );

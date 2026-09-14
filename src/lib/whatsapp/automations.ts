@@ -181,6 +181,61 @@ export type SurgeryPostopCandidate = AppointmentForAutomation & {
 };
 
 /**
+ * Bu durumlara geri alınmış lead, yanlış sürükleme sayılır ve mesaj almaz.
+ *
+ * "randevulu" listede yok: ameliyattan sonra aynı gün kontrol randevusu
+ * açılınca lead oraya döner ve bilgilendirme mesajı yine gitmelidir. "bitti"
+ * de yok; vaka kapatılsa bile aynı gün bilgilendirme gitmeli.
+ */
+const SURGERY_REVERTED_STATUSES = new Set([
+  "yeni",
+  "arandi",
+  "muayene_edildi",
+  "ameliyat_olacak",
+]);
+
+/**
+ * Bugün ameliyat_edildi'ye taşınıp ardından geri alınan lead'leri bulur.
+ *
+ * Yalnızca **en son** geçişe bakar; gün içinde ileri geri gidip son hâli
+ * ameliyat_edildi olan lead aday kalır.
+ */
+async function findRevertedLeads(
+  supabase: SupabaseClient,
+  leadIds: string[],
+  from: Date,
+  now: Date,
+): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("lead_status_history")
+    .select("lead_id, to_status, created_at")
+    .in("lead_id", leadIds)
+    .gte("created_at", from.toISOString())
+    .lte("created_at", now.toISOString())
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) {
+    console.warn("[automations] geri alma kontrolü başarısız", error.message);
+    return new Set();
+  }
+
+  const latestByLead = new Map<string, string>();
+  for (const row of data ?? []) {
+    // created_at desc — lead başına ilk gelen en güncel geçiş
+    if (!latestByLead.has(row.lead_id)) {
+      latestByLead.set(row.lead_id, row.to_status);
+    }
+  }
+
+  const reverted = new Set<string>();
+  for (const [leadId, toStatus] of latestByLead) {
+    if (SURGERY_REVERTED_STATUSES.has(toStatus)) reverted.add(leadId);
+  }
+  return reverted;
+}
+
+/**
  * Ameliyat sonrası mesaj adayları.
  *
  * Aday ölçütü **bugün ameliyat_edildi'ye taşınmış olmak** (lead_status_history).
@@ -212,6 +267,16 @@ export async function loadSurgeryPostopCandidates(
       changedAtByLead.set(row.lead_id, row.created_at);
     }
   }
+  if (changedAtByLead.size === 0) return [];
+
+  // Yanlış sürükleme emniyeti — 16:00'dan önce geri alınan lead mesaj almaz
+  const reverted = await findRevertedLeads(
+    supabase,
+    [...changedAtByLead.keys()],
+    from,
+    now,
+  );
+  for (const leadId of reverted) changedAtByLead.delete(leadId);
   if (changedAtByLead.size === 0) return [];
 
   const { data, error } = await supabase

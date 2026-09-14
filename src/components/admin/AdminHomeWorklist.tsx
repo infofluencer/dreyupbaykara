@@ -21,12 +21,12 @@ export function AdminHomeWorklistFallback() {
   return (
     <section aria-busy="true" aria-label="Bugün yapılacaklar yükleniyor">
       <Skeleton className="mb-2 h-6 w-48" />
-      <Skeleton className="mb-4 h-4 w-72" />
-      <div className="grid gap-4 lg:grid-cols-3">
+      <Skeleton className="mb-4 h-4 w-full max-w-xs" />
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
         {Array.from({ length: 3 }, (_, index) => (
           <div
             key={index}
-            className="rounded-2xl border border-[#123524]/08 bg-white px-5 py-5"
+            className="rounded-2xl border border-[#123524]/08 bg-white px-4 py-4 sm:px-5 sm:py-5"
           >
             <Skeleton className="mb-4 h-5 w-40" />
             <div className="space-y-3">
@@ -57,12 +57,12 @@ export async function AdminHomeWorklist() {
 
   return (
     <section>
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
+      <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
+        <div className="min-w-0 flex-1">
           <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
             Bugün yapılacaklar
           </h2>
-          <p className="mt-1 text-sm text-[#466254]">
+          <p className="mt-1 text-sm text-pretty text-[#466254]">
             Sırayla: bekleyen mesajları yanıtlayın, bugün gelen talepleri
             karşılayın, günün randevularını kontrol edin.
           </p>
@@ -70,7 +70,7 @@ export async function AdminHomeWorklist() {
         {nothingToDo ? null : (
           <Link
             href="/admin/pipeline"
-            className="text-sm font-semibold text-[#0b6b45]"
+            className="-mr-2 inline-flex min-h-11 shrink-0 items-center px-2 text-sm font-semibold text-[#0b6b45]"
           >
             Durum panosu →
           </Link>
@@ -78,14 +78,14 @@ export async function AdminHomeWorklist() {
       </div>
 
       {nothingToDo ? (
-        <div className="mt-4 rounded-2xl border border-[#123524]/08 bg-white px-5 py-8">
+        <div className="mt-4 rounded-2xl border border-[#123524]/08 bg-white px-4 py-8 sm:px-5">
           <p className="text-center text-sm text-[#466254]">
             Bekleyen iş yok 👍 Yanıtlanmamış mesaj, yeni talep ve bugüne randevu
             bulunmuyor.
           </p>
         </div>
       ) : (
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:gap-4 lg:grid-cols-3">
           <WaitingCard block={data.waiting} />
           <LeadsCard block={data.leads} todayYmd={todayYmd} />
           <AppointmentsCard block={data.appointments} todayYmd={todayYmd} />
@@ -115,7 +115,7 @@ function WaitingCard({
         <li key={row.conversationId}>
           <Link
             href={`/admin/messages?c=${row.conversationId}`}
-            className="block py-3 transition hover:bg-[#f4f6f5]"
+            className="flex min-h-12 flex-col justify-center px-4 py-3 transition hover:bg-[#f4f6f5] active:bg-[#f4f6f5] sm:px-5"
           >
             <div className="flex items-center justify-between gap-2">
               <span className="truncate font-semibold text-[#123524]">
@@ -123,7 +123,7 @@ function WaitingCard({
               </span>
               <span className="flex shrink-0 items-center gap-1.5">
                 {row.unreadCount > 0 ? (
-                  <span className="rounded-full bg-[#0b6b45] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  <span className="rounded-full bg-[#0b6b45] px-1.5 py-0.5 text-[11px] font-bold text-white">
                     {row.unreadCount}
                   </span>
                 ) : null}
@@ -167,20 +167,21 @@ function LeadsCard({
       empty="Bugün yeni talep yok."
     >
       {block.rows.map((row) => (
-        <li key={row.leadId} className="py-3">
-          <div className="flex flex-wrap items-center gap-2">
+        <li key={row.leadId} className="px-4 py-3 sm:px-5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {/* -my-2.5/py-2.5: satır yüksekliğini bozmadan 44px dokunma alanı */}
             <Link
               href={`/admin/messages?lead=${row.leadId}`}
-              className="truncate font-semibold text-[#123524] hover:text-[#0b6b45]"
+              className="-my-2.5 min-w-0 truncate py-2.5 font-semibold text-[#123524] hover:text-[#0b6b45]"
             >
               {row.name || row.phone || "İsimsiz"}
             </Link>
             {row.reason === "tekrar" ? (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
                 Tekrar ara
               </span>
             ) : (
-              <span className="rounded-full bg-[#e7f5ed] px-2 py-0.5 text-[10px] font-semibold text-[#0b6b45]">
+              <span className="rounded-full bg-[#e7f5ed] px-2 py-0.5 text-[11px] font-semibold text-[#0b6b45]">
                 Yeni
               </span>
             )}
@@ -188,16 +189,16 @@ function LeadsCard({
           {row.phone ? (
             <p className="mt-0.5 text-sm text-[#466254]">{row.phone}</p>
           ) : null}
-          <div className="mt-2 flex gap-1.5">
+          <div className="mt-2 flex gap-2">
             <form action={markLeadContacted} className="flex-1">
               <input type="hidden" name="lead_id" value={row.leadId} />
-              <button className="inline-flex min-h-9 w-full items-center justify-center rounded-full bg-[#0b6b45] px-3 text-xs font-semibold text-white">
+              <button className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#0b6b45] px-3 text-center text-[13px] font-semibold text-white active:bg-[#095538]">
                 Arandı işaretle
               </button>
             </form>
             <Link
               href={planHref({ date: todayYmd, lead: row.leadId })}
-              className="inline-flex min-h-9 flex-1 items-center justify-center rounded-full border border-[#0b6b45]/25 px-3 text-xs font-semibold text-[#0b6b45]"
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-[#0b6b45]/25 px-3 text-center text-[13px] font-semibold text-[#0b6b45] active:bg-[#e7f5ed]"
             >
               Randevu ver
             </Link>
@@ -228,7 +229,7 @@ function AppointmentsCard({
         <li key={row.id}>
           <Link
             href={`/admin/calendar/${row.id}`}
-            className="block py-3 transition hover:bg-[#f4f6f5]"
+            className="flex min-h-12 flex-col justify-center px-4 py-3 transition hover:bg-[#f4f6f5] active:bg-[#f4f6f5] sm:px-5"
           >
             <div className="flex items-center gap-2">
               <span className="shrink-0 rounded-lg bg-[#e7f5ed] px-2 py-1 text-xs font-bold text-[#0b6b45]">
@@ -269,7 +270,9 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col rounded-2xl border border-[#123524]/08 bg-white px-5 py-5">
+    /* min-w-0: truncate'li satırlar grid item'ın min-content genişliğini
+       şişirip sayfayı yatay kaydırılır hale getiriyordu. */
+    <div className="flex min-w-0 flex-col rounded-2xl border border-[#123524]/08 bg-white px-4 py-4 sm:px-5 sm:py-5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 font-semibold text-[#123524]">
@@ -280,7 +283,7 @@ function Card({
               </span>
             ) : null}
           </h3>
-          <p className="mt-0.5 text-xs text-[#6b7d73]">{hint}</p>
+          <p className="mt-0.5 text-xs text-pretty text-[#6b7d73]">{hint}</p>
         </div>
       </div>
 
@@ -288,11 +291,14 @@ function Card({
         <p className="mt-6 pb-2 text-center text-sm text-[#466254]">{empty}</p>
       ) : (
         <>
-          <ul className="mt-2 divide-y divide-[#123524]/08">{children}</ul>
+          {/* Satırlar mobilde kenardan kenara: dokunma alanı kart genişliği kadar. */}
+          <ul className="-mx-4 mt-2 divide-y divide-[#123524]/08 sm:-mx-5">
+            {children}
+          </ul>
           {count > shown ? (
             <Link
               href={allHref}
-              className="mt-3 text-xs font-semibold text-[#0b6b45]"
+              className="-ml-2 mt-1 inline-flex min-h-11 items-center px-2 text-xs font-semibold text-[#0b6b45]"
             >
               {count - shown} kayıt daha · tümünü aç →
             </Link>

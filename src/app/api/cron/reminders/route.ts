@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { advanceFinishedAppointments } from "@/lib/crm/appointment-pipeline";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
-import { sendWhatsAppText } from "@/lib/whatsapp/cloud-api";
+import { sendWhatsAppTemplate } from "@/lib/whatsapp/cloud-api";
 import { loadEnabledRules } from "@/lib/whatsapp/automations";
 import { runAutomationReminders } from "@/lib/whatsapp/run-reminders";
 
@@ -87,7 +87,8 @@ async function runReminders(request: NextRequest) {
 
   const run = await runAutomationReminders(supabase, rules, {
     now,
-    sendText: (phone, body) => sendWhatsAppText(phone, body),
+    sendTemplate: ({ phone, templateName, language, components }) =>
+      sendWhatsAppTemplate(phone, templateName, language, components),
   });
 
   return NextResponse.json({

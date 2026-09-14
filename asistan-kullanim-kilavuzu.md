@@ -484,8 +484,8 @@ Bu mesajlar hakkında bilmeniz gerekenler:
 
 - Her mesaj, her hasta için **yalnızca bir kez** gönderilir. Aynı mesajı elle
   ikinci kez göndermenize gerek yoktur ve göndermemelisiniz.
-- Bu otomatik mesajlar da **24 saat kuralına** tabidir. Hasta son 24 saattir
-  yazmadıysa mesaj gönderilemez. Bu, sizin bir eksiğiniz değildir.
+- Bu otomatik mesajlar **onaylı şablonlarla** gönderilir, bu yüzden 24 saat
+  kuralına tabi **değildir**. Hasta size hiç yazmamış olsa bile giderler.
 - Bu otomatik mesajları siz durduramaz veya değiştiremezsiniz. Bir sorun
   olduğunu düşünüyorsanız yöneticinize söyleyin.
 
@@ -503,39 +503,34 @@ Bir hatırlatma veya bilgilendirme mesajının gidebilmesi için:
    **Hastalar → Yeni hasta** ile (veya WhatsApp'taki **Hastayı ekle** ile)
    kaydı açın ve **Telefon**'u doğru girin.
 
-2. **Bir randevu oluşturulmuş olmalı.** Bu mesajlar randevuya bağlıdır. Sadece
-   Durum Panosu'nda hastayı bir duruma koymak yetmez; **Takvim**'den (ya da
-   WhatsApp'taki **Talep durumu** kutusundan **Randevulu** seçerek) gerçek bir
-   randevu yazmalısınız.
+2. **Randevu hatırlatmaları için takvimde randevu olmalı.** 1 gün ve 1 saat
+   önceki hatırlatmalar randevuya bağlıdır; **Takvim**'den (ya da WhatsApp'taki
+   **Talep durumu** kutusundan **Randevulu** seçerek) gerçek bir randevu
+   yazmalısınız. Randevu formundaki **Tür** alanı muayene, kontrol veya online
+   görüşme olmalı.
 
-3. **Randevunun türü doğru olmalı.** Randevu formundaki **Tür** alanı, hangi
-   mesajın gideceğini belirler:
-   - **Randevu hatırlatmaları** (1 gün ve 1 saat önce), muayene/kontrol gibi
-     randevularda çalışır.
-   - **Ameliyat sonrası bilgilendirme** ve **Google yorum** mesajları için
-     randevu **Ameliyat** türünde olmalıdır. Ameliyat randevusu açtığınızda
-     hasta zaten otomatik olarak **Ameliyat olacak** durumuna geçer; ameliyat
-     bitince de sistem hastayı **Ameliyat edildi**'ye taşır ve o gün 16:00'da
-     mesajları gönderir.
+3. **Ameliyat mesajları için hastayı Ameliyat edildi'ye taşımanız yeterli.**
+   Takvimde ameliyat randevusu yoksa sistem onu sizin için otomatik oluşturur.
+   Ameliyat randevusunu önceden yazdıysanız hiçbir şey yapmanıza gerek yok:
+   randevu açıldığında hasta **Ameliyat olacak** olur, ameliyat bitince sistem
+   **Ameliyat edildi**'ye taşır ve o gün 16:00'da mesajları gönderir.
 
 4. **Randevu iptal edilmemiş olmalı.** Randevuyu **İptal** yaparsanız o
    randevuya bağlı hatırlatmalar gitmez. (Bu genelde istediğiniz şeydir.)
 
-5. **Hastanın 24 saat penceresi açık olmalı.** Otomatik mesajlar da 24 saat
-   kuralına tabidir: hasta son 24 saat içinde size yazmış olmalı. Yazmadıysa
-   sistem mesajı gönderemez ve pencere açılınca (hasta tekrar yazınca) kısa
-   süre içinde otomatik dener. Bu yüzden, örneğin ameliyattan bir gün önce
-   hastadan kısa bir mesaj atmasını istemek, hatırlatmanın gitmesini
-   kolaylaştırır.
+Özetle: **kayıt + doğru telefon + doğru durum ya da randevu.** Bunlar tamamsa
+mesaj sizin ek bir işlem yapmanıza gerek kalmadan gider — hastanın size yazmış
+olması gerekmez. Siz aynı mesajı elle tekrar **göndermeyin**; her mesaj bir kez
+gider.
 
-Özetle: **kayıt + doğru telefon + doğru türde randevu + açık pencere.** Bu
-dördü tamamsa mesaj sizin ek bir işlem yapmanıza gerek kalmadan gider. Siz
-aynı mesajı elle tekrar **göndermeyin**; her mesaj bir kez gider.
+> **Yanlışlıkla taşıdıysanız:** Bir hastayı yanlışlıkla **Ameliyat edildi**'ye
+> sürüklerseniz, o gün **16:00'dan önce** hastayı eski durumuna geri alın; mesaj
+> iptal edilir. 16:00'dan sonra fark ederseniz mesaj çoktan gitmiş olur.
 
 > **Dikkat:** Bir hastaya otomatik mesaj gitmediğini fark ederseniz önce şunları
 > kontrol edin: Telefonu doğru mu? Takvimde gerçek bir randevusu var mı?
-> Randevunun türü doğru mu? Randevu iptal edilmiş mi? Hasta son 24 saatte yazmış
-> mı? Bunlar tamamsa ve mesaj yine de gitmediyse yöneticinize bildirin.
+> Randevunun türü doğru mu? Randevu iptal edilmiş mi? Bunlar tamamsa ve mesaj
+> yine de gitmediyse yöneticinize bildirin.
 
 ---
 

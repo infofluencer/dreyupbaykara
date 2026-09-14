@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { UserPlus } from "lucide-react";
 import { LeadPipelineBoard } from "@/components/admin/LeadPipelineBoard";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -45,14 +47,23 @@ export default async function AdminPipelinePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-instrument-sans)] text-xl font-semibold tracking-tight sm:text-2xl">
-          Durum Panosu
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-[#466254]">
-          Hastanın hangi aşamada olduğunun genel görünümü. Günlük iş WhatsApp
-          üzerinden yürür.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-[family-name:var(--font-instrument-sans)] text-xl font-semibold tracking-tight sm:text-2xl">
+            Durum Panosu
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-[#466254]">
+            Hastanın hangi aşamada olduğunun genel görünümü. Günlük iş WhatsApp
+            üzerinden yürür.
+          </p>
+        </div>
+        <Link
+          href="/admin/patients/new"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#0b6b45] px-5 text-sm font-semibold text-white sm:w-auto sm:min-h-10"
+        >
+          <UserPlus className="h-4 w-4 shrink-0" aria-hidden />
+          Yeni hasta
+        </Link>
       </div>
       <LeadPipelineBoard leads={leads} />
     </div>

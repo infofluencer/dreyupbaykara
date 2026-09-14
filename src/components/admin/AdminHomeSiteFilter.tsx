@@ -29,7 +29,7 @@ export function AdminHomeSiteFilter({
       <select
         value={currentSite ?? ""}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-10 rounded-xl border border-[#123524]/12 bg-white px-3 text-sm text-[#123524] outline-none focus:border-[#0b6b45]/40"
+        className="min-h-11 w-full max-w-full truncate rounded-xl border border-[#123524]/12 bg-white px-3 text-sm text-[#123524] outline-none focus:border-[#0b6b45]/40 sm:w-auto"
       >
         <option value="">Tüm siteler</option>
         {siteOptions.map((site) => (

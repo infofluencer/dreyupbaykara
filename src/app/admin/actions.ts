@@ -38,6 +38,12 @@ import {
   advanceLeadForFinishedAppointment,
   leadStatusForBookedAppointment,
 } from "@/lib/crm/appointment-pipeline";
+import {
+  findFreeAppointmentSlot,
+  IMPLIED_APPOINTMENT_MS,
+  toOccupiedRange,
+} from "@/lib/crm/surgery-backfill";
+import { istanbulDayBoundsUtc } from "@/lib/whatsapp/automation-timing";
 import type { LeadStage } from "@/types/crm";
 
 function revalidateMessages(conversationId?: string) {
@@ -808,7 +814,82 @@ export async function setLeadStatus(
 
   const { error } = await supabase.from("leads").update(patch).eq("id", leadId);
   if (error) throw new Error(error.message);
+
+  if (status === "ameliyat_edildi") {
+    await backfillSurgeryAppointment(supabase, leadId);
+  }
+
   revalidatePipeline(leadId, leadRow?.contact_id);
+}
+
+/**
+ * Elle "Ameliyat edildi"ye taşınan hastada ameliyat randevusu yoksa oluşturur.
+ *
+ * Ameliyat sonrası mesajlar randevuya bağlıdır (bkz. surgery-backfill.ts).
+ * Randevu zaten varsa — geçmiş ya da aynı gün ileri saatli — dokunulmaz.
+ * Başarısız olursa durum değişikliği geri alınmaz; yalnızca loglanır.
+ */
+async function backfillSurgeryAppointment(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  leadId: string,
+) {
+  const now = new Date();
+  const { from, to } = istanbulDayBoundsUtc(now);
+
+  const { data: existing, error: existingError } = await supabase
+    .from("appointments")
+    .select("id")
+    .eq("lead_id", leadId)
+    .eq("appointment_type", "procedure")
+    .neq("status", "cancelled")
+    .lte("starts_at", to.toISOString())
+    .limit(1);
+
+  if (existingError) {
+    console.error("[surgery-backfill] randevu sorgusu", existingError.message);
+    return;
+  }
+  if (existing?.length) return;
+
+  // Çakışma engeli (appointments_no_overlap) için günün dolu aralıkları
+  const { data: dayRows } = await supabase
+    .from("appointments")
+    .select("starts_at, ends_at")
+    .neq("status", "cancelled")
+    .gte("starts_at", from.toISOString())
+    .lte("starts_at", to.toISOString());
+
+  const slotMs = findFreeAppointmentSlot({
+    occupied: (dayRows ?? []).map(toOccupiedRange),
+    preferredMs: now.getTime(),
+    dayStartMs: from.getTime(),
+    dayEndMs: to.getTime(),
+  });
+
+  if (slotMs === null) {
+    console.error("[surgery-backfill] günde boş slot yok", { leadId });
+    return;
+  }
+
+  const startsAt = new Date(slotMs).toISOString();
+  const endsAt = new Date(slotMs + IMPLIED_APPOINTMENT_MS).toISOString();
+
+  const { error: insertError } = await supabase.from("appointments").insert({
+    lead_id: leadId,
+    title: titleFromType("procedure"),
+    starts_at: startsAt,
+    ends_at: endsAt,
+    status: "completed",
+    appointment_type: "procedure",
+    notes: "Durum Panosu'nda Ameliyat edildi seçilince otomatik oluşturuldu.",
+  });
+
+  if (insertError) {
+    console.error("[surgery-backfill] randevu eklenemedi", {
+      leadId,
+      error: insertError.message,
+    });
+  }
 }
 
 /** FormData sarmalayıcı — setLeadStatus. */

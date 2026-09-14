@@ -57,6 +57,11 @@ import {
   matchesNameOrPhone,
   nationalPhoneDigits,
 } from "@/lib/whatsapp/phone";
+import {
+  fetchNewerThreadMessages,
+  fetchOlderThreadMessages,
+  fetchThreadMessages,
+} from "@/lib/whatsapp/thread-history";
 
 const LeadStatusControl = dynamic(
   () =>
@@ -115,9 +120,6 @@ const FILTERS: Array<{ id: FilterKey; label: string }> = [
   { id: "awaiting", label: "Yanıt bekleyen" },
 ];
 
-const MESSAGE_SELECT =
-  "id, direction, body, status, automated, created_at, media_type, media_url, source";
-
 function mapInboxMessage(row: Record<string, unknown>): InboxMessage {
   return {
     id: String(row.id),
@@ -142,6 +144,39 @@ function sortMessages(rows: InboxMessage[]): InboxMessage[] {
   return [...rows].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
+}
+
+/**
+ * Sunucudan gelen satırları listeye kat. Aynı id'yi tazeler (durum güncellemesi)
+ * ve gönderilirken eklenen iyimser kopyayı gerçek satırla değiştirir.
+ */
+function mergeServerMessages(
+  prev: InboxMessage[],
+  incoming: InboxMessage[],
+): InboxMessage[] {
+  if (!incoming.length) return prev;
+
+  // Yoklama çoğu turda aynı satırları getirir. Değişen bir şey yoksa aynı
+  // diziyi döndür: gereksiz render ve otomatik en-alta kaydırma olmasın.
+  const byId = new Map(prev.map((row) => [row.id, row]));
+  const unchanged = incoming.every((row) => {
+    const existing = byId.get(row.id);
+    return (
+      existing && existing.status === row.status && existing.body === row.body
+    );
+  });
+  if (unchanged) return prev;
+
+  const incomingIds = new Set(incoming.map((row) => row.id));
+  const kept = prev.filter((existing) => {
+    if (incomingIds.has(existing.id)) return false;
+    if (!existing.id.startsWith("local_")) return true;
+    if (existing.direction !== "outbound") return true;
+    return !incoming.some(
+      (row) => row.direction === "outbound" && row.body === existing.body,
+    );
+  });
+  return sortMessages([...kept, ...incoming]);
 }
 
 const CONVERSATION_SELECT = `
@@ -227,11 +262,13 @@ export function MessagesInbox({
   conversations: initialConversations,
   selectedId: initialSelectedId,
   messages: initialMessages,
+  hasOlderMessages: initialHasOlder = false,
   apiEnabled,
 }: {
   conversations: InboxConversation[];
   selectedId: string | null;
   messages: InboxMessage[];
+  hasOlderMessages?: boolean;
   apiEnabled: boolean;
 }) {
   const router = useRouter();
@@ -242,6 +279,8 @@ export function MessagesInbox({
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [conversations, setConversations] = useState(initialConversations);
   const [messages, setMessages] = useState(initialMessages);
+  const [hasOlder, setHasOlder] = useState(initialHasOlder);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -251,6 +290,8 @@ export function MessagesInbox({
   const [sendingQuickId, setSendingQuickId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const threadRef = useRef<HTMLDivElement>(null);
+  /** "Daha eski mesajlar" sonrası otomatik en-alta kaydırmayı bir tur atla. */
+  const skipAutoScrollRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
@@ -290,15 +331,11 @@ export function MessagesInbox({
   const windowOpen = isWithin24hFromMessages(messages);
 
   const fetchMessages = useCallback(async (conversationId: string) => {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("messages")
-      .select(MESSAGE_SELECT)
-      .eq("conversation_id", conversationId)
-      .order("created_at")
-      .limit(500);
-    if (error) throw error;
-    return sortMessages((data ?? []).map((row) => mapInboxMessage(row)));
+    const page = await fetchThreadMessages(createClient(), conversationId);
+    return {
+      rows: sortMessages(page.rows.map((row) => mapInboxMessage(row))),
+      hasOlder: page.hasOlder,
+    };
   }, []);
 
   const fetchConversations = useCallback(async () => {
@@ -316,7 +353,7 @@ export function MessagesInbox({
           .filter((row) => row.pipelineLead)
           .map((row) => [row.contact_id, row.pipelineLead] as const),
       );
-      return (data ?? []).map((row) => {
+      const next = (data ?? []).map((row) => {
         const previous = prev.find((item) => item.id === String(row.id));
         const mapped = mapConversation(
           row as Record<string, unknown>,
@@ -327,10 +364,56 @@ export function MessagesInbox({
           ? { ...mapped, pipelineLead: preserved }
           : mapped;
       });
+
+      // Açık sohbet son 150'ye girmiyorsa (eski bir hasta) listeden düşürme;
+      // yoksa okurken başlık ve gönderme alanı kayboluyor.
+      const openId = selectedIdRef.current;
+      if (openId && !next.some((row) => row.id === openId)) {
+        const pinned = prev.find((row) => row.id === openId);
+        if (pinned) next.unshift(pinned);
+      }
+      return next;
     });
   }, []);
   const fetchConversationsRef = useRef(fetchConversations);
   fetchConversationsRef.current = fetchConversations;
+
+  /**
+   * Realtime her mesajda tetikleniyor; yoğun saatte saniyede birkaç kez 150
+   * konuşmayı join'leriyle yeniden çekmek yerine 1 saniyede bir topla.
+   */
+  const conversationsRefreshTimerRef = useRef<number | null>(null);
+  const scheduleConversationsRefresh = useCallback(() => {
+    if (conversationsRefreshTimerRef.current !== null) return;
+    conversationsRefreshTimerRef.current = window.setTimeout(() => {
+      conversationsRefreshTimerRef.current = null;
+      void fetchConversationsRef.current().catch((error: Error) => {
+        console.error("[inbox] conversations refresh:", error);
+      });
+    }, 1_000);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (conversationsRefreshTimerRef.current !== null) {
+        window.clearTimeout(conversationsRefreshTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  /** Artımlı yoklamanın başlangıcı: sunucuda var olan en yeni mesaj. */
+  const newestPersistedAt = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const row = messages[index];
+      if (row && !row.id.startsWith("local_")) return row.created_at;
+    }
+    return null;
+  }, [messages]);
+  const newestPersistedAtRef = useRef<string | null>(null);
+  useEffect(() => {
+    newestPersistedAtRef.current = newestPersistedAt;
+  }, [newestPersistedAt]);
 
   useEffect(() => {
     const q = query.trim();
@@ -402,9 +485,12 @@ export function MessagesInbox({
       router.replace(`/admin/messages?c=${id}`, { scroll: false });
 
       setLoadingMessages(true);
+      setHasOlder(false);
       void fetchMessages(id)
-        .then((rows) => {
-          if (selectedIdRef.current === id) setMessages(rows);
+        .then((page) => {
+          if (selectedIdRef.current !== id) return;
+          setMessages(page.rows);
+          setHasOlder(page.hasOlder);
         })
         .catch((error: Error) => {
           console.error("[inbox] messages:", error);
@@ -434,6 +520,7 @@ export function MessagesInbox({
     setSelectedId(null);
     appliedServerMessagesForRef.current = null;
     setMessages([]);
+    setHasOlder(false);
     router.replace("/admin/messages", { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -447,12 +534,16 @@ export function MessagesInbox({
     if (initialSelectedId === appliedServerMessagesForRef.current) return;
     if (!initialSelectedId) {
       appliedServerMessagesForRef.current = null;
-      if (!selectedIdRef.current) setMessages([]);
+      if (!selectedIdRef.current) {
+        setMessages([]);
+        setHasOlder(false);
+      }
       return;
     }
     appliedServerMessagesForRef.current = initialSelectedId;
     setMessages(initialMessages);
-  }, [initialSelectedId, initialMessages]);
+    setHasOlder(initialHasOlder);
+  }, [initialSelectedId, initialMessages, initialHasOlder]);
 
   useEffect(() => {
     if (skipNextUrlSyncRef.current) {
@@ -467,6 +558,7 @@ export function MessagesInbox({
     setSelectedId(null);
     appliedServerMessagesForRef.current = null;
     setMessages([]);
+    setHasOlder(false);
     // Sync from URL only when the server-provided id changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSelectedId]);
@@ -474,8 +566,50 @@ export function MessagesInbox({
   useEffect(() => {
     const el = threadRef.current;
     if (!el) return;
+    // Geçmiş yüklenirken en alta atlama; kullanıcı yukarıda okuyor.
+    if (skipAutoScrollRef.current) {
+      skipAutoScrollRef.current = false;
+      return;
+    }
     el.scrollTop = el.scrollHeight;
   }, [messages, selectedId]);
+
+  const loadOlderMessages = useCallback(async () => {
+    const conversationId = selectedIdRef.current;
+    const oldest = messages[0];
+    if (!conversationId || !oldest || loadingOlder) return;
+
+    setLoadingOlder(true);
+    setLoadError(null);
+    const el = threadRef.current;
+    const previousHeight = el?.scrollHeight ?? 0;
+    const previousTop = el?.scrollTop ?? 0;
+
+    try {
+      const page = await fetchOlderThreadMessages(
+        createClient(),
+        conversationId,
+        oldest.created_at,
+      );
+      if (selectedIdRef.current !== conversationId) return;
+      skipAutoScrollRef.current = true;
+      setMessages((prev) =>
+        sortMessages([...page.rows.map((row) => mapInboxMessage(row)), ...prev]),
+      );
+      setHasOlder(page.hasOlder);
+      // Eklenen yükseklik kadar aşağı kaydır: okunan yer yerinde kalsın.
+      window.requestAnimationFrame(() => {
+        const node = threadRef.current;
+        if (!node) return;
+        node.scrollTop = previousTop + (node.scrollHeight - previousHeight);
+      });
+    } catch (error) {
+      console.error("[inbox] older messages:", error);
+      setLoadError("Eski mesajlar yüklenemedi.");
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [messages, loadingOlder]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -485,21 +619,7 @@ export function MessagesInbox({
       if (!conversationId || !row.id) return;
       if (selectedIdRef.current !== conversationId) return;
       const incoming = mapInboxMessage(row);
-      setMessages((rows) => {
-        const withoutOptimistic = rows.filter((existing) => {
-          if (existing.id === incoming.id) return false;
-          if (
-            existing.id.startsWith("local_") &&
-            existing.direction === "outbound" &&
-            incoming.direction === "outbound" &&
-            existing.body === incoming.body
-          ) {
-            return false;
-          }
-          return true;
-        });
-        return sortMessages([...withoutOptimistic, incoming]);
-      });
+      setMessages((rows) => mergeServerMessages(rows, [incoming]));
     };
 
     const conversationChannel = supabase
@@ -517,7 +637,7 @@ export function MessagesInbox({
                 const previous = prev.find((item) => item.id === id);
                 // Realtime payload has no joins — only patch list fields, then refetch.
                 if (!previous) {
-                  void fetchConversationsRef.current().catch(() => {});
+                  scheduleConversationsRefresh();
                   return prev;
                 }
                 const mapped = mapConversation(row, previous);
@@ -536,9 +656,7 @@ export function MessagesInbox({
               });
             }
           }
-          void fetchConversationsRef.current().catch((error: Error) => {
-            console.error("[inbox] realtime conversations:", error);
-          });
+          scheduleConversationsRefresh();
         },
       )
       .subscribe((status, err) => {
@@ -562,9 +680,7 @@ export function MessagesInbox({
           const row = payload.new as Record<string, unknown> | null;
           if (!row?.id) return;
           mergeMessage(row);
-          void fetchConversationsRef.current().catch((error: Error) => {
-            console.error("[inbox] realtime conversations:", error);
-          });
+          scheduleConversationsRefresh();
         },
       )
       .subscribe((status, err) => {
@@ -574,9 +690,7 @@ export function MessagesInbox({
     const onBridgeRefresh = (event: Event) => {
       const detail = (event as CustomEvent<WaInboxRefreshDetail>).detail;
       if (!detail?.conversationId) return;
-      void fetchConversationsRef.current().catch((error: Error) => {
-        console.error("[inbox] bridge conversations:", error);
-      });
+      scheduleConversationsRefresh();
       if (selectedIdRef.current !== detail.conversationId) return;
       if (detail.message?.id) {
         mergeMessage({
@@ -587,10 +701,10 @@ export function MessagesInbox({
         });
       } else {
         void fetchMessages(detail.conversationId)
-          .then((rows) => {
-            if (selectedIdRef.current === detail.conversationId) {
-              setMessages(rows);
-            }
+          .then((page) => {
+            if (selectedIdRef.current !== detail.conversationId) return;
+            setMessages(page.rows);
+            setHasOlder(page.hasOlder);
           })
           .catch((error: Error) => {
             console.error("[inbox] bridge messages:", error);
@@ -609,46 +723,43 @@ export function MessagesInbox({
   }, []);
 
   useEffect(() => {
-    // Keep selected thread in sync if bridge/realtime missed a row.
+    // Realtime ya da köprü bir satırı kaçırırsa açık sohbeti tazele.
+    // Her turda tüm geçmişi indirmek yerine yalnızca yeni satırları iste;
+    // dörtte bir turda (dakikada bir) tam tazeleme yapıp ileti durumlarını
+    // (iletildi/okundu) ve sunucuda silinenleri de yakala.
     if (!selectedId) return;
     const conversationId = selectedId;
+    let tick = 0;
+
     const timer = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       if (selectedIdRef.current !== conversationId) return;
-      void fetchMessages(conversationId)
+
+      tick += 1;
+      const since = newestPersistedAtRef.current;
+      const full = tick % 4 === 0 || !since;
+
+      if (full) {
+        void fetchMessages(conversationId)
+          .then((page) => {
+            if (selectedIdRef.current !== conversationId) return;
+            setMessages((prev) => mergeServerMessages(prev, page.rows));
+            setHasOlder(page.hasOlder);
+          })
+          .catch(() => {});
+        return;
+      }
+
+      void fetchNewerThreadMessages(createClient(), conversationId, since)
         .then((rows) => {
+          if (!rows.length) return;
           if (selectedIdRef.current !== conversationId) return;
-          setMessages((prev) => {
-            const pendingLocal = prev.filter(
-              (row) =>
-                row.id.startsWith("local_") &&
-                (row.status === "pending" || row.status === "failed"),
-            );
-            const merged = [...rows];
-            for (const local of pendingLocal) {
-              const already = merged.some(
-                (row) =>
-                  row.direction === "outbound" &&
-                  row.body === local.body &&
-                  Math.abs(
-                    new Date(row.created_at).getTime() -
-                      new Date(local.created_at).getTime(),
-                  ) < 120_000,
-              );
-              if (!already) merged.push(local);
-            }
-            if (
-              pendingLocal.length === 0 &&
-              prev.length === rows.length &&
-              prev[prev.length - 1]?.id === rows[rows.length - 1]?.id
-            ) {
-              return prev;
-            }
-            return sortMessages(merged);
-          });
+          const mapped = rows.map((row) => mapInboxMessage(row));
+          setMessages((prev) => mergeServerMessages(prev, mapped));
         })
         .catch(() => {});
     }, 15_000);
+
     return () => window.clearInterval(timer);
   }, [selectedId, fetchMessages]);
 
@@ -1161,7 +1272,34 @@ export function MessagesInbox({
                   Mesaj yok.
                 </p>
               ) : (
-                messages.map((message, index) => {
+                <>
+                  <div className="flex justify-center pb-2">
+                    {hasOlder ? (
+                      <button
+                        type="button"
+                        onClick={() => void loadOlderMessages()}
+                        disabled={loadingOlder}
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[#123524]/12 bg-white/80 px-4 text-xs font-semibold text-[#0b6b45] disabled:opacity-60"
+                      >
+                        {loadingOlder ? (
+                          <>
+                            <Loader2
+                              className="h-3.5 w-3.5 animate-spin"
+                              aria-hidden
+                            />
+                            Yükleniyor…
+                          </>
+                        ) : (
+                          "Daha eski mesajlar"
+                        )}
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-[#466254]">
+                        Sohbetin başı
+                      </span>
+                    )}
+                  </div>
+                  {messages.map((message, index) => {
                   const prev = messages[index - 1];
                   const showDay =
                     !prev || dayKey(prev.created_at) !== dayKey(message.created_at);
@@ -1199,7 +1337,8 @@ export function MessagesInbox({
                       </div>
                     </div>
                   );
-                })
+                  })}
+                </>
               )}
             </div>
 

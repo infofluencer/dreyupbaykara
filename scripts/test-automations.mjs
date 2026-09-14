@@ -31,6 +31,10 @@ import {
   leadStatusAfterAppointmentEnds,
   leadStatusForBookedAppointment,
 } from "../src/lib/crm/appointment-pipeline.ts";
+import {
+  findFreeAppointmentSlot,
+  toOccupiedRange,
+} from "../src/lib/crm/surgery-backfill.ts";
 
 const WITH_DB = process.argv.includes("--db");
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -256,6 +260,48 @@ console.log("\n=== Otomasyon zamanlama (unit) ===\n");
   expect(
     "status_day: ertesi gün due değil",
     !isPostStatusSendDue(changedMorning, "16:00", nextDay),
+  );
+}
+
+{
+  console.log("\n=== Ameliyat randevusu geri doldurma ===\n");
+  const dayStartMs = istanbulAt("2026-09-14T00:00:00").getTime();
+  const dayEndMs = istanbulAt("2026-09-14T23:59:59.999").getTime();
+  const at = (hm) => istanbulAt(`2026-09-14T${hm}:00`).getTime();
+  const slot = (occupied, hm) =>
+    findFreeAppointmentSlot({
+      occupied,
+      preferredMs: at(hm),
+      dayStartMs,
+      dayEndMs,
+    });
+
+  expect(
+    "boş gün: taşınma saati yarım saatlik ızgaraya hizalanır (13:35 → 13:30)",
+    slot([], "13:35") === at("13:30"),
+  );
+  expect(
+    "dolu slot: yarım saat geriye kayar",
+    slot([{ startMs: at("13:30"), endMs: at("14:00") }], "13:35") === at("13:00"),
+  );
+  expect(
+    "uzun randevu: bloğun tamamını atlar",
+    slot([{ startMs: at("12:30"), endMs: at("14:00") }], "13:35") === at("12:00"),
+  );
+  expect(
+    "gün başı doluysa ileriye arar",
+    slot([{ startMs: dayStartMs, endMs: at("14:00") }], "13:35") === at("14:00"),
+  );
+  expect(
+    "gün tamamen doluysa null",
+    slot([{ startMs: dayStartMs, endMs: dayEndMs }], "13:35") === null,
+  );
+  expect(
+    "ends_at boş randevu 30 dk sayılır (çakışma engeliyle aynı kural)",
+    toOccupiedRange({
+      starts_at: new Date(at("10:00")).toISOString(),
+      ends_at: null,
+    }).endMs === at("10:30"),
   );
 }
 

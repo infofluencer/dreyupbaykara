@@ -13,10 +13,7 @@ import {
   type LeadPipelineStatus,
 } from "@/lib/crm/lead-status";
 import { formatDateTimeTr } from "@/lib/date/tr";
-import {
-  automationSampleBody,
-  WA_AUTOMATION_TEMPLATE_SPECS,
-} from "@/lib/whatsapp/automation-templates";
+import { automationSampleBody } from "@/lib/whatsapp/automation-templates";
 import { createClient } from "@/lib/supabase/server";
 
 const input =
@@ -94,9 +91,9 @@ export default async function AutomationsPage() {
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#466254]">
           Toplam 4 otomatik mesaj: randevudan 1 gün önce, 1 saat önce, ameliyat
           günü saat 16:00 bilgilendirme ve ardından Google Maps yorum isteği.
-          Cron her 15 dakikada uygun hastaları bulur; serbest mesaj penceresi
-          açıksa normal metin olarak gönderir. Pencere kapalıysa mesaj
-          gitmez (sonraki turda tekrar dener).
+          Cron her 15 dakikada uygun hastaları bulur ve Meta’da onaylı şablonla
+          gönderir. Şablon kullanıldığı için hastanın önceden yazmış olması
+          gerekmez.
         </p>
       </div>
 
@@ -106,8 +103,8 @@ export default async function AutomationsPage() {
         <div>
           <h2 className="text-lg font-semibold">Kurallar</h2>
           <p className="mt-1 text-sm text-[#466254]">
-            Her kural kapalıysa mesaj gitmez. Açmak için hastanın son 24 saatte
-            yazmış olması (serbest pencere) ve KVKK rızası gerekir.
+            Her kural kapalıysa mesaj gitmez. Açmak için şablonun Meta’da onaylı
+            olması ve KVKK rızası gerekir.
             {!canEdit ? (
               <span className="mt-1 block text-xs">
                 Ayarları yalnızca admin değiştirebilir; bu ekran bilgilendirme
@@ -124,22 +121,25 @@ export default async function AutomationsPage() {
       {canEdit ? (
         <section className="rounded-2xl border border-[#123524]/10 bg-[#f7faf8] p-5 sm:p-6">
           <h2 className="text-sm font-semibold text-[#123524]">
-            Gönderim notu — serbest metin
+            Gönderim notu — Meta şablonu
           </h2>
           <ul className="mt-3 space-y-2 text-sm text-[#466254]">
-            {WA_AUTOMATION_TEMPLATE_SPECS.map((spec) => (
-              <li key={spec.key}>
-                <code className="text-xs text-[#0b6b45]">{spec.key}</code>
+            {ruleList.map((rule) => (
+              <li key={rule.key}>
+                <code className="text-xs text-[#0b6b45]">{rule.key}</code>
                 {" — "}
-                {spec.bodyParams.length === 0
-                  ? "sabit metin"
-                  : `değişkenler: ad, tarih, saat`}
+                <code className="text-xs">{rule.template_name}</code>
+                {` (${rule.language || "tr"}) · `}
+                {rule.include_body_params
+                  ? "değişkenler: ad, tarih, saat"
+                  : "değişken yok"}
               </li>
             ))}
           </ul>
           <p className="mt-3 text-xs leading-5 text-[#466254]">
-            Meta şablon onayı gerekmez. Hasta son 24 saatte yazmadıysa API
-            reddeder; sistem bunu önceden kontrol edip sessizce atlar.
+            Şablon adı, dil kodu ve değişken sayısı Meta’daki onaylı şablonla
+            birebir aynı olmalı. Uyuşmazsa gönderim başarısız olur ve sebebi
+            aşağıdaki gönderim kayıtlarına yazılır.
           </p>
         </section>
       ) : null}
@@ -404,7 +404,7 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
       {sample ? (
         <blockquote className="rounded-xl bg-[#f7faf8] px-4 py-3 text-sm leading-6 text-[#466254]">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#0b6b45]">
-            Örnek mesaj
+            Şablon metni — Meta’daki onaylı içeriğin karşılığı
           </p>
           <p className="whitespace-pre-wrap">{sample}</p>
         </blockquote>
@@ -436,7 +436,8 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
                     className={input}
                   />
                   <span className="mt-1 block text-xs font-normal text-[#466254]">
-                    Gönderim kaydında görünür; Meta şablon adı değil.
+                    Meta’daki onaylı şablon adıyla birebir aynı olmalı; yanlışsa
+                    mesaj gitmez.
                   </span>
                 </label>
                 <label className="block text-sm font-medium">
@@ -483,7 +484,8 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
                   name="include_body_params"
                   defaultChecked={rule.include_body_params !== false}
                 />
-                Mesaj metninde ad / tarih / saat kullan (kayıt alanı)
+                Şablona ad / tarih / saat değişkenlerini gönder ({"{{1}}"} ·{" "}
+                {"{{2}}"} · {"{{3}}"})
               </label>
             </div>
           </details>

@@ -4,6 +4,33 @@ import { requireAdminSession } from "@/lib/admin/auth";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import { pickDisplayLead } from "@/lib/crm/lead-status";
 import { createClient } from "@/lib/supabase/server";
+import { fetchThreadMessages } from "@/lib/whatsapp/thread-history";
+
+const CONVERSATION_SELECT = `
+  id,
+  wa_phone,
+  contact_name,
+  status,
+  last_message_at,
+  last_message_preview,
+  last_message_direction,
+  unread_count,
+  assigned_to,
+  lead_id,
+  contact_id,
+  patient_id,
+  leads (
+    id,
+    utm_source,
+    utm_campaign,
+    gclid,
+    channel,
+    site
+  )
+`;
+
+/** Soldaki liste: en son yazışılan konuşmalar. */
+const CONVERSATION_LIST_LIMIT = 150;
 
 export default async function AdminMessagesPage({
   searchParams,
@@ -15,44 +42,25 @@ export default async function AdminMessagesPage({
   const supabase = await createClient();
 
   if (query.lead && !query.c) {
+    // Bir talebin birden fazla konuşması olabilir; maybeSingle() bu durumda
+    // hata verip hastayı sohbetsiz bırakıyordu. En son yazışılanı aç.
     const { data } = await supabase
       .from("conversations")
       .select("id")
       .eq("lead_id", query.lead)
-      .maybeSingle();
-    if (data) redirect(`/admin/messages?c=${data.id}`);
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .limit(1);
+    const conversationId = data?.[0]?.id;
+    if (conversationId) redirect(`/admin/messages?c=${conversationId}`);
   }
 
   const selectedId = query.c ?? null;
 
   const { data: conversations, error } = await supabase
     .from("conversations")
-    .select(
-      `
-        id,
-        wa_phone,
-        contact_name,
-        status,
-        last_message_at,
-        last_message_preview,
-        last_message_direction,
-        unread_count,
-        assigned_to,
-        lead_id,
-        contact_id,
-        patient_id,
-        leads (
-          id,
-          utm_source,
-          utm_campaign,
-          gclid,
-          channel,
-          site
-        )
-      `,
-    )
+    .select(CONVERSATION_SELECT)
     .order("last_message_at", { ascending: false, nullsFirst: false })
-    .limit(150);
+    .limit(CONVERSATION_LIST_LIMIT);
 
   if (error) {
     return (
@@ -65,9 +73,24 @@ export default async function AdminMessagesPage({
     );
   }
 
+  // Açılmak istenen sohbet son 150'ye girmiyorsa (eski bir hasta) tek tek
+  // getir. Aksi halde liste dışı kalıyor ve panel gelen kutusuna atıyordu.
+  let conversationRows = conversations ?? [];
+  if (
+    selectedId &&
+    !conversationRows.some((row) => String(row.id) === selectedId)
+  ) {
+    const { data: pinned } = await supabase
+      .from("conversations")
+      .select(CONVERSATION_SELECT)
+      .eq("id", selectedId)
+      .maybeSingle();
+    if (pinned) conversationRows = [pinned, ...conversationRows];
+  }
+
   const contactIds = [
     ...new Set(
-      (conversations ?? [])
+      conversationRows
         .map((row) => row.contact_id)
         .filter((id): id is string => Boolean(id)),
     ),
@@ -87,21 +110,8 @@ export default async function AdminMessagesPage({
   const emptyContacts = Promise.resolve({
     data: [] as Array<{ id: string; is_patient: boolean | null }>,
   });
-  const emptyMessages = Promise.resolve({
-    data: [] as Array<{
-      id: string;
-      direction: string;
-      body: string | null;
-      status: string;
-      automated: boolean | null;
-      created_at: string;
-      media_type: string | null;
-      media_url: string | null;
-      source: string | null;
-    }>,
-  });
 
-  const [{ data: contactLeads }, { data: contactRows }, { data: messageRows }] =
+  const [{ data: contactLeads }, { data: contactRows }, thread] =
     await Promise.all([
       contactIds.length
         ? supabase
@@ -120,15 +130,8 @@ export default async function AdminMessagesPage({
             .in("id", contactIds)
         : emptyContacts,
       selectedId
-        ? supabase
-            .from("messages")
-            .select(
-              "id, direction, body, status, automated, created_at, media_type, media_url, source",
-            )
-            .eq("conversation_id", selectedId)
-            .order("created_at")
-            .limit(500)
-        : emptyMessages,
+        ? fetchThreadMessages(supabase, selectedId)
+        : Promise.resolve({ rows: [], hasOlder: false }),
     ]);
 
   const isPatientByContact = new Map(
@@ -142,7 +145,7 @@ export default async function AdminMessagesPage({
     leadsByContact.set(lead.contact_id, list);
   }
 
-  const normalized = (conversations ?? []).map((row) => {
+  const normalized = conversationRows.map((row) => {
     const lead = Array.isArray(row.leads) ? row.leads[0] : row.leads;
     const active = pickDisplayLead(leadsByContact.get(row.contact_id) ?? []);
     return {
@@ -180,11 +183,12 @@ export default async function AdminMessagesPage({
     };
   });
 
+  // Buraya düşüyorsa id geçersiz ya da yetki dışı: gelen kutusuna dön.
   if (selectedId && !normalized.some((row) => row.id === selectedId)) {
     redirect("/admin/messages");
   }
 
-  const messages = (messageRows ?? []).map((message) => ({
+  const messages = thread.rows.map((message) => ({
     ...message,
     direction: message.direction as "inbound" | "outbound",
     source: message.source ?? null,
@@ -195,6 +199,7 @@ export default async function AdminMessagesPage({
       conversations={normalized}
       selectedId={selectedId}
       messages={messages}
+      hasOlderMessages={thread.hasOlder}
       apiEnabled={isWhatsAppEnabled()}
     />
   );

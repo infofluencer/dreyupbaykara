@@ -6,6 +6,7 @@ import {
 import {
   alreadyDispatched,
   alreadyDispatchedForRecipient,
+  buildTemplateBodyComponents,
   claimDispatch,
   isPhoneOptedOut,
   isPostStatusSendDue,
@@ -18,7 +19,7 @@ import {
   type AppointmentForAutomation,
   type MessageRule,
 } from "@/lib/whatsapp/automations";
-import { isWithin24hWindowForContact } from "@/lib/whatsapp/service-window";
+import type { WhatsAppTemplateComponent } from "@/lib/whatsapp/send-message";
 
 export type ReminderRunStats = {
   checked: number;
@@ -27,14 +28,30 @@ export type ReminderRunStats = {
   failures: string[];
 };
 
+export type AutomationOutbound = {
+  phone: string;
+  /** Meta'da onaylı şablon adı — message_rules.template_name. */
+  templateName: string;
+  language: string;
+  /** include_body_params açıkken {{1}} ad · {{2}} tarih · {{3}} saat. */
+  components?: WhatsAppTemplateComponent[];
+  /** Şablonun yerel karşılığı — gelen kutusu kaydında görünen metin. */
+  body: string;
+};
+
 export type ReminderRunDeps = {
-  /** WhatsApp gönderimi — testlerde stub'lanır. */
-  sendText: (phone: string, body: string) => Promise<{ messageId: string | null }>;
+  /** Şablon gönderimi — testlerde stub'lanır. */
+  sendTemplate: (
+    message: AutomationOutbound,
+  ) => Promise<{ messageId: string | null }>;
   now?: Date;
 };
 
 /**
- * Aktif kurallar için aday randevuları tarar ve mesajları gönderir.
+ * Aktif kurallar için aday randevuları tarar ve şablon mesajlarını gönderir.
+ *
+ * Şablon kullanıldığı için 24 saatlik serbest mesaj penceresi aranmaz; hasta
+ * hiç yazmamış olsa da mesaj gider.
  *
  * Mükerrer gönderim savunmaları (sırayla):
  *   1. alreadyDispatched        — aynı randevu+kural terminal/aktif mi
@@ -55,6 +72,12 @@ export async function runAutomationReminders(
   const failures: string[] = [];
 
   for (const rule of rules) {
+    const templateName = rule.template_name?.trim();
+    if (!templateName) {
+      failures.push(`${rule.key}: template_name boş`);
+      continue;
+    }
+
     let appointments: AppointmentForAutomation[];
     try {
       appointments = isSurgeryPostopRule(rule.key)
@@ -105,7 +128,7 @@ export async function runAutomationReminders(
             rule_key: rule.key,
             contact_id: appointment.contact?.id ?? null,
             phone: phone || null,
-            template_name: rule.template_name,
+            template_name: templateName,
             status: "skipped",
             error: "Telefon yok",
           },
@@ -122,7 +145,7 @@ export async function runAutomationReminders(
             rule_key: rule.key,
             contact_id: appointment.contact.id,
             phone,
-            template_name: rule.template_name,
+            template_name: templateName,
             status: "skipped",
             error: "Opt-out",
           },
@@ -132,25 +155,14 @@ export async function runAutomationReminders(
         continue;
       }
 
-      const windowOpen = await isWithin24hWindowForContact(
-        supabase,
-        appointment.contact.id,
-      );
-      if (!windowOpen) {
-        // Kalıcı skip yazma — pencere açılırsa due süresi içinde tekrar dene
-        skipped += 1;
-        continue;
-      }
-
-      const body = resolveAutomationMessageBody(
-        rule.key,
-        appointment.contact.name,
-        appointment.starts_at,
-      );
-      if (!body?.trim()) {
-        failures.push(`${rule.key}/${appointment.id}: mesaj metni yok`);
-        continue;
-      }
+      // Şablon içeriği Meta'da onaylı; buradaki metin yalnızca gelen kutusu
+      // kaydı için. Yerel karşılığı olmayan kural da gönderilebilir.
+      const body =
+        resolveAutomationMessageBody(
+          rule.key,
+          appointment.contact.name,
+          appointment.starts_at,
+        )?.trim() || `[Şablon: ${templateName}]`;
 
       // Aynı kişiye, aynı gün için bu kural zaten gittiyse tekrar gönderme
       if (
@@ -171,7 +183,7 @@ export async function runAutomationReminders(
         ruleKey: rule.key,
         contactId: appointment.contact.id,
         phone,
-        templateName: rule.template_name,
+        templateName,
       });
       if (!claimed) continue;
 
@@ -199,14 +211,28 @@ export async function runAutomationReminders(
         continue;
       }
 
+      const components = rule.include_body_params
+        ? buildTemplateBodyComponents(
+            appointment.contact.name,
+            appointment.starts_at,
+          )
+        : undefined;
+
       let waMessageId: string | null = null;
       try {
-        const response = await deps.sendText(phone, body);
+        const response = await deps.sendTemplate({
+          phone,
+          templateName,
+          language: rule.language || "tr",
+          components,
+          body,
+        });
         waMessageId = response.messageId;
 
-        console.info("[cron/reminders] text accepted", {
+        console.info("[cron/reminders] template accepted", {
           rule: rule.key,
           phone,
+          template: templateName,
           waMessageId,
         });
 
@@ -216,7 +242,7 @@ export async function runAutomationReminders(
           .update({
             contact_id: appointment.contact.id,
             phone,
-            template_name: rule.template_name,
+            template_name: templateName,
             wa_message_id: waMessageId,
             status: "sent",
             error: null,
@@ -273,7 +299,8 @@ export async function runAutomationReminders(
             raw_payload: {
               appointment_id: appointment.id,
               rule_key: rule.key,
-              channel: "text",
+              template_name: templateName,
+              channel: "template",
             },
           });
         }
@@ -291,7 +318,7 @@ export async function runAutomationReminders(
             .update({
               contact_id: appointment.contact.id,
               phone,
-              template_name: rule.template_name,
+              template_name: templateName,
               status: "failed",
               error: message,
               sent_at: new Date().toISOString(),

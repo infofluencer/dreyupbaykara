@@ -1,6 +1,7 @@
 import { appointmentEndIso } from "@/lib/crm/schedule";
 
 export const DURATION_OPTIONS = [
+  { minutes: 15, label: "15 dk" },
   { minutes: 30, label: "30 dk · kısa muayene / kontrol" },
   { minutes: 45, label: "45 dk" },
   { minutes: 60, label: "1 saat · muayene" },

@@ -10,8 +10,8 @@ export type ClinicSlot = {
 export function clinicSlots(): ClinicSlot[] {
   const slots: ClinicSlot[] = [];
   for (let hour = CLINIC_START_HOUR; hour <= CLINIC_END_HOUR; hour++) {
-    for (const minute of [0, 30] as const) {
-      if (hour === CLINIC_END_HOUR && minute === 30) continue;
+    for (const minute of [0, 15, 30, 45] as const) {
+      if (hour === CLINIC_END_HOUR && minute > 0) continue;
       slots.push({
         hour,
         minute,

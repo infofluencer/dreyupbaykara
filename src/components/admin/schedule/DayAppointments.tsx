@@ -148,38 +148,31 @@ function DayTimeline({
 
             {HOURS.slice(0, -1).map((hour) => {
               const hourTop = EDGE + y((hour - CLINIC_START_HOUR) * 60);
-              const slot = `${String(hour).padStart(2, "0")}:00`;
-              const halfSlot = `${String(hour).padStart(2, "0")}:30`;
               return (
                 <div key={`hits-${hour}`}>
-                  <Link
-                    href={planHref({
-                      view: "day",
-                      date,
-                      lead: selectedLeadId,
-                      stage,
-                      q: search,
-                      slot,
-                    })}
-                    className="absolute inset-x-0 z-0 transition-colors hover:bg-[#e7f5ed]/70"
-                    style={{ top: hourTop, height: UNIT_PX }}
-                    aria-label={`${slot} için randevu ekle`}
-                    title={`${slot} — randevu ekle`}
-                  />
-                  <Link
-                    href={planHref({
-                      view: "day",
-                      date,
-                      lead: selectedLeadId,
-                      stage,
-                      q: search,
-                      slot: halfSlot,
-                    })}
-                    className="absolute inset-x-0 z-0 transition-colors hover:bg-[#e7f5ed]/70"
-                    style={{ top: hourTop + UNIT_PX, height: UNIT_PX }}
-                    aria-label={`${halfSlot} için randevu ekle`}
-                    title={`${halfSlot} — randevu ekle`}
-                  />
+                  {([0, 15, 30, 45] as const).map((minute) => {
+                    const slot = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+                    return (
+                      <Link
+                        key={slot}
+                        href={planHref({
+                          view: "day",
+                          date,
+                          lead: selectedLeadId,
+                          stage,
+                          q: search,
+                          slot,
+                        })}
+                        className="absolute inset-x-0 z-0 transition-colors hover:bg-[#e7f5ed]/70"
+                        style={{
+                          top: hourTop + (minute / 30) * UNIT_PX,
+                          height: UNIT_PX / 2,
+                        }}
+                        aria-label={`${slot} için randevu ekle`}
+                        title={`${slot} — randevu ekle`}
+                      />
+                    );
+                  })}
                 </div>
               );
             })}

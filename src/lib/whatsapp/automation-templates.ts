@@ -1,5 +1,5 @@
 /**
- * Otomatik serbest (text) mesaj içerikleri.
+ * Meta şablonlarının yerel karşılıkları.
  *   appt_1d | appt_1h | surgery_day | surgery_google_review
  *
  * Dil: Turkish (tr)
@@ -9,7 +9,10 @@
  *
  * surgery_day / surgery_google_review — sabit metin (değişken yok).
  *
- * Gönderim yalnızca WhatsApp 24s serbest penceresi açıkken yapılır.
+ * Buradaki metinler GÖNDERİLMEZ; gerçek içerik Meta'daki onaylı şablondur.
+ * Bu metinler gelen kutusu kaydı ve panel önizlemesi için tutulur, dolayısıyla
+ * onaylı şablonla aynı kalmaları gerekir.
+ *
  * Kurallar varsayılan kapalıdır (KVKK / açık rıza).
  */
 

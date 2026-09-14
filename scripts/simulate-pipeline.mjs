@@ -153,8 +153,8 @@ function makeSender() {
   const outbox = [];
   return {
     outbox,
-    sendText: async (phone, body) => {
-      outbox.push({ phone, body });
+    sendTemplate: async ({ phone, templateName, language, components, body }) => {
+      outbox.push({ phone, templateName, language, components, body });
       return { messageId: `wamid-${outbox.length}` };
     },
   };
@@ -316,25 +316,26 @@ async function scenarioPostopTiming() {
 
   // 15:00 → henüz 16:00 olmadı
   const s1 = makeSender();
-  const r1 = await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "15:00"), sendText: s1.sendText });
+  const r1 = await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "15:00"), sendTemplate: s1.sendTemplate });
   eq("D2 15:00'te mesaj gitmez", s1.outbox.length, 0);
   eq("D3 15:00'te sent=0", r1.sent, 0);
 
   // 16:00 → gider
   const s2 = makeSender();
-  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:00"), sendText: s2.sendText });
+  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:00"), sendTemplate: s2.sendTemplate });
   eq("D4 16:00'da mesaj gider", s2.outbox.length, 1);
   check("D5 mesaj ameliyat bilgilendirme metni", /BİLGİLENDİRME/i.test(s2.outbox[0]?.body ?? ""), s2.outbox[0]?.body?.slice(0, 60));
+  eq("D5b include_body_params kapalıyken değişken gitmez", s2.outbox[0]?.components, undefined);
 
   // 16:15 ikinci cron → tekrar gitmez
   const s3 = makeSender();
-  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:15"), sendText: s3.sendText });
+  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:15"), sendTemplate: s3.sendTemplate });
   eq("D6 ikinci cron turunda tekrar gitmez", s3.outbox.length, 0);
 
   // 4 tur daha (kullanıcının yaşadığı 4-5 tekrar senaryosu)
   const s4 = makeSender();
   for (const hm of ["16:30", "17:00", "19:00", "22:00"]) {
-    await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, hm), sendText: s4.sendText });
+    await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, hm), sendTemplate: s4.sendTemplate });
   }
   eq("D7 gün boyu tekrar gönderim yok", s4.outbox.length, 0);
   eq("D8 toplam dispatch satırı 1", w.supabase.__db.message_dispatches.length, 1);
@@ -356,7 +357,7 @@ async function scenarioPostopAfterCutoff() {
   w.state.clock = ist(TODAY, "18:45");
   await advanceFinishedAppointments(w.supabase, ist(TODAY, "18:45"));
   const s = makeSender();
-  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "18:45"), sendText: s.sendText });
+  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "18:45"), sendTemplate: s.sendTemplate });
   eq("E1 16:00 sonrası biten ameliyat → hemen gider", s.outbox.length, 1);
 }
 
@@ -378,7 +379,7 @@ async function scenarioPostopStaleDay() {
   openWindow(w.supabase, "c-stale", "l-stale");
 
   const s = makeSender();
-  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:00"), sendText: s.sendText });
+  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:00"), sendTemplate: s.sendTemplate });
   eq("E2 dünkü geçiş bugün tetiklenmez", s.outbox.length, 0);
 }
 
@@ -406,8 +407,67 @@ async function scenarioControlBookedSameDay() {
   eq("F2 kontrol randevusu lead'i randevulu yapar", w.supabase.__db.leads[0].status, "randevulu");
 
   const s = makeSender();
-  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:00"), sendText: s.sendText });
+  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:00"), sendTemplate: s.sendTemplate });
   eq("F3 durum değişse de bilgilendirme mesajı gider", s.outbox.length, 1);
+}
+
+/** Yanlış sürükleme emniyeti: geri alınan lead mesaj almamalı. */
+async function scenarioRevertGuard() {
+  const surgery = (id) =>
+    appointment({ id: `a-${id}`, leadId: `l-${id}`, startsAt: ist(TODAY, "09:00"), endsAt: ist(TODAY, "11:00"), type: "procedure", status: "completed" });
+
+  // Ameliyat edildi'ye taşınıp hemen geri alındı → gitmemeli
+  const p1 = patient({ id: "rev", status: "ameliyat_olacak" });
+  const w1 = world({
+    contacts: [p1.contact],
+    leads: [p1.lead],
+    appointments: [surgery("rev")],
+    extra: {
+      lead_status_history: [
+        { id: "hr1", lead_id: "l-rev", from_status: "ameliyat_olacak", to_status: "ameliyat_edildi", created_at: ist(TODAY, "11:15").toISOString() },
+        { id: "hr2", lead_id: "l-rev", from_status: "ameliyat_edildi", to_status: "ameliyat_olacak", created_at: ist(TODAY, "11:20").toISOString() },
+      ],
+    },
+  });
+  const s1 = makeSender();
+  await runAutomationReminders(w1.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:00"), sendTemplate: s1.sendTemplate });
+  eq("K1 geri alınan lead mesaj almaz", s1.outbox.length, 0);
+  eq("K2 geri alınan lead için dispatch yazılmaz", w1.supabase.__db.message_dispatches.length, 0);
+
+  // Gün içinde ileri geri gidip son hâli ameliyat_edildi → gitmeli
+  const p2 = patient({ id: "flip", status: "ameliyat_edildi" });
+  const w2 = world({
+    contacts: [p2.contact],
+    leads: [p2.lead],
+    appointments: [surgery("flip")],
+    extra: {
+      lead_status_history: [
+        { id: "hf1", lead_id: "l-flip", from_status: "ameliyat_olacak", to_status: "ameliyat_edildi", created_at: ist(TODAY, "12:00").toISOString() },
+        { id: "hf2", lead_id: "l-flip", from_status: "ameliyat_edildi", to_status: "ameliyat_olacak", created_at: ist(TODAY, "12:05").toISOString() },
+        { id: "hf3", lead_id: "l-flip", from_status: "ameliyat_olacak", to_status: "ameliyat_edildi", created_at: ist(TODAY, "13:35").toISOString() },
+      ],
+    },
+  });
+  const s2 = makeSender();
+  await runAutomationReminders(w2.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:00"), sendTemplate: s2.sendTemplate });
+  eq("K3 son hâli ameliyat_edildi olan lead mesaj alır", s2.outbox.length, 1);
+
+  // Kontrol randevusuyla "randevulu"ya dönmek geri alma sayılmaz
+  const p3 = patient({ id: "ctrlback", status: "randevulu" });
+  const w3 = world({
+    contacts: [p3.contact],
+    leads: [p3.lead],
+    appointments: [surgery("ctrlback")],
+    extra: {
+      lead_status_history: [
+        { id: "hc1", lead_id: "l-ctrlback", from_status: "ameliyat_olacak", to_status: "ameliyat_edildi", created_at: ist(TODAY, "11:15").toISOString() },
+        { id: "hc2", lead_id: "l-ctrlback", from_status: "ameliyat_edildi", to_status: "randevulu", created_at: ist(TODAY, "11:30").toISOString() },
+      ],
+    },
+  });
+  const s3 = makeSender();
+  await runAutomationReminders(w3.supabase, [RULE_SURGERY_DAY], { now: ist(TODAY, "16:00"), sendTemplate: s3.sendTemplate });
+  eq("K4 kontrol randevusu yüzünden randevulu olan lead mesaj alır", s3.outbox.length, 1);
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -428,17 +488,17 @@ async function scenarioReminderDedup() {
 
   const s = makeSender();
   // Bugün: yarınki randevu için due
-  await runAutomationReminders(w.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendText: s.sendText });
+  await runAutomationReminders(w.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendTemplate: s.sendTemplate });
   eq("G1 yarınki randevu için hatırlatma", s.outbox.length, 1);
 
   // Aynı gün 4 tur daha → tekrar yok
   for (const hm of ["13:00", "16:00", "19:00", "22:00"]) {
-    await runAutomationReminders(w.supabase, [RULE_APPT_1D], { now: ist(TODAY, hm), sendText: s.sendText });
+    await runAutomationReminders(w.supabase, [RULE_APPT_1D], { now: ist(TODAY, hm), sendTemplate: s.sendTemplate });
   }
   eq("G2 aynı randevu için 3-4 saat arayla tekrar YOK", s.outbox.length, 1);
 
   // Ertesi gün: 2 gün sonraki (ameliyat) randevusu için due → gitmeli
-  await runAutomationReminders(w.supabase, [RULE_APPT_1D], { now: ist(TOMORROW, "10:00"), sendText: s.sendText });
+  await runAutomationReminders(w.supabase, [RULE_APPT_1D], { now: ist(TOMORROW, "10:00"), sendTemplate: s.sendTemplate });
   eq("G3 farklı gündeki ikinci randevu hatırlatması gider", s.outbox.length, 2);
 
   // Aynı güne çift kayıt → ikincisi engellenir
@@ -453,7 +513,7 @@ async function scenarioReminderDedup() {
   });
   openWindow(w2.supabase, "c-dup", "l-dup");
   const s2 = makeSender();
-  await runAutomationReminders(w2.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendText: s2.sendText });
+  await runAutomationReminders(w2.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendTemplate: s2.sendTemplate });
   eq("G4 aynı güne çift randevu → tek mesaj", s2.outbox.length, 1);
 }
 
@@ -461,25 +521,25 @@ async function scenarioReminderDedup() {
 // H. OLUMSUZ SENARYOLAR
 // ══════════════════════════════════════════════════════════════════════════
 async function scenarioNegative() {
-  // H1: 24s penceresi kapalı → gönderilmez, kalıcı skip yazılmaz
+  // H1: şablon 24s penceresine bakmaz — hiç yazmamış hastaya da gider
   const p1 = patient({ id: "win", status: "randevulu" });
   const w1 = world({
     contacts: [p1.contact],
     leads: [p1.lead],
     appointments: [appointment({ id: "a-win", leadId: "l-win", startsAt: ist(TOMORROW, "10:00"), endsAt: ist(TOMORROW, "10:30") })],
   });
-  openWindow(w1.supabase, "c-win", "l-win", new Date(Date.now() - 30 * 60 * 60 * 1000));
   const s1 = makeSender();
-  const r1 = await runAutomationReminders(w1.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendText: s1.sendText });
-  eq("H1 pencere kapalı → gönderim yok", s1.outbox.length, 0);
-  eq("H2 pencere kapalı → kalıcı dispatch yazılmaz", w1.supabase.__db.message_dispatches.length, 0);
-  eq("H3 skipped sayacı", r1.skipped, 1);
-
-  // Pencere açılınca aynı gün gider
-  w1.supabase.__db.messages[0].created_at = new Date().toISOString();
-  const s1b = makeSender();
-  await runAutomationReminders(w1.supabase, [RULE_APPT_1D], { now: ist(TODAY, "12:00"), sendText: s1b.sendText });
-  eq("H4 pencere açılınca gider", s1b.outbox.length, 1);
+  const r1 = await runAutomationReminders(w1.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendTemplate: s1.sendTemplate });
+  eq("H1 hiç konuşması olmayan hastaya şablon gider", s1.outbox.length, 1);
+  eq("H2 dispatch sent yazılır", w1.supabase.__db.message_dispatches[0]?.status, "sent");
+  eq("H3 sent sayacı", r1.sent, 1);
+  eq("H4 şablon adı kuraldan gelir", s1.outbox[0]?.templateName, RULE_APPT_1D.template_name);
+  eq("H4b dil kuraldan gelir", s1.outbox[0]?.language, RULE_APPT_1D.language);
+  eq(
+    "H4c include_body_params açıkken 3 değişken gider",
+    s1.outbox[0]?.components?.[0]?.parameters?.length,
+    3,
+  );
 
   // H5: opt-out
   const p2 = patient({ id: "opt", status: "randevulu" });
@@ -491,7 +551,7 @@ async function scenarioNegative() {
   });
   openWindow(w2.supabase, "c-opt", "l-opt");
   const s2 = makeSender();
-  await runAutomationReminders(w2.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendText: s2.sendText });
+  await runAutomationReminders(w2.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendTemplate: s2.sendTemplate });
   eq("H5 opt-out → gönderim yok", s2.outbox.length, 0);
   eq("H6 opt-out → skipped kaydı", w2.supabase.__db.message_dispatches[0]?.status, "skipped");
 
@@ -504,7 +564,7 @@ async function scenarioNegative() {
   });
   openWindow(w3.supabase, "c-nophone", "l-nophone");
   const s3 = makeSender();
-  await runAutomationReminders(w3.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendText: s3.sendText });
+  await runAutomationReminders(w3.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendTemplate: s3.sendTemplate });
   eq("H7 telefonsuz hasta → gönderim yok", s3.outbox.length, 0);
   eq("H8 telefonsuz → skipped kaydı", w3.supabase.__db.message_dispatches[0]?.error, "Telefon yok");
 
@@ -521,16 +581,16 @@ async function scenarioNegative() {
     attempts += 1;
     throw new Error("Meta 500");
   };
-  const r4 = await runAutomationReminders(w4.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendText: failing });
+  const r4 = await runAutomationReminders(w4.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendTemplate: failing });
   eq("H9 API hatası → failure raporlanır", r4.failures.length, 1);
   eq("H10 dispatch failed", w4.supabase.__db.message_dispatches[0].status, "failed");
-  await runAutomationReminders(w4.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:15"), sendText: failing });
+  await runAutomationReminders(w4.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:15"), sendTemplate: failing });
   eq("H11 1 saat içinde tekrar denenmez", attempts, 1);
 
   // 1 saat sonra tekrar dener ve bu kez başarılı
   w4.supabase.__db.message_dispatches[0].sent_at = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
   const s4 = makeSender();
-  await runAutomationReminders(w4.supabase, [RULE_APPT_1D], { now: ist(TODAY, "12:00"), sendText: s4.sendText });
+  await runAutomationReminders(w4.supabase, [RULE_APPT_1D], { now: ist(TODAY, "12:00"), sendTemplate: s4.sendTemplate });
   eq("H12 1 saat sonra tekrar denenir", s4.outbox.length, 1);
 
   // H13: gönderim sonrası kayıt patlasa bile tekrar gönderilmez
@@ -542,10 +602,10 @@ async function scenarioNegative() {
   });
   openWindow(w5.supabase, "c-book", "l-book");
   const s5 = makeSender();
-  await runAutomationReminders(w5.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendText: s5.sendText });
+  await runAutomationReminders(w5.supabase, [RULE_APPT_1D], { now: ist(TODAY, "10:00"), sendTemplate: s5.sendTemplate });
   // WhatsApp'tan "iletilemedi" webhook'u geldi — eski hata: status failed'e çekiliyordu
   w5.supabase.__db.message_dispatches[0].error = "WhatsApp iletilemedi";
-  await runAutomationReminders(w5.supabase, [RULE_APPT_1D], { now: ist(TODAY, "13:00"), sendText: s5.sendText });
+  await runAutomationReminders(w5.supabase, [RULE_APPT_1D], { now: ist(TODAY, "13:00"), sendTemplate: s5.sendTemplate });
   eq("H13 iletim hatası sonrası tekrar gönderim yok", s5.outbox.length, 1);
 }
 
@@ -567,18 +627,18 @@ async function scenarioRuleChain() {
 
   // Yalnızca google review kuralı çalışsa → surgery_day gitmediği için beklemeli
   const s0 = makeSender();
-  await runAutomationReminders(w.supabase, [RULE_GOOGLE_REVIEW], { now: ist(TODAY, "16:00"), sendText: s0.sendText });
+  await runAutomationReminders(w.supabase, [RULE_GOOGLE_REVIEW], { now: ist(TODAY, "16:00"), sendTemplate: s0.sendTemplate });
   eq("I1 bilgilendirme gitmeden yorum isteği gitmez", s0.outbox.length, 0);
 
   // İkisi birlikte → sırayla
   const s1 = makeSender();
-  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY, RULE_GOOGLE_REVIEW], { now: ist(TODAY, "16:00"), sendText: s1.sendText });
+  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY, RULE_GOOGLE_REVIEW], { now: ist(TODAY, "16:00"), sendTemplate: s1.sendTemplate });
   eq("I2 bilgilendirme + yorum isteği gider", s1.outbox.length, 2);
   check("I3 yorum mesajında harita linki var", /maps|google/i.test(s1.outbox[1]?.body ?? ""), s1.outbox[1]?.body?.slice(0, 80));
 
   // Tekrar tur → ikisi de tekrar gitmez
   const s2 = makeSender();
-  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY, RULE_GOOGLE_REVIEW], { now: ist(TODAY, "17:00"), sendText: s2.sendText });
+  await runAutomationReminders(w.supabase, [RULE_SURGERY_DAY, RULE_GOOGLE_REVIEW], { now: ist(TODAY, "17:00"), sendTemplate: s2.sendTemplate });
   eq("I4 zincir tekrar etmez", s2.outbox.length, 0);
 }
 
@@ -605,7 +665,7 @@ async function scenarioFullDay() {
     const now = ist(TODAY, hm);
     w.state.clock = now;
     await advanceFinishedAppointments(w.supabase, now);
-    await runAutomationReminders(w.supabase, rules, { now, sendText: sender.sendText });
+    await runAutomationReminders(w.supabase, rules, { now, sendTemplate: sender.sendTemplate });
   }
 
   // 64 cron turu boyunca her kuraldan tam olarak 1 mesaj
@@ -635,6 +695,7 @@ const scenarios = [
   ["16:00 sonrası ameliyat", scenarioPostopAfterCutoff],
   ["Geçmiş gün geçişi", scenarioPostopStaleDay],
   ["Aynı gün kontrol randevusu", scenarioControlBookedSameDay],
+  ["Yanlış sürükleme emniyeti", scenarioRevertGuard],
   ["Hatırlatma mükerrerlik", scenarioReminderDedup],
   ["Olumsuz senaryolar", scenarioNegative],
   ["Kural zinciri", scenarioRuleChain],
