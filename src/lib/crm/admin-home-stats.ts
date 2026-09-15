@@ -150,7 +150,7 @@ export async function loadAdminHomeSourceStats(
     let query = supabase
       .from("lead_sources")
       .select(
-        "channel, utm_source, utm_medium, utm_campaign, campaign, gclid, gbraid, wbraid, fbclid, ctwa_clid, msclkid, ttclid, site",
+        "channel, utm_source, utm_medium, utm_campaign, campaign, gclid, gbraid, wbraid, fbclid, msclkid, ttclid, site",
       )
       .gte("created_at", fromIso)
       .lt("created_at", endExclusive)

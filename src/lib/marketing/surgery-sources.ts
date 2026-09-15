@@ -1,6 +1,10 @@
 import "server-only";
 
 import {
+  isAttributedLead,
+  type InheritAttributionRow,
+} from "@/lib/crm/inherit-attribution";
+import {
   classifyAdPlatform,
   type AdPlatform,
   type SourceRow,
@@ -33,6 +37,9 @@ const emptyPlatforms = (): Record<AdPlatform, number> => ({
 const LEAD_SOURCE_SELECT =
   "id, contact_id, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, gbraid, wbraid, fbclid, ctwa_clid, msclkid, ttclid, contacts(id, name, phone)";
 
+const SIBLING_ATTR_SELECT =
+  "id, contact_id, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, gbraid, wbraid, fbclid, ctwa_clid, msclkid, ttclid, created_at";
+
 type LeadRow = SourceRow & {
   id: string;
   contact_id?: string | null;
@@ -46,6 +53,40 @@ function firstContact(lead: LeadRow) {
   const raw = lead.contacts;
   if (!raw) return null;
   return Array.isArray(raw) ? (raw[0] ?? null) : raw;
+}
+
+/**
+ * Organik görünen ameliyat lead'leri için aynı contact'taki first-touch
+ * attributed sibling'i bul (takvim/manual blank lead mirası).
+ */
+async function firstTouchByContact(
+  contactIds: string[],
+): Promise<Map<string, InheritAttributionRow>> {
+  const map = new Map<string, InheritAttributionRow>();
+  if (!contactIds.length) return map;
+
+  const supabase = await createClient();
+  const chunkSize = 100;
+  for (let i = 0; i < contactIds.length; i += chunkSize) {
+    const chunk = contactIds.slice(i, i + chunkSize);
+    const { data, error } = await supabase
+      .from("leads")
+      .select(SIBLING_ATTR_SELECT)
+      .in("contact_id", chunk)
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("[marketing] surgery sibling attribution:", error.message);
+      continue;
+    }
+    for (const row of (data as (InheritAttributionRow & {
+      contact_id?: string | null;
+    })[]) ?? []) {
+      const contactId = row.contact_id;
+      if (!contactId || map.has(contactId)) continue;
+      if (isAttributedLead(row)) map.set(contactId, row);
+    }
+  }
+  return map;
 }
 
 /**
@@ -114,10 +155,25 @@ export async function loadSurgerySourceStats(
     }
   }
 
+  const needsSibling = leads.filter(
+    (lead) => classifyAdPlatform(lead) === "organic" && lead.contact_id,
+  );
+  const siblingByContact = await firstTouchByContact([
+    ...new Set(
+      needsSibling
+        .map((lead) => lead.contact_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ]);
+
   const patients: SurgerySourcePatient[] = [];
 
   for (const lead of leads) {
-    const platform = classifyAdPlatform(lead);
+    let platform = classifyAdPlatform(lead);
+    if (platform === "organic" && lead.contact_id) {
+      const sibling = siblingByContact.get(lead.contact_id);
+      if (sibling) platform = classifyAdPlatform(sibling);
+    }
     platforms[platform] += 1;
     const contact = firstContact(lead);
     patients.push({
