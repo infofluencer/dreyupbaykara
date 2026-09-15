@@ -2,7 +2,7 @@ export const STAGE_LABEL: Record<string, string> = {
   new: "Yeni",
   contacted: "İletişime geçildi",
   qualified: "Nitelikli",
-  appointment: "Randevu",
+  appointment: "Ameliyat",
   won: "Sonuçlandı",
   lost: "Kayıp",
   spam: "Spam",

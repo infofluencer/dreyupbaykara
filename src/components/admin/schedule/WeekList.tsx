@@ -56,15 +56,15 @@ export function WeekList({
   const selectedItems = byDay.get(date) ?? [];
   const selectedIso = `${date}T12:00:00+03:00`;
   const weekEmpty = appointments.length === 0;
-  const weekListHeading = `${formatDateLongTr(`${weekStart}T12:00:00+03:00`)} — ${formatDateLongTr(`${weekEnd}T12:00:00+03:00`)} randevu listesi`;
+  const weekListHeading = `${formatDateLongTr(`${weekStart}T12:00:00+03:00`)} — ${formatDateLongTr(`${weekEnd}T12:00:00+03:00`)} ameliyat listesi`;
 
   return (
     <div className="space-y-4">
       <ScheduleAddBanner
         message={
           weekEmpty
-            ? "Bu hafta için randevu yok."
-            : "Yeni randevu ekleyin."
+            ? "Bu hafta için ameliyat yok."
+            : "Yeni ameliyat ekleyin."
         }
         date={date}
         selectedLeadId={selectedLeadId}
@@ -126,7 +126,7 @@ export function WeekList({
 
         <AgendaCardList
           appointments={selectedItems}
-          heading={`${formatDateLongTr(selectedIso)} · ${selectedItems.length} randevu`}
+          heading={`${formatDateLongTr(selectedIso)} · ${selectedItems.length} ameliyat`}
         />
         <StatusLegend />
       </div>
@@ -185,7 +185,7 @@ export function WeekList({
                 <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-2">
                   {!items.length ? (
                     <p className="px-1 py-3 text-[11px] text-[#b0bab4]">
-                      Randevu yok
+                      Ameliyat yok
                     </p>
                   ) : (
                     <>
@@ -219,7 +219,7 @@ export function WeekList({
           {weekListHeading}
         </h3>
         {!appointments.length ? (
-          <p className="mt-3 text-sm text-[#466254]">Bu haftada randevu yok.</p>
+          <p className="mt-3 text-sm text-[#466254]">Bu haftada ameliyat yok.</p>
         ) : (
           <div className="mt-3 space-y-2">
             {sortByStart(appointments).map((appointment) => {

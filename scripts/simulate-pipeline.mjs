@@ -164,11 +164,11 @@ function makeSender() {
 // ══════════════════════════════════════════════════════════════════════════
 // A. SAF FONKSİYONLAR
 // ══════════════════════════════════════════════════════════════════════════
-eq("A1 ameliyat randevusu → ameliyat_olacak", leadStatusForBookedAppointment("procedure"), "ameliyat_olacak");
-eq("A2 muayene randevusu → randevulu", leadStatusForBookedAppointment("consultation"), "randevulu");
-eq("A3 kontrol randevusu → randevulu", leadStatusForBookedAppointment("control"), "randevulu");
+eq("A1 ameliyat → ameliyat_olacak", leadStatusForBookedAppointment("procedure"), "ameliyat_olacak");
+eq("A2 her tür → ameliyat_olacak (takvim surgery-only)", leadStatusForBookedAppointment("consultation"), "ameliyat_olacak");
+eq("A3 kontrol → ameliyat_olacak", leadStatusForBookedAppointment("control"), "ameliyat_olacak");
 eq("A4 ameliyat bitti → ameliyat_edildi", leadStatusAfterAppointmentEnds("procedure"), "ameliyat_edildi");
-eq("A5 muayene bitti → muayene_edildi", leadStatusAfterAppointmentEnds("consultation"), "muayene_edildi");
+eq("A5 her tür bitti → ameliyat_edildi", leadStatusAfterAppointmentEnds("consultation"), "ameliyat_edildi");
 
 const nowRef = new Date("2026-09-11T12:00:00Z");
 check("A6 ends_at geçmiş → bitti", isAppointmentFinished({ starts_at: "2026-09-11T10:00:00Z", ends_at: "2026-09-11T11:00:00Z" }, nowRef));

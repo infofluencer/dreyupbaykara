@@ -19,9 +19,9 @@ export function AppointmentStatusDialog({
     <AdminConfirmDialog
       status={status as AdminDialogStatus}
       message={message}
-      loadingTitle="Randevu kaydediliyor"
-      successTitle="Randevu eklendi"
-      errorTitle="Randevu eklenemedi"
+      loadingTitle="Ameliyat kaydediliyor"
+      successTitle="Ameliyat eklendi"
+      errorTitle="Ameliyat eklenemedi"
       onClose={onClose}
     />
   );

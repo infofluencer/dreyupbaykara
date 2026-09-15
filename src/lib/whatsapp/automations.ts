@@ -36,7 +36,7 @@ export type MessageRule = {
   timing_mode: AutomationTimingMode;
   appointment_types: string[];
   appointment_statuses: string[];
-  /** Durum Panosu: yeni | arandi | randevulu | muayene_edildi | ameliyat_olacak | ameliyat_edildi | bitti */
+  /** Durum Panosu: yeni | arandi | muayene_edildi | ameliyat_olacak | ameliyat_edildi | bitti */
   lead_statuses: string[];
   include_body_params: boolean;
   sort_order: number;
@@ -61,10 +61,12 @@ export type AppointmentForAutomation = {
 export function buildTemplateBodyComponents(
   contactName: string | null | undefined,
   startsAt: string,
+  params?: ReadonlyArray<"name" | "date" | "time">,
 ): WhatsAppTemplateComponent[] {
   return buildTimingBodyComponents(
     contactName,
     startsAt,
+    params,
   ) as WhatsAppTemplateComponent[];
 }
 
@@ -113,15 +115,21 @@ export async function loadCandidateAppointments(
   // kontrolü vb.) mesaj gitmeli. Kuralda liste boşsa aktif durumların hepsi.
   const leadStatuses = rule.lead_statuses?.length
     ? rule.lead_statuses
-    : ["randevulu", "muayene_edildi", "ameliyat_olacak", "ameliyat_edildi"];
+    : ["muayene_edildi", "ameliyat_olacak", "ameliyat_edildi"];
 
   const { from, to } =
     rule.timing_mode === "calendar_day"
       ? istanbulDayBoundsUtc(now)
       : {
-          // 1 gün kuralı için gelecek ~2 gün; biraz geçmiş tampon
+          // offset kadar ileri bak (örn. 48s kuralı); +2s cron tamponu
           from: new Date(now.getTime() - 2 * 60 * 60 * 1000),
-          to: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
+          to: new Date(
+            now.getTime() +
+              Math.max(
+                2 * 24 * 60 * 60 * 1000,
+                (rule.offset_minutes + 120) * 60 * 1000,
+              ),
+          ),
         };
 
   const { data, error } = await supabase
@@ -184,9 +192,7 @@ export type SurgeryPostopCandidate = AppointmentForAutomation & {
 /**
  * Bu durumlara geri alınmış lead, yanlış sürükleme sayılır ve mesaj almaz.
  *
- * "randevulu" listede yok: ameliyattan sonra aynı gün kontrol randevusu
- * açılınca lead oraya döner ve bilgilendirme mesajı yine gitmelidir. "bitti"
- * de yok; vaka kapatılsa bile aynı gün bilgilendirme gitmeli.
+ * "bitti" listede yok; vaka kapatılsa bile aynı gün bilgilendirme gitmeli.
  */
 const SURGERY_REVERTED_STATUSES = new Set([
   "yeni",
@@ -240,9 +246,9 @@ async function findRevertedLeads(
  * Ameliyat sonrası mesaj adayları.
  *
  * Aday ölçütü **bugün ameliyat_edildi'ye taşınmış olmak** (lead_status_history).
- * Anlık lead durumuna bakılmaz: ameliyattan sonra aynı gün kontrol randevusu
- * açılıp lead "randevulu"ya dönse bile bilgilendirme mesajı kaybolmaz.
- * Lead başına yalnızca en güncel ameliyat randevusu döner.
+ * Anlık lead durumuna bakılmaz: aynı gün başka durum güncellemesi olsa bile
+ * bilgilendirme mesajı kaybolmaz.
+ * Lead başına yalnızca en güncel ameliyat kaydı döner.
  */
 export async function loadSurgeryPostopCandidates(
   supabase: SupabaseClient,
@@ -611,5 +617,64 @@ export async function priorRuleSent(
     .eq("rule_key", priorRuleKey)
     .eq("status", "sent")
     .maybeSingle();
+  return Boolean(data);
+}
+
+/**
+ * Aktif ameliyat sonrası kuralların hepsi bu randevu için "sent" ise
+ * lead'i Ameliyat edildi → Bitti taşır (had_surgery etiketi korunur).
+ */
+export async function maybeCloseLeadAfterPostopMessages(
+  supabase: SupabaseClient,
+  input: {
+    leadId: string;
+    appointmentId: string;
+    enabledRules: MessageRule[];
+  },
+): Promise<boolean> {
+  const postopKeys = input.enabledRules
+    .filter((rule) => isSurgeryPostopRule(rule.key))
+    .map((rule) => rule.key);
+  if (!postopKeys.length) return false;
+
+  const { data: sentRows, error: sentError } = await supabase
+    .from("message_dispatches")
+    .select("rule_key")
+    .eq("appointment_id", input.appointmentId)
+    .eq("status", "sent")
+    .in("rule_key", postopKeys);
+
+  if (sentError) {
+    console.warn(
+      "[automations] postop kapanış kontrolü başarısız",
+      sentError.message,
+    );
+    return false;
+  }
+
+  const sent = new Set((sentRows ?? []).map((row) => row.rule_key));
+  if (!postopKeys.every((key) => sent.has(key))) return false;
+
+  const { data, error } = await supabase
+    .from("leads")
+    .update({
+      status: "bitti",
+      needs_followup: false,
+      lost_reason: null,
+      had_surgery: true,
+    })
+    .eq("id", input.leadId)
+    .eq("status", "ameliyat_edildi")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    console.error("[automations] postop → bitti taşınamadı", {
+      leadId: input.leadId,
+      error: error.message,
+    });
+    return false;
+  }
+
   return Boolean(data);
 }

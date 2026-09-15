@@ -812,6 +812,10 @@ export async function setLeadStatus(
       : null,
   };
 
+  if (status === "ameliyat_edildi") {
+    patch.had_surgery = true;
+  }
+
   const { error } = await supabase.from("leads").update(patch).eq("id", leadId);
   if (error) throw new Error(error.message);
 
@@ -951,7 +955,7 @@ export async function stampLeadContacted(formData: FormData) {
 
 export async function markLeadAppointmentStatus(formData: FormData) {
   const leadId = text(formData, "lead_id");
-  await setLeadStatus(leadId, "randevulu");
+  await setLeadStatus(leadId, "muayene_edildi");
 }
 
 export async function createTask(formData: FormData) {
@@ -1131,7 +1135,7 @@ export async function createAppointment(formData: FormData): Promise<{
       ).toISOString();
     } else if (!endsAt && startsAt) {
       endsAt = new Date(
-        new Date(startsAt).getTime() + 30 * 60 * 1000,
+        new Date(startsAt).getTime() + 180 * 60 * 1000,
       ).toISOString();
     }
     const conflict = await slotConflictMessage(
@@ -1141,8 +1145,8 @@ export async function createAppointment(formData: FormData): Promise<{
     if (conflict) {
       return { ok: false, error: conflict, date: istanbulYmd(startsAt) };
     }
-    const appointmentType =
-      text(formData, "appointment_type") || "consultation";
+    // Takvim yalnızca ameliyat — formdan gelen tür yok sayılır.
+    const appointmentType = "procedure";
     const { error } = await supabase.from("appointments").insert({
       lead_id: leadId,
       title: text(formData, "title") || titleFromType(appointmentType),
@@ -1169,7 +1173,7 @@ export async function createAppointment(formData: FormData): Promise<{
       return { ok: false, error: error.message };
     }
 
-    // Durum Panosu is_patient=true ister — randevu açınca hasta olarak işaretle
+    // Durum Panosu is_patient=true ister — ameliyat açınca hasta olarak işaretle
     const { data: leadRow } = await supabase
       .from("leads")
       .select("contact_id")
@@ -1201,7 +1205,7 @@ export async function createAppointment(formData: FormData): Promise<{
     return {
       ok: false,
       error:
-        error instanceof Error ? error.message : "Randevu eklenemedi.",
+        error instanceof Error ? error.message : "Ameliyat eklenemedi.",
     };
   }
 }
@@ -1254,7 +1258,7 @@ export async function updateAppointment(formData: FormData) {
   const startsAt = appointmentStartsAt(formData);
   const status = text(formData, "status") || "scheduled";
   if (!id || !leadId || !startsAt) {
-    throw new Error("Randevu, hasta ve başlangıç zamanı zorunludur.");
+    throw new Error("Ameliyat, hasta ve başlangıç zamanı zorunludur.");
   }
   const durationMinutes = Number(text(formData, "duration_minutes") || 0);
   let endsAt = istanbulIso(optionalText(formData, "ends_at"));
@@ -1271,8 +1275,7 @@ export async function updateAppointment(formData: FormData) {
       redirect(`/admin/calendar/${id}?error=${encodeURIComponent(conflict)}`);
     }
   }
-  const appointmentType =
-    text(formData, "appointment_type") || "consultation";
+  const appointmentType = "procedure";
   const { error } = await supabase
     .from("appointments")
     .update({
@@ -1324,7 +1327,7 @@ export async function deleteAppointment(formData: FormData) {
   await requireAdminSession(["admin", "doctor", "assistant"]);
   const supabase = await createClient();
   const id = text(formData, "id");
-  if (!id) throw new Error("Randevu bulunamadı.");
+  if (!id) throw new Error("Ameliyat bulunamadı.");
   const { error } = await supabase.from("appointments").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/calendar");

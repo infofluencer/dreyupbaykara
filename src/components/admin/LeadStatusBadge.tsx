@@ -7,9 +7,12 @@ import {
 export function LeadStatusBadge({
   status,
   needsFollowup,
+  hadSurgery,
 }: {
   status: string | null | undefined;
   needsFollowup?: boolean | null;
+  /** Durum bitti olsa bile ameliyat edildi etiketi */
+  hadSurgery?: boolean | null;
 }) {
   const key = asLeadStatus(status);
   return (
@@ -19,6 +22,13 @@ export function LeadStatusBadge({
       >
         {LEAD_STATUS_LABEL[key]}
       </span>
+      {hadSurgery && key !== "ameliyat_edildi" ? (
+        <span
+          className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${LEAD_STATUS_TONE.ameliyat_edildi}`}
+        >
+          {LEAD_STATUS_LABEL.ameliyat_edildi}
+        </span>
+      ) : null}
       {needsFollowup && key === "arandi" ? (
         <span className="inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-900">
           Tekrar ara

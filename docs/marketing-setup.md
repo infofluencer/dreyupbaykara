@@ -127,7 +127,9 @@ npm run test:site-matcher
 
 ## Notlar
 
-- Tüm siteler tek Google/Meta hesabında → site ayrımı kampanya prefix veya manuel atama ile.
-- Manuel site atamaları sync tarafından ezilmez (`site_match_source=manual`).
+- Google: hesap başına tek site (env / `ad_customer_site_map`).
+- Meta: site ataması panelden yapılmaz; `ad_customer_site_map` seed/migration
+  ile yönetilir. CRM lead fbclid / CTWA / Meta UTM ile sayılır.
+- Manuel kampanya site atamaları sync tarafından ezilmez (`site_match_source=manual`).
 - Token süresi dolunca hesap `is_active=false` olur; dashboard uyarı gösterir.
 - `conversion_events` tablosu Faz 3 için hazır; henüz doldurulmuyor.

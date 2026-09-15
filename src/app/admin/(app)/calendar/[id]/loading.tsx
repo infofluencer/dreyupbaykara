@@ -1,5 +1,5 @@
 import { AdminDetailSkeleton } from "@/components/admin/AdminSkeleton";
 
 export default function Loading() {
-  return <AdminDetailSkeleton label="Randevu yükleniyor" />;
+  return <AdminDetailSkeleton label="Ameliyat yükleniyor" />;
 }

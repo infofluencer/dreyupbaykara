@@ -30,6 +30,7 @@ export type InboxContactLead = {
   created_at: string;
   lost_reason: string | null;
   needs_followup: boolean | null;
+  had_surgery: boolean | null;
 };
 
 const CONTACT_CHUNK = 100;
@@ -91,7 +92,7 @@ export async function fetchInboxContactLeads(
     const { data, error } = await supabase
       .from("leads")
       .select(
-        "id, contact_id, status, stage, created_at, lost_reason, needs_followup",
+        "id, contact_id, status, stage, created_at, lost_reason, needs_followup, had_surgery",
       )
       .in("contact_id", chunk)
       .order("created_at", { ascending: false })

@@ -7,7 +7,10 @@ import { googleAdsConfig, marketingOAuthBaseUrl } from "@/lib/marketing/config";
 export const runtime = "nodejs";
 
 const STATE_COOKIE = "marketing_oauth_google_state";
-const SCOPES = ["https://www.googleapis.com/auth/adwords"].join(" ");
+const SCOPES = [
+  "https://www.googleapis.com/auth/adwords",
+  "https://www.googleapis.com/auth/analytics.readonly",
+].join(" ");
 
 export async function GET() {
   const { clientId } = googleAdsConfig();

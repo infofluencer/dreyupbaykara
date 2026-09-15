@@ -74,14 +74,18 @@ export default async function AutomationsPage() {
         <code>20260911120000_message_dispatches_pending_claim.sql</code>,{" "}
         <code>20260911140000_lead_statuses_surgery_exam.sql</code>,{" "}
         <code>20260911150000_surgery_postop_ameliyat_edildi.sql</code>,{" "}
-        <code>20260914160000_dispatch_transient_retry.sql</code>.
+        <code>20260914160000_dispatch_transient_retry.sql</code>,{" "}
+        <code>20260915130000_surgery_2d_reminder.sql</code>.
         <span className="mt-1 block text-xs opacity-80">{rulesError.message}</span>
       </p>
     );
   }
 
-  const ruleList = (rules ?? []) as RuleRow[];
-  const labelByKey = Object.fromEntries(ruleList.map((r) => [r.key, r.label]));
+  const allRules = (rules ?? []) as RuleRow[];
+  // Muayene hatırlatmaları kaldırıldı — yalnızca ameliyat postop kuralları
+  const DISABLED_APPT_KEYS = new Set(["appt_1d", "appt_1h"]);
+  const ruleList = allRules.filter((r) => !DISABLED_APPT_KEYS.has(r.key));
+  const labelByKey = Object.fromEntries(allRules.map((r) => [r.key, r.label]));
 
   return (
     <div className="space-y-8">
@@ -90,11 +94,10 @@ export default async function AutomationsPage() {
           WhatsApp otomasyonları
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#466254]">
-          Toplam 4 otomatik mesaj: randevudan 1 gün önce, 1 saat önce, ameliyat
-          günü saat 16:00 bilgilendirme ve ardından Google Maps yorum isteği.
-          Cron her 15 dakikada uygun hastaları bulur ve Meta’da onaylı şablonla
-          gönderir. Şablon kullanıldığı için hastanın önceden yazmış olması
-          gerekmez.
+          Ameliyat edildi günü 16:00 bilgilendirme ve ardından Google Maps yorum
+          isteği. Cron her 15 dakikada uygun hastaları bulur ve Meta’da onaylı
+          şablonla gönderir. Şablon kullanıldığı için hastanın önceden yazmış
+          olması gerekmez.
         </p>
       </div>
 
@@ -265,16 +268,10 @@ function WhoGetsWhatGuide({ rules }: { rules: RuleRow[] }) {
     }
   }
 
-  const typeOrder = [
-    "consultation",
-    "control",
-    "online",
-    "other",
-    "procedure",
-  ];
+  const typeOrder = ["procedure"];
   const orderedTypes = [
     ...typeOrder.filter((t) => byType.has(t)),
-    ...[...byType.keys()].filter((t) => !typeOrder.includes(t)),
+    ...[...byType.keys()].filter((t) => !typeOrder.includes(t) && t === "procedure"),
   ];
 
   return (
@@ -284,9 +281,9 @@ function WhoGetsWhatGuide({ rules }: { rules: RuleRow[] }) {
           Kim hangi mesajı alır?
         </h2>
         <p className="mt-1 text-sm leading-6 text-[#466254]">
-          Muayene randevusuna hatırlatma; ameliyat (procedure) bitince lead
-          Ameliyat edildi olur ve o gün 16:00’ta (geçtiyse hemen) bilgilendirme
-          gider. Hasta durumu Durum Panosu ile aynıdır.
+          Ameliyat bitince lead Ameliyat edildi olur ve o gün 16:00’ta
+          (geçtiyse hemen) bilgilendirme gider; ardından Google Maps yorum
+          isteği. Hasta durumu Durum Panosu ile aynıdır.
         </p>
       </div>
       <div className="divide-y divide-[#123524]/08">
@@ -301,7 +298,7 @@ function WhoGetsWhatGuide({ rules }: { rules: RuleRow[] }) {
                 <p className="font-semibold text-[#123524]">
                   {APPOINTMENT_TYPE_LABEL[type] ?? type}
                 </p>
-                <p className="mt-0.5 text-xs text-[#466254]">Randevu tipi</p>
+                <p className="mt-0.5 text-xs text-[#466254]">Ameliyat tipi</p>
               </div>
               <ul className="space-y-2">
                 {linked.map((rule) => (
@@ -334,9 +331,11 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
   const leadStatuses = (
     rule.lead_statuses?.length
       ? rule.lead_statuses
-      : rule.key.startsWith("surgery_")
+      : rule.key === "surgery_day" || rule.key === "surgery_google_review"
         ? ["ameliyat_edildi"]
-        : ["randevulu", "muayene_edildi", "ameliyat_olacak", "ameliyat_edildi"]
+        : rule.key === "surgery_2d"
+          ? ["ameliyat_olacak"]
+          : ["muayene_edildi", "ameliyat_olacak", "ameliyat_edildi"]
   ).filter((s): s is LeadPipelineStatus =>
     LEAD_STATUSES.includes(s as LeadPipelineStatus),
   );
@@ -360,7 +359,7 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[#466254]">
-            Randevu tipi
+            Ameliyat tipi
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {types.map((t) => (
@@ -397,7 +396,7 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
             </div>
           )}
           <p className="mt-2 text-xs leading-5 text-[#466254]">
-            Durum Panosu’ndaki durumlarla aynıdır. Varsayılan: Randevulu.
+            Durum Panosu’ndaki durumlarla aynıdır.
           </p>
         </div>
       </div>
@@ -459,7 +458,8 @@ function RuleCard({ rule, canEdit }: { rule: RuleRow; canEdit: boolean }) {
                     className={input}
                   />
                   <span className="mt-1 block text-xs font-normal text-[#466254]">
-                    1440 = 1 gün, 60 = 1 saat. Ameliyat günü için 0.
+                    1440 = 1 gün, 2880 = 2 gün, 60 = 1 saat. Ameliyat günü için
+                    0.
                   </span>
                 </label>
                 <label className="block text-sm font-medium">
@@ -530,7 +530,10 @@ function formatWhen(rule: Pick<
     rule.key === "surgery_google_review" ||
     rule.timing_mode === "calendar_day"
   ) {
-    if (rule.key.startsWith("surgery_")) {
+    if (
+      rule.key === "surgery_day" ||
+      rule.key === "surgery_google_review"
+    ) {
       return time
         ? `Ameliyat edildi günü saat ${time} (geçtiyse hemen)`
         : "Ameliyat edildi günü";
@@ -541,6 +544,9 @@ function formatWhen(rule: Pick<
   }
   const minutes = rule.offset_minutes ?? 0;
   if (minutes > 0) {
+    if (rule.key === "surgery_2d" || minutes === 2880) {
+      return "Ameliyattan 2 gün önce (48 saat kala)";
+    }
     if (minutes === 1440) return "Randevudan 1 gün önce";
     if (minutes === 60) return "Randevudan 1 saat önce";
     if (minutes % 1440 === 0) {

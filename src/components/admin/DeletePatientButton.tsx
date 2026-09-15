@@ -23,7 +23,7 @@ export function DeletePatientButton({
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(
-      `${who} hastalardan kaldırılsın mı?\n\nListeden çıkar; WhatsApp konuşması ve randevular silinmez.`,
+      `${who} hastalardan kaldırılsın mı?\n\nListeden çıkar; WhatsApp konuşması ve ameliyatlar silinmez.`,
     );
     setDialog("confirm");
   }

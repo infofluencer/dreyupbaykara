@@ -20,7 +20,7 @@ export const ADMIN_NAV: Array<{
   { href: "/admin", label: "Özet", icon: Gauge },
   { href: "/admin/messages", label: "WhatsApp", icon: Inbox },
   { href: "/admin/pipeline", label: "Durum Panosu", icon: ListTodo },
-  { href: "/admin/leads", label: "Takvim", icon: CalendarDays },
+  { href: "/admin/leads", label: "Ameliyat", icon: CalendarDays },
   { href: "/admin/patients", label: "Hastalar", icon: UserRound },
   { href: "/admin/marketing", label: "Reklam", icon: LineChart },
   { href: "/admin/automations", label: "Otomasyon", icon: MessageSquareShare },

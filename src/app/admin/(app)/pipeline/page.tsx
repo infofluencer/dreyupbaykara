@@ -12,7 +12,7 @@ export default async function AdminPipelinePage() {
     .from("leads")
     .select(
       `
-      id, status, needs_followup, lost_reason, created_at,
+      id, status, needs_followup, had_surgery, lost_reason, created_at,
       contacts!inner(name, phone, is_patient)
     `,
     )
@@ -24,8 +24,9 @@ export default async function AdminPipelinePage() {
     return (
       <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
         Durum panosu yüklenemedi. Migration{" "}
-        <code>20260824120000_simplify_lead_statuses.sql</code> ve{" "}
-        <code>20260911140000_lead_statuses_surgery_exam.sql</code> uygulandı mı?
+        <code>20260824120000_simplify_lead_statuses.sql</code>,{" "}
+        <code>20260911140000_lead_statuses_surgery_exam.sql</code> ve{" "}
+        <code>20260915140000_had_surgery_tag.sql</code> uygulandı mı?
         <br />
         <span className="mt-1 block text-xs opacity-80">{error.message}</span>
       </p>
@@ -38,6 +39,7 @@ export default async function AdminPipelinePage() {
       id: row.id,
       status: row.status,
       needs_followup: row.needs_followup ?? false,
+      had_surgery: row.had_surgery ?? false,
       lost_reason: row.lost_reason,
       created_at: row.created_at,
       contact_name: contact?.name ?? null,

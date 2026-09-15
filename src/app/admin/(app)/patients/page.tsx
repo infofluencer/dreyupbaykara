@@ -92,7 +92,7 @@ export default async function PatientsPage({
             Hastalar
           </h1>
           <p className="mt-1 text-sm text-[#466254]">
-            Hasta kimliği, klinik notlar ve takvim randevuları burada.
+            Hasta kimliği, klinik notlar ve ameliyat kayıtları burada.
           </p>
         </div>
         <Link

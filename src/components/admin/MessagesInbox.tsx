@@ -107,6 +107,7 @@ export type InboxConversation = {
     status: string | null;
     lost_reason?: string | null;
     needs_followup?: boolean | null;
+    had_surgery?: boolean | null;
   } | null;
 };
 
@@ -421,6 +422,7 @@ export function MessagesInbox({
             status: active.status,
             lost_reason: active.lost_reason,
             needs_followup: active.needs_followup ?? false,
+            had_surgery: active.had_surgery ?? false,
           };
         }
       } catch (leadError) {
@@ -1230,6 +1232,7 @@ export function MessagesInbox({
                         <LeadStatusBadge
                           status={row.pipelineLead.status}
                           needsFollowup={row.pipelineLead.needs_followup}
+                          hadSurgery={row.pipelineLead.had_surgery}
                         />
                       </div>
                     ) : null}
@@ -1360,6 +1363,7 @@ export function MessagesInbox({
                     status={selected.pipelineLead.status}
                     lostReason={selected.pipelineLead.lost_reason}
                     needsFollowup={selected.pipelineLead.needs_followup}
+                    hadSurgery={selected.pipelineLead.had_surgery}
                     size="sm"
                     onOptimisticChange={(next) => {
                       setConversations((rows) =>
@@ -1374,6 +1378,10 @@ export function MessagesInbox({
                                     next === "arandi"
                                       ? row.pipelineLead.needs_followup
                                       : false,
+                                  had_surgery:
+                                    next === "ameliyat_edildi"
+                                      ? true
+                                      : row.pipelineLead.had_surgery,
                                 },
                               }
                             : row,

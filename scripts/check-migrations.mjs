@@ -229,20 +229,43 @@ try {
       );
   }
 
+  {
+    const rule = byKey.surgery_2d;
+    if (!rule) {
+      fail("kural yok: surgery_2d", "20260915130000_surgery_2d_reminder.sql");
+    } else {
+      const good =
+        rule.timing_mode === "before_start" &&
+        (rule.appointment_types ?? []).includes("procedure") &&
+        (rule.lead_statuses ?? []).includes("ameliyat_olacak");
+      if (good) ok("surgery_2d: ameliyat_olacak · procedure · before_start");
+      else
+        fail(
+          "surgery_2d ayarları güncel değil",
+          "20260915130000_surgery_2d_reminder.sql",
+          JSON.stringify({
+            timing_mode: rule.timing_mode,
+            lead_statuses: rule.lead_statuses,
+            appointment_types: rule.appointment_types,
+          }),
+        );
+    }
+  }
+
   for (const key of ["appt_1d", "appt_1h"]) {
     const rule = byKey[key];
     if (!rule) {
       fail(`kural yok: ${key}`, "20260823200000_wa_message_automations.sql");
       continue;
     }
-    const statuses = rule.lead_statuses ?? [];
-    if (statuses.includes("ameliyat_edildi") && statuses.includes("randevulu")) {
-      ok(`${key}: ameliyat olmuş hastaya da hatırlatma gider`);
+    // Muayene hatırlatmaları kapatıldı (surgery-only takvim)
+    if (rule.enabled === false) {
+      ok(`${key}: kapalı (randevu sistemi kaldırıldı)`);
     } else {
       fail(
-        `${key} lead_statuses dar (${JSON.stringify(statuses)})`,
-        "20260911150000_surgery_postop_ameliyat_edildi.sql",
-        "Ameliyat sonrası kontrol randevusunun hatırlatması gitmez.",
+        `${key} hâlâ açık`,
+        "20260915120000_remove_randevulu_surgery_calendar.sql",
+        "Muayene hatırlatmaları disabled olmalı.",
       );
     }
   }

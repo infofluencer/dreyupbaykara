@@ -1,7 +1,6 @@
 export const LEAD_STATUSES = [
   "yeni",
   "arandi",
-  "randevulu",
   "muayene_edildi",
   "ameliyat_olacak",
   "ameliyat_edildi",
@@ -14,7 +13,6 @@ export type LeadPipelineStatus = (typeof LEAD_STATUSES)[number];
 export const LEAD_STATUS_LABEL: Record<LeadPipelineStatus, string> = {
   yeni: "Yeni",
   arandi: "Arandı",
-  randevulu: "Randevulu",
   muayene_edildi: "Muayene edildi",
   ameliyat_olacak: "Ameliyat olacak",
   ameliyat_edildi: "Ameliyat edildi",
@@ -28,7 +26,6 @@ export const LEAD_STATUS_LABEL_I18N: Record<
   tr: {
     yeni: "Yeni",
     arandi: "Arandı",
-    randevulu: "Randevulu",
     muayene_edildi: "Muayene edildi",
     ameliyat_olacak: "Ameliyat olacak",
     ameliyat_edildi: "Ameliyat edildi",
@@ -37,7 +34,6 @@ export const LEAD_STATUS_LABEL_I18N: Record<
   en: {
     yeni: "New",
     arandi: "Called",
-    randevulu: "Booked",
     muayene_edildi: "Examined",
     ameliyat_olacak: "Surgery planned",
     ameliyat_edildi: "Surgery done",
@@ -46,7 +42,6 @@ export const LEAD_STATUS_LABEL_I18N: Record<
   ar: {
     yeni: "جديد",
     arandi: "تم الاتصال",
-    randevulu: "موعد",
     muayene_edildi: "تم الفحص",
     ameliyat_olacak: "سيتم إجراء العملية",
     ameliyat_edildi: "تمت العملية",
@@ -57,13 +52,12 @@ export const LEAD_STATUS_LABEL_I18N: Record<
 /**
  * Renkler renk çemberinde kasıtlı olarak birbirinden uzak seçildi; yan yana
  * duran iki aşama asla aynı aileden olmasın diye:
- * yeni=gri, arandi=sarı, randevulu=camgöbeği, muayene=mavi,
+ * yeni=gri, arandi=sarı, muayene=mavi,
  * ameliyat_olacak=kırmızı, ameliyat_edildi=mor, bitti=yeşil.
  */
 export const LEAD_STATUS_TONE: Record<LeadPipelineStatus, string> = {
   yeni: "bg-slate-100 text-slate-700",
   arandi: "bg-amber-100 text-amber-900",
-  randevulu: "bg-cyan-100 text-cyan-900",
   muayene_edildi: "bg-blue-100 text-blue-900",
   ameliyat_olacak: "bg-rose-100 text-rose-900",
   ameliyat_edildi: "bg-purple-100 text-purple-900",
@@ -77,7 +71,6 @@ export const LEAD_STATUS_TONE: Record<LeadPipelineStatus, string> = {
 export const LEAD_STATUS_SURFACE: Record<LeadPipelineStatus, string> = {
   yeni: "border-slate-200 bg-slate-50",
   arandi: "border-amber-200 bg-amber-50",
-  randevulu: "border-cyan-200 bg-cyan-50",
   muayene_edildi: "border-blue-200 bg-blue-50",
   ameliyat_olacak: "border-rose-200 bg-rose-50",
   ameliyat_edildi: "border-purple-200 bg-purple-50",
@@ -104,7 +97,6 @@ export const LEAD_STATUS_FILTERS: Array<{
   { id: "all", label: "Tümü" },
   { id: "yeni", label: "Yeni" },
   { id: "arandi", label: "Arandı" },
-  { id: "randevulu", label: "Randevulu" },
   { id: "muayene_edildi", label: "Muayene edildi" },
   { id: "ameliyat_olacak", label: "Ameliyat olacak" },
   { id: "ameliyat_edildi", label: "Ameliyat edildi" },
@@ -123,7 +115,8 @@ export function statusesForFilter(
 
 const LEGACY_STATUS_MAP: Record<string, LeadPipelineStatus> = {
   ulasilamadi: "arandi",
-  muayene_randevusu: "randevulu",
+  randevulu: "muayene_edildi",
+  muayene_randevusu: "muayene_edildi",
   muayeneye_geldi: "muayene_edildi",
   ameliyat_karari: "ameliyat_olacak",
   ameliyat_oldu: "ameliyat_edildi",

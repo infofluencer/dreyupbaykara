@@ -21,7 +21,7 @@ const STAGES = [
   ["new", "Yeni"],
   ["contacted", "İletişime geçildi"],
   ["qualified", "Nitelikli"],
-  ["appointment", "Randevu"],
+  ["appointment", "Ameliyat"],
   ["won", "Sonuçlandı"],
   ["lost", "Kayıp"],
   ["spam", "Spam"],
@@ -70,6 +70,7 @@ export default async function LeadDetailPage({
         "id, title, starts_at, ends_at, status, appointment_type, location, notes",
       )
       .eq("lead_id", id)
+      .eq("appointment_type", "procedure")
       .order("starts_at", { ascending: false })
       .limit(50),
     supabase
@@ -188,16 +189,16 @@ export default async function LeadDetailPage({
 
         <div className="space-y-6">
           <section className="rounded-2xl border border-[#0b6b45]/20 bg-white p-5">
-            <h2 className="text-lg font-semibold">Randevular</h2>
+            <h2 className="text-lg font-semibold">Ameliyatlar</h2>
             <p className="mt-1 text-sm text-[#466254]">
               Bu hastanın klinik takvimindeki muayene saatleri. Saati değiştirmek
-              veya silmek için randevu detayına girin. Yeni saat Takvimden
+              veya silmek için ameliyat detayına girin. Yeni saat Takvimden
               yazılır.
             </p>
 
             {!appointments?.length ? (
               <p className="mt-4 rounded-xl bg-[#f4f6f5] px-4 py-3 text-sm text-[#466254]">
-                Bu hastanın henüz randevusu yok.
+                Bu hastanın henüz ameliyatı yok.
               </p>
             ) : (
               <div className="mt-4 space-y-3">
@@ -240,7 +241,7 @@ export default async function LeadDetailPage({
                         href={`/admin/calendar/${appointment.id}`}
                         className="mt-3 inline-block text-sm font-semibold text-[#0b6b45]"
                       >
-                        Randevu detayı →
+                        Ameliyat detayı →
                       </Link>
                     </article>
                   );
@@ -251,7 +252,7 @@ export default async function LeadDetailPage({
               href={`/admin/leads?lead=${lead.id}&date=${istanbulYmd(now)}`}
               className="mt-4 inline-flex rounded-full bg-[#0b6b45] px-4 py-2 text-sm font-semibold text-white"
             >
-              Takvimden randevu ekle
+              Takvimden ameliyat ekle
             </Link>
           </section>
 
@@ -259,7 +260,7 @@ export default async function LeadDetailPage({
             <h2 className="font-semibold">Geri arama notu</h2>
             <p className="mt-1 text-xs text-[#466254]">
               Takvime yazılmaz, muayene saati değildir. Sadece “hastayı ara”
-              hatırlatması. Randevu detayında görünmez.
+              hatırlatması. Ameliyat detayında görünmez.
             </p>
             <form action={createTask} className="mt-4 space-y-3">
               <input type="hidden" name="lead_id" value={lead.id} />
@@ -337,8 +338,8 @@ export default async function LeadDetailPage({
       <section>
         <h2 className="text-lg font-semibold">Aşama geçmişi</h2>
         <p className="mt-1 text-sm text-[#466254]">
-          Hastanın aşamasının (yeni → randevu → sonuçlandı vb.) ne zaman
-          değiştiğinin kaydı. Randevu saati değildir.
+          Hastanın aşamasının (yeni → ameliyat → sonuçlandı vb.) ne zaman
+          değiştiğinin kaydı. Ameliyat saati değildir.
         </p>
         <div className="mt-3 rounded-2xl border border-[#123524]/10 bg-white">
           {!history?.length ? (

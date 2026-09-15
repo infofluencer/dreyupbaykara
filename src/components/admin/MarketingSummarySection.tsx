@@ -63,9 +63,9 @@ export async function MarketingSummarySection({
           hint="Harcama ÷ CRM lead"
         />
         <SummaryCard
-          label="Lead → Randevu"
+          label="Lead → Ameliyat"
           value={formatPct(summary.appointment_rate)}
-          hint={`${summary.appointment_leads} randevulu/bitti (tüm CRM)`}
+          hint={`${summary.appointment_leads} ameliyat / bitti (tüm CRM)`}
         />
       </section>
 

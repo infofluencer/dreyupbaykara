@@ -158,9 +158,12 @@ export function isPostStatusSendDue(
   return nowMinutes >= dueMinutes && now.getTime() >= changed.getTime();
 }
 
+export type TemplateBodyParam = "name" | "date" | "time";
+
 export function buildTemplateBodyComponents(
   contactName: string | null | undefined,
   startsAt: string,
+  params: ReadonlyArray<TemplateBodyParam> = ["name", "date", "time"],
 ): TemplateBodyComponent[] {
   const name = (contactName ?? "").trim() || "Değerli hastamız";
   const dateLabel = new Intl.DateTimeFormat("tr-TR", {
@@ -171,14 +174,16 @@ export function buildTemplateBodyComponents(
   }).format(new Date(startsAt));
   const timeLabel = formatTimeTr(startsAt);
 
+  const values: Record<TemplateBodyParam, string> = {
+    name,
+    date: dateLabel,
+    time: timeLabel,
+  };
+
   return [
     {
       type: "body",
-      parameters: [
-        { type: "text", text: name },
-        { type: "text", text: dateLabel },
-        { type: "text", text: timeLabel },
-      ],
+      parameters: params.map((key) => ({ type: "text", text: values[key] })),
     },
   ];
 }

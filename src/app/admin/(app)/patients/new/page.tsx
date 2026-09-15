@@ -43,7 +43,7 @@ export default async function NewPatientPage({
         </h1>
         <p className="mt-2 text-sm text-[#466254]">
           Telefon daha önce kayıtlıysa mevcut kimlik güncellenir. Takvimde
-          randevu yazabilmek için otomatik talep de açılır.
+          ameliyat yazabilmek için otomatik talep de açılır.
         </p>
       </div>
 

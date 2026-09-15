@@ -86,8 +86,8 @@ export function MonthCalendar({
       <ScheduleAddBanner
         message={
           monthEmpty
-            ? "Bu ay için randevu yok."
-            : "Yeni randevu ekleyin."
+            ? "Bu ay için ameliyat yok."
+            : "Yeni ameliyat ekleyin."
         }
         date={date}
         selectedLeadId={selectedLeadId}
@@ -158,7 +158,7 @@ export function MonthCalendar({
         {selectedInMonth ? (
           <AgendaCardList
             appointments={selectedItems}
-            heading={`${formatDateLongTr(`${date}T12:00:00+03:00`)} · ${selectedItems.length} randevu`}
+            heading={`${formatDateLongTr(`${date}T12:00:00+03:00`)} · ${selectedItems.length} ameliyat`}
           />
         ) : null}
         <StatusLegend />
@@ -239,10 +239,10 @@ export function MonthCalendar({
       {/* Full-month list — desktop only to avoid double DOM on mobile */}
       <div className="hidden sm:block">
         <h3 className="font-semibold capitalize text-[#123524]">
-          {monthLabel} randevu listesi
+          {monthLabel} ameliyat listesi
         </h3>
         {!appointments.length ? (
-          <p className="mt-3 text-sm text-[#466254]">Bu ayda randevu yok.</p>
+          <p className="mt-3 text-sm text-[#466254]">Bu ayda ameliyat yok.</p>
         ) : (
           <div className="mt-3 space-y-2">
             {sortByStart(appointments).map((appointment) => {

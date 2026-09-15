@@ -4,7 +4,6 @@ import { AlertTriangle, Link2, TrendingUp } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
   loadAdAccountsSafe,
-  loadCustomerSiteMap,
   loadSiteOptions,
   loadUnmatchedCampaigns,
 } from "@/lib/marketing/admin-stats";
@@ -25,6 +24,7 @@ import {
   MarketingSummaryFallback,
   MarketingSummarySection,
 } from "@/components/admin/MarketingSummarySection";
+import { MarketingSurgerySources } from "@/components/admin/MarketingSurgerySourcesSection";
 import { MarketingLeadSourcesSection } from "@/components/admin/MarketingLeadSourcesSection";
 import { MarketingFilterBar } from "@/components/admin/MarketingFilterBar";
 import {
@@ -33,7 +33,6 @@ import {
 } from "@/components/admin/MarketingChannelTabs";
 import { buildMarketingHref } from "@/lib/marketing/urls";
 import { UnmatchedCampaignRow } from "@/components/admin/UnmatchedCampaignRow";
-import { MarketingMetaAccountSites } from "@/components/admin/MarketingMetaAccountSites";
 import {
   type AdPlatform,
   type SourceEvent,
@@ -92,11 +91,10 @@ export default async function AdminMarketingPage({
   const search = query.q?.trim() || "";
 
   // Sadece hafif sorgular — özet/kampanya Suspense ile ayrı
-  const [unmatched, siteOptions, accounts, metaSiteMap] = await Promise.all([
+  const [unmatched, siteOptions, accounts] = await Promise.all([
     loadUnmatchedCampaigns(),
     loadSiteOptions(),
     loadAdAccountsSafe(),
-    channel === "meta" ? loadCustomerSiteMap("meta") : Promise.resolve({}),
   ]);
 
   const inactiveAccounts = accounts.filter((a) => !a.is_active || !a.has_token);
@@ -229,11 +227,30 @@ export default async function AdminMarketingPage({
           </div>
 
           {metaAccounts.length ? (
-            <MarketingMetaAccountSites
-              accounts={metaAccounts}
-              sitesByExternalId={metaSiteMap}
-              siteOptions={siteOptions}
-            />
+            <ul className="mt-4 space-y-2">
+              {metaAccounts.map((account) => {
+                const externalId = account.external_account_id.replace(
+                  /^act_/,
+                  "",
+                );
+                return (
+                  <li
+                    key={account.id}
+                    className="rounded-xl border border-[#123524]/08 bg-[#f7f9f8] px-3 py-3"
+                  >
+                    <p className="truncate text-sm font-medium text-[#123524]">
+                      {account.display_name || "Meta hesabı"}
+                    </p>
+                    <p className="font-mono text-xs text-[#466254]">
+                      act_{externalId}
+                      {account.is_active && account.has_token
+                        ? " · hazır"
+                        : " · token yok"}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
           ) : (
             <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">
               Meta hesabı bağlı değil.{" "}
@@ -337,6 +354,14 @@ export default async function AdminMarketingPage({
         />
       </Suspense>
 
+      <MarketingSurgerySources
+        startDate={startDate}
+        endDate={endDate}
+        siteFilter={siteFilter}
+        period={period}
+        channel={channel}
+      />
+
       <Suspense
         key={`campaigns-${adPlatform}-${startDate}-${endDate}-${siteFilter ?? "all"}`}
         fallback={<MarketingCampaignPerformanceFallback />}
@@ -361,8 +386,7 @@ export default async function AdminMarketingPage({
             <Link href="/admin/marketing/connect" className="text-[#0b6b45]">
               connect
             </Link>{" "}
-            sayfasında site eşlemesi yapılabilir. Cron geçmişi doldurunca da
-            kalırlarsa isim öneki veya manuel eşleme gerekir.
+            sayfasında manuel site ataması yapılabilir.
           </p>
           <div className="mt-4 space-y-2">
             {unmatchedForChannel.map((campaign) => (

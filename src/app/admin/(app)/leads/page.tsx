@@ -120,10 +120,10 @@ export default async function AdminLeadsPage({
       <div className="space-y-3">
         <div>
           <h1 className="font-[family-name:var(--font-instrument-sans)] text-xl font-semibold sm:text-2xl">
-            Takvim
+            Ameliyat
           </h1>
           <p className="mt-1 hidden text-sm text-[#466254] sm:block">
-            Günün saatlerini inceleyin; randevu eklemek için + Randevu ekle
+            Günün saatlerini inceleyin; ameliyat eklemek için + Ameliyat ekle
             butonunu kullanın.
           </p>
         </div>
@@ -215,7 +215,7 @@ export default async function AdminLeadsPage({
               </h2>
               <p className="mt-1 hidden text-xs text-[#466254] sm:block">
                 08:00–20:00 zaman çizelgesi. Blok yüksekliği süreye göre;
-                boş saate tıklayınca randevu formu açılır.
+                boş saate tıklayınca ameliyat formu açılır.
               </p>
             </div>
           </div>

@@ -8,6 +8,7 @@ import {
   CAMPAIGN_PREFIX_RE,
   extractCampaignPrefix,
   matchCampaignSite,
+  metaCampaignBelongsToSiteViaAccountMap,
   resolveCampaignSite,
 } from "../src/lib/marketing/site-matcher.ts";
 
@@ -57,14 +58,12 @@ function run() {
   );
   ok("case-insensitive prefix");
 
-  assert.equal(
-    extractCampaignPrefix("  [Bel] Test  "),
-    "BEL",
-  );
+  assert.equal(extractCampaignPrefix("  [Bel] Test  "), "BEL");
   ok("extractCampaignPrefix normalizes");
 
   assert.equal(
-    resolveCampaignSite("14 Mayıs Tüm Türkiye", prefixMap, "fitikameliyati").site,
+    resolveCampaignSite("14 Mayıs Tüm Türkiye", prefixMap, "fitikameliyati")
+      .site,
     "fitikameliyati",
   );
   ok("Google account site → fitikameliyati (prefix yok)");
@@ -74,6 +73,57 @@ function run() {
     "endoskopikbelameliyati",
   );
   ok("[PREFIX] account haritasından öncelikli");
+
+  const metaMap = {
+    "2990529357911124": ["endospineistanbul", "fitikameliyati"],
+  };
+  assert.equal(
+    metaCampaignBelongsToSiteViaAccountMap(
+      "meta",
+      null,
+      "act_2990529357911124",
+      "endospineistanbul",
+      metaMap,
+    ),
+    true,
+  );
+  ok("Meta unmatched + hesap haritası → endospineistanbul");
+
+  assert.equal(
+    metaCampaignBelongsToSiteViaAccountMap(
+      "meta",
+      null,
+      "2990529357911124",
+      "fitikameliyati",
+      metaMap,
+    ),
+    true,
+  );
+  ok("Meta unmatched + hesap haritası → fitikameliyati");
+
+  assert.equal(
+    metaCampaignBelongsToSiteViaAccountMap(
+      "meta",
+      null,
+      "2990529357911124",
+      "endoskopikbelameliyati",
+      metaMap,
+    ),
+    false,
+  );
+  ok("Meta unmatched — haritada olmayan siteye gitmez");
+
+  assert.equal(
+    metaCampaignBelongsToSiteViaAccountMap(
+      "meta",
+      "endospineistanbul",
+      "2990529357911124",
+      "fitikameliyati",
+      metaMap,
+    ),
+    false,
+  );
+  ok("site dolu kampanya hesap haritası yolunu kullanmaz");
 
   console.log("\nAll site-matcher tests passed.");
 }

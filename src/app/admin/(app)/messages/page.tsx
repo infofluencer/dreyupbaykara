@@ -159,6 +159,7 @@ export default async function AdminMessagesPage({
             status: active.status,
             lost_reason: active.lost_reason,
             needs_followup: active.needs_followup ?? false,
+            had_surgery: active.had_surgery ?? false,
           }
         : null,
     };

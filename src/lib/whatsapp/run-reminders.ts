@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   priorAutomationRuleKey,
   resolveAutomationMessageBody,
+  WA_AUTOMATION_TEMPLATE_SPECS,
 } from "@/lib/whatsapp/automation-templates";
 import {
   alreadyDispatched,
@@ -14,6 +15,7 @@ import {
   isSurgeryPostopRule,
   loadCandidateAppointments,
   loadSurgeryPostopCandidates,
+  maybeCloseLeadAfterPostopMessages,
   normalizePhoneDigits,
   priorRuleSent,
   type AppointmentForAutomation,
@@ -33,7 +35,7 @@ export type AutomationOutbound = {
   /** Meta'da onaylı şablon adı — message_rules.template_name. */
   templateName: string;
   language: string;
-  /** include_body_params açıkken {{1}} ad · {{2}} tarih · {{3}} saat. */
+  /** include_body_params açıkken şablon değişkenleri (kurala göre 2 veya 3). */
   components?: WhatsAppTemplateComponent[];
   /** Şablonun yerel karşılığı — gelen kutusu kaydında görünen metin. */
   body: string;
@@ -211,10 +213,14 @@ export async function runAutomationReminders(
         continue;
       }
 
+      const bodyParams =
+        WA_AUTOMATION_TEMPLATE_SPECS.find((s) => s.key === rule.key)
+          ?.bodyParams ?? (["name", "date", "time"] as const);
       const components = rule.include_body_params
         ? buildTemplateBodyComponents(
             appointment.contact.name,
             appointment.starts_at,
+            bodyParams,
           )
         : undefined;
 
@@ -303,6 +309,20 @@ export async function runAutomationReminders(
               channel: "template",
             },
           });
+        }
+
+        if (isSurgeryPostopRule(rule.key)) {
+          const closed = await maybeCloseLeadAfterPostopMessages(supabase, {
+            leadId: appointment.lead_id,
+            appointmentId: appointment.id,
+            enabledRules: rules,
+          });
+          if (closed) {
+            console.info("[cron/reminders] postop → bitti", {
+              leadId: appointment.lead_id,
+              appointmentId: appointment.id,
+            });
+          }
         }
 
         sent += 1;

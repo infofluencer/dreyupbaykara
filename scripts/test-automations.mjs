@@ -116,6 +116,11 @@ const RULE_1H = {
   send_at_local_time: null,
   timing_mode: "before_start",
 };
+const RULE_SURGERY_2D = {
+  offset_minutes: 2880,
+  send_at_local_time: null,
+  timing_mode: "before_start",
+};
 const RULE_POSTOP = {
   offset_minutes: 0,
   send_at_local_time: "16:00",
@@ -169,6 +174,27 @@ console.log("\n=== Otomasyon zamanlama (unit) ===\n");
   expect(
     "appt_1h: randevu sonrası due değil",
     !isRuleDueNow(RULE_1H, starts, istanbulAt("2026-08-26T10:30:00")),
+  );
+}
+
+{
+  const starts = istanbulAt("2026-08-26T10:00:00").toISOString();
+  // pencere: 24.08 10:00 ≤ now < 26.08 10:00
+  expect(
+    "surgery_2d: 48s kala due",
+    isRuleDueNow(RULE_SURGERY_2D, starts, istanbulAt("2026-08-24T10:00:00")),
+  );
+  expect(
+    "surgery_2d: 47s kala due",
+    isRuleDueNow(RULE_SURGERY_2D, starts, istanbulAt("2026-08-24T11:00:00")),
+  );
+  expect(
+    "surgery_2d: 49s kala due değil",
+    !isRuleDueNow(RULE_SURGERY_2D, starts, istanbulAt("2026-08-24T09:00:00")),
+  );
+  expect(
+    "surgery_2d: ameliyat anında due değil",
+    !isRuleDueNow(RULE_SURGERY_2D, starts, istanbulAt("2026-08-26T10:00:00")),
   );
 }
 
@@ -242,16 +268,16 @@ console.log("\n=== Otomasyon zamanlama (unit) ===\n");
     leadStatusForBookedAppointment("procedure") === "ameliyat_olacak",
   );
   expect(
-    "consultation → randevulu",
-    leadStatusForBookedAppointment("consultation") === "randevulu",
+    "consultation da → ameliyat_olacak (surgery-only)",
+    leadStatusForBookedAppointment("consultation") === "ameliyat_olacak",
   );
   expect(
     "procedure ends → ameliyat_edildi",
     leadStatusAfterAppointmentEnds("procedure") === "ameliyat_edildi",
   );
   expect(
-    "consultation ends → muayene_edildi",
-    leadStatusAfterAppointmentEnds("consultation") === "muayene_edildi",
+    "consultation ends → ameliyat_edildi (surgery-only)",
+    leadStatusAfterAppointmentEnds("consultation") === "ameliyat_edildi",
   );
 
   const changedMorning = new Date("2026-08-26T08:00:00+03:00");
@@ -367,11 +393,11 @@ console.log("\n=== Mesaj / body helpers ===\n");
 
 {
   const keys = WA_AUTOMATION_TEMPLATE_SPECS.map((s) => s.key);
-  expect("tam 4 otomasyon", keys.length === 4, `count=${keys.length}`);
+  expect("tam 5 otomasyon", keys.length === 5, `count=${keys.length}`);
   expect(
     "kural anahtarları sabit",
     keys.join(",") ===
-      "appt_1d,appt_1h,surgery_day,surgery_google_review",
+      "appt_1d,appt_1h,surgery_2d,surgery_day,surgery_google_review",
     keys.join(","),
   );
 }
@@ -385,6 +411,12 @@ console.log("\n=== Mesaj / body helpers ===\n");
   for (const spec of WA_AUTOMATION_TEMPLATE_SPECS) {
     if (spec.bodyParams.length === 0) {
       expect(`${spec.key}: değişken yok`, spec.bodyParams.length === 0);
+    } else if (spec.key === "surgery_2d") {
+      expect(
+        `${spec.key}: 2 body param (ad+tarih)`,
+        spec.bodyParams.length === 2 &&
+          spec.bodyParams.join(",") === "name,date",
+      );
     } else {
       expect(
         `${spec.key}: 3 body param`,
@@ -402,6 +434,15 @@ console.log("\n=== Mesaj / body helpers ===\n");
   expect("body {{1}} ad", texts[0] === "Ayşe Yılmaz", texts[0]);
   expect("body {{2}} tarih TR", texts[1] === "26.08.2026", texts[1]);
   expect("body {{3}} saat", texts[2] === "10:30", texts[2]);
+  const surgeryComps = buildTemplateBodyComponents("Ayşe Yılmaz", starts, [
+    "name",
+    "date",
+  ]);
+  expect(
+    "surgery_2d body 2 param",
+    surgeryComps[0].parameters.length === 2 &&
+      surgeryComps[0].parameters[1].text === "26.08.2026",
+  );
   expect(
     "boş ad → varsayılan",
     buildTemplateBodyComponents("  ", starts)[0].parameters[0].text ===
@@ -424,6 +465,21 @@ console.log("\n=== Mesaj / body helpers ===\n");
     "resolve appt_1d",
     Boolean(apptBody?.includes("Ayşe") && apptBody?.includes("26.08.2026")),
     apptBody,
+  );
+
+  const surgery2dBody = resolveAutomationMessageBody(
+    "surgery_2d",
+    "Ayşe",
+    starts,
+  );
+  expect(
+    "resolve surgery_2d teyit",
+    Boolean(
+      surgery2dBody?.includes("Ayşe") &&
+        surgery2dBody?.includes("ameliyat randevunuz") &&
+        surgery2dBody?.includes("teyit"),
+    ),
+    surgery2dBody?.slice(0, 120),
   );
 
   const reviewBody = resolveAutomationMessageBody(
@@ -479,7 +535,7 @@ if (WITH_DB || DRY_RUN) {
       );
     } else {
       const byKey = Object.fromEntries((rules ?? []).map((r) => [r.key, r]));
-      for (const key of ["appt_1d", "appt_1h", "surgery_day"]) {
+      for (const key of ["appt_1d", "appt_1h", "surgery_2d", "surgery_day"]) {
         expect(`kural var: ${key}`, Boolean(byKey[key]));
       }
 
@@ -523,6 +579,41 @@ if (WITH_DB || DRY_RUN) {
       if (appt1h) {
         expect("appt_1h template", appt1h.template_name === "randevu_1_saat");
         expect("appt_1h offset 60", appt1h.offset_minutes === 60);
+      }
+
+      const surgery2d = byKey.surgery_2d;
+      if (surgery2d) {
+        expect(
+          "surgery_2d template",
+          surgery2d.template_name === "ameliyat_2_gun",
+        );
+        expect("surgery_2d offset 2880", surgery2d.offset_minutes === 2880);
+        if ("timing_mode" in surgery2d) {
+          expect(
+            "surgery_2d timing before_start",
+            (surgery2d.timing_mode || "before_start") === "before_start",
+          );
+        }
+        const types = surgery2d.appointment_types || [];
+        expect(
+          "surgery_2d tipi procedure",
+          types.includes("procedure"),
+          types.join(","),
+        );
+        if ("lead_statuses" in surgery2d) {
+          const leads = surgery2d.lead_statuses || [];
+          expect(
+            "surgery_2d lead ameliyat_olacak",
+            leads.includes("ameliyat_olacak") && leads.length === 1,
+            leads.join(","),
+          );
+        }
+        if (surgery2d.enabled) {
+          warn(
+            "surgery_2d şu an AÇIK",
+            "Meta şablonu ameliyat_2_gun onaylı olmalı",
+          );
+        } else ok("surgery_2d kapalı (güvenli varsayılan)");
       }
 
       const surgery = byKey.surgery_day;

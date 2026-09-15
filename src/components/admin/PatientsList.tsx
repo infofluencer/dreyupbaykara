@@ -104,7 +104,7 @@ export function PatientsList({
         <p className="rounded-2xl border border-[#123524]/10 bg-white px-5 py-10 text-center text-sm text-[#466254]">
           {query.trim() || filter !== "all"
             ? "Eşleşen hasta yok."
-            : "Henüz hasta yok. Yeni hasta ekleyin veya takvimden randevu yazın."}
+            : "Henüz hasta yok. Yeni hasta ekleyin veya takvimden ameliyat ekleyin."}
         </p>
       ) : (
         <ul className="overflow-hidden rounded-2xl border border-[#123524]/10 bg-white">

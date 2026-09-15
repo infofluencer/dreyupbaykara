@@ -21,6 +21,7 @@ export type PipelineLead = {
   id: string;
   status: string | null;
   needs_followup?: boolean | null;
+  had_surgery?: boolean | null;
   lost_reason: string | null;
   created_at: string;
   contact_name: string | null;
@@ -231,6 +232,13 @@ export function LeadPipelineBoard({
                           <p className="min-w-0 truncate text-sm font-semibold text-[#123524]">
                             {row.contact_name || "İsimsiz"}
                           </p>
+                          {row.had_surgery && column !== "ameliyat_edildi" ? (
+                            <span
+                              className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${LEAD_STATUS_TONE.ameliyat_edildi}`}
+                            >
+                              {LEAD_STATUS_LABEL.ameliyat_edildi}
+                            </span>
+                          ) : null}
                           {column === "arandi" && row.needs_followup ? (
                             <span className="inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-900">
                               Tekrar ara

@@ -31,11 +31,11 @@ function expect(label, cond, detail = "") {
 
 console.log("\n=== Lead statuses ===\n");
 
-expect("7 durum", LEAD_STATUSES.length === 7, `count=${LEAD_STATUSES.length}`);
+expect("6 durum", LEAD_STATUSES.length === 6, `count=${LEAD_STATUSES.length}`);
 expect(
   "sıra sabit",
   LEAD_STATUSES.join(",") ===
-    "yeni,arandi,randevulu,muayene_edildi,ameliyat_olacak,ameliyat_edildi,bitti",
+    "yeni,arandi,muayene_edildi,ameliyat_olacak,ameliyat_edildi,bitti",
   LEAD_STATUSES.join(","),
 );
 
@@ -48,13 +48,14 @@ for (const key of LEAD_STATUSES) {
 }
 
 expect(
-  "filtreler 7 durum + tümü",
-  LEAD_STATUS_FILTERS.length === 8 && LEAD_STATUS_FILTERS[0].id === "all",
+  "filtreler 6 durum + tümü",
+  LEAD_STATUS_FILTERS.length === 7 && LEAD_STATUS_FILTERS[0].id === "all",
 );
 
 expect("asLeadStatus muayene_edildi", asLeadStatus("muayene_edildi") === "muayene_edildi");
 expect("asLeadStatus ameliyat_olacak", asLeadStatus("ameliyat_olacak") === "ameliyat_olacak");
 expect("asLeadStatus ameliyat_edildi", asLeadStatus("ameliyat_edildi") === "ameliyat_edildi");
+expect("legacy randevulu → muayene_edildi", asLeadStatus("randevulu") === "muayene_edildi");
 expect("legacy muayeneye_geldi → muayene_edildi", asLeadStatus("muayeneye_geldi") === "muayene_edildi");
 expect("legacy ameliyat_karari → ameliyat_olacak", asLeadStatus("ameliyat_karari") === "ameliyat_olacak");
 expect("legacy ameliyat_oldu → ameliyat_edildi", asLeadStatus("ameliyat_oldu") === "ameliyat_edildi");

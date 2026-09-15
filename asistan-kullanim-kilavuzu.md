@@ -481,9 +481,14 @@ Sistem, uygun zamanlarda hastalara kendiliğinden mesaj gönderir:
 
 - Randevudan **1 gün önce** ve **1 saat önce** otomatik hatırlatma mesajı
   gider.
+- Ameliyat randevusundan **2 gün önce** (48 saat kala) hastaya teyit mesajı
+  gider (Durum Panosu’nda **Ameliyat olacak** olanlar).
 - Hasta **Ameliyat edildi** durumuna geçtiği gün **saat 16:00'da** ameliyat
   sonrası bilgilendirme mesajı, ardından da bir Google yorum isteği otomatik
   gönderilir. Taşınma 16:00'dan sonra olduysa bu mesajlar hemen gider.
+- Bu ameliyat sonrası mesajlar gittikten sonra hasta otomatik olarak **Bitti**
+  durumuna taşınır. Kartta / listede mor **Ameliyat edildi** etiketi kalır
+  (durum Bitti olsa bile).
 
 Bu mesajlar hakkında bilmeniz gerekenler:
 
@@ -512,7 +517,8 @@ Bir hatırlatma veya bilgilendirme mesajının gidebilmesi için:
    önceki hatırlatmalar randevuya bağlıdır; **Takvim**'den (ya da WhatsApp'taki
    **Talep durumu** kutusundan **Randevulu** seçerek) gerçek bir randevu
    yazmalısınız. Randevu formundaki **Tür** alanı muayene, kontrol veya online
-   görüşme olmalı.
+   görüşme olmalı. Ameliyat teyit mesajı için tür **Ameliyat** olmalı ve hasta
+   **Ameliyat olacak** durumunda kalmalıdır.
 
 3. **Ameliyat mesajları için hastayı Ameliyat edildi'ye taşımanız yeterli.**
    Takvimde ameliyat randevusu yoksa sistem onu sizin için otomatik oluşturur.

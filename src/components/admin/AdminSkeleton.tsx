@@ -246,7 +246,7 @@ export function AdminTeamSkeleton() {
   );
 }
 
-/** Detay (hasta / lead / randevu) */
+/** Detay (hasta / lead / ameliyat) */
 export function AdminDetailSkeleton({ label }: { label: string }) {
   return (
     <div className="space-y-8" aria-busy="true" aria-label={label}>

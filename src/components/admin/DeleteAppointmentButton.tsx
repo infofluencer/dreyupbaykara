@@ -26,7 +26,7 @@ export function DeleteAppointmentButton({
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("Bu randevu kalıcı olarak silinsin mi?");
+    setMessage("Bu ameliyat kalıcı olarak silinsin mi?");
     setDialog("confirm");
   }
 
@@ -41,13 +41,13 @@ export function DeleteAppointmentButton({
         router.push(redirectTo);
         return;
       }
-      setMessage("Randevu silindi.");
+      setMessage("Ameliyat silindi.");
       setDialog("success");
       router.refresh();
     } catch (caught) {
       setDialog("error");
       setMessage(
-        caught instanceof Error ? caught.message : "Randevu silinemedi.",
+        caught instanceof Error ? caught.message : "Ameliyat silinemedi.",
       );
     }
   }
@@ -61,10 +61,10 @@ export function DeleteAppointmentButton({
       </form>
       <AdminConfirmDialog
         status={dialog}
-        title="Randevu silinsin mi?"
+        title="Ameliyat silinsin mi?"
         message={message}
         confirmLabel="Evet, sil"
-        loadingTitle="Randevu siliniyor"
+        loadingTitle="Ameliyat siliniyor"
         successTitle="Silindi"
         errorTitle="Silinemedi"
         onConfirm={() => void runDelete()}

@@ -167,6 +167,7 @@ async function loadTodayAppointments(
         "id, starts_at, ends_at, appointment_type, status, leads!inner(contacts(name, phone))",
         { count: "exact" },
       )
+      .eq("appointment_type", "procedure")
       .gte("starts_at", todayIso)
       .lt("starts_at", tomorrowIso)
       .neq("status", "cancelled")

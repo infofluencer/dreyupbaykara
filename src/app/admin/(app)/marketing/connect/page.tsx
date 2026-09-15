@@ -123,13 +123,13 @@ export default async function MarketingConnectPage({
 
       <section className="grid gap-4 lg:grid-cols-2">
         <AccountCard
-          title="Google Ads"
+          title="Google Ads + Analytics"
           configured={isGoogleAdsConfigured()}
           envReady={isGoogleAdsEnvReady()}
           hasEnvToken={hasGoogleEnvTokens()}
           account={googleAccount}
           connectHref="/api/marketing/oauth/google"
-          envHint="GOOGLE_ADS_* + GOOGLE_ADS_REFRESH_TOKEN (kalıcı) veya OAuth"
+          envHint="GOOGLE_ADS_* + GOOGLE_ADS_REFRESH_TOKEN · Özet pastası için Analytics readonly scope (yeniden bağla)"
         />
         <AccountCard
           title="Meta"
@@ -152,6 +152,24 @@ export default async function MarketingConnectPage({
             ) : null
           }
         />
+      </section>
+
+      <section className="rounded-2xl border border-[#123524]/08 bg-[#f7f9f8] px-4 py-4 text-sm text-[#466254]">
+        <p className="font-semibold text-[#123524]">GA4 site trafiği (Özet pastası)</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5">
+          <li>
+            Google Cloud’da <strong>Google Analytics Data API</strong> açık olsun
+            (Ads OAuth client ile aynı proje).
+          </li>
+          <li>
+            Env: <code>GA4_PROPERTY_ID</code> = GA property sayısal ID (URL’de{" "}
+            <code>/p123456789/</code>). Measurement ID (<code>G-…</code>) değil.
+          </li>
+          <li>
+            Bu sayfadan <strong>Google’ı yeniden bağlayın</strong> — Analytics
+            okuma izni eklenir (eski token’da yok).
+          </li>
+        </ol>
       </section>
 
       <section className="rounded-2xl border border-[#123524]/08 bg-[#f7f9f8] px-4 py-4 text-sm text-[#466254]">

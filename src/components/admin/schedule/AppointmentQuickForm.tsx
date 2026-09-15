@@ -38,7 +38,7 @@ export function AppointmentQuickForm({
   search?: string;
   error?: string | null;
   defaultOpen?: boolean;
-  /** Day view: hide "+ Randevu ekle" when closed (empty CTA / slot clicks open form). */
+  /** Day view: hide "+ Ameliyat ekle" when closed (empty CTA / slot clicks open form). */
   hideToggleUnlessOpen?: boolean;
 }) {
   const router = useRouter();
@@ -175,7 +175,7 @@ export function AppointmentQuickForm({
         ? name || "seçili hasta"
         : name || "yeni hasta";
     setMessage(
-      `${who} için ${date} tarihinde randevu oluşturulsun mu?\n\nKayıt sonrası Durum Panosu’nda “Randevulu” görünür.`,
+      `${who} için ${date} tarihinde ameliyat oluşturulsun mu?\n\nKayıt sonrası Durum Panosu’nda “Ameliyat olacak” görünür.`,
     );
     setPendingSubmit(true);
     setDialog("confirm");
@@ -193,18 +193,18 @@ export function AppointmentQuickForm({
         resetFormAfterCreate();
         setCreatedDate(result.date ?? date);
         setMessage(
-          "Randevu kaydedildi. Hasta listesi ve Durum Panosu güncellendi.",
+          "Ameliyat kaydedildi. Hasta listesi ve Durum Panosu güncellendi.",
         );
         setDialog("success");
         router.refresh();
         return;
       }
       setDialog("error");
-      setMessage(result.error || "Randevu eklenemedi.");
+      setMessage(result.error || "Ameliyat eklenemedi.");
     } catch (caught) {
       setDialog("error");
       setMessage(
-        caught instanceof Error ? caught.message : "Randevu eklenemedi.",
+        caught instanceof Error ? caught.message : "Ameliyat eklenemedi.",
       );
     }
   }
@@ -245,7 +245,7 @@ export function AppointmentQuickForm({
             className="inline-flex min-h-10 cursor-pointer items-center rounded-full border border-[#0b6b45]/25 bg-white px-4 text-sm font-semibold text-[#0b6b45]"
             aria-expanded={open}
           >
-            {open ? "Formu gizle" : "+ Randevu ekle"}
+            {open ? "Formu gizle" : "+ Ameliyat ekle"}
           </button>
         </div>
       ) : null}
@@ -416,24 +416,24 @@ export function AppointmentQuickForm({
           >
             {busy ? (
               <>
-                <Spinner size="sm" className="text-white" label="Randevu kaydediliyor" />
+                <Spinner size="sm" className="text-white" label="Ameliyat kaydediliyor" />
                 Kaydediliyor…
               </>
             ) : (
-              "Randevu ekle"
+              "Ameliyat ekle"
             )}
           </button>
         </form>
       ) : null}
       <AdminConfirmDialog
         status={dialog}
-        title="Randevu oluşturulsun mu?"
+        title="Ameliyat oluşturulsun mu?"
         message={message}
         confirmLabel="Evet, kaydet"
-        loadingTitle="Randevu kaydediliyor"
+        loadingTitle="Ameliyat kaydediliyor"
         loadingMessage="Hasta ve Durum Panosu güncelleniyor…"
-        successTitle="Randevu eklendi"
-        errorTitle="Randevu eklenemedi"
+        successTitle="Ameliyat eklendi"
+        errorTitle="Ameliyat eklenemedi"
         onConfirm={() => {
           if (pendingSubmit) void runCreate();
         }}

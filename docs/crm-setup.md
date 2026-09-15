@@ -106,12 +106,13 @@ kaydolur ama Meta’ya gitmez.
 
 ### Randevu / ameliyat hatırlatması (otomatik)
 
-Otomasyonlar Meta’da onaylı şablon gönderir. Dört şablon gerekir (Türkçe):
+Otomasyonlar Meta’da onaylı şablon gönderir. Beş şablon gerekir (Türkçe):
 
 | Kural | Şablon adı | Değişken | Kullanım |
 |-------|-----------|----------|----------|
 | `appt_1d` | `randevu_1_gun` | `{{1}}` ad · `{{2}}` tarih · `{{3}}` saat | Muayene vb. — 1 gün önce |
 | `appt_1h` | `randevu_1_saat` | `{{1}}` ad · `{{2}}` tarih · `{{3}}` saat | Muayene vb. — 1 saat önce |
+| `surgery_2d` | `ameliyat_2_gun` | `{{1}}` ad · `{{2}}` tarih | `procedure` + `ameliyat_olacak` — 48 saat kala teyit (saat yok) |
 | `surgery_day` | `ameliyat_sonrasi_bilgi` | yok | `procedure` — ameliyat günü 16:00 Istanbul |
 | `surgery_google_review` | `google_maps_yorum` | yok | `surgery_day` gittikten sonra |
 
@@ -120,18 +121,31 @@ aynı olmalı; kaynak `message_rules` tablosudur ve `/admin/automations`
 üzerinden düzenlenir. `include_body_params` kapalıysa hiç parametre
 gönderilmez. Yorum isteği şablonu Meta’da büyük olasılıkla MARKETING
 kategorisine girer (mesaj başına ~12 kat pahalı, sıklık limitine tabi);
-diğer üçü UTILITY olmalıdır.
+diğerleri UTILITY olmalıdır.
 
 Panel: `/admin/automations` — kural aç/kapa, şablon adı, gönderim logu, opt-out.
 Kurallar varsayılan **kapalıdır**. Migration:
-`20260823200000_wa_message_automations.sql`.
+`20260823200000_wa_message_automations.sql`,
+`20260915130000_surgery_2d_reminder.sql`.
 
-Cron (15 dakika; Vercel `vercel.json` veya VPS):
+Cron (15 dakika — Dokploy schedule genelde `*/5`):
+
+- **Dokploy:** Schedules → `Whatsapp Hatırlatmalar` →
+  `POST /api/cron/reminders` (`Authorization: Bearer $CRON_SECRET`).
+  Ayrı süreç içi zamanlayıcı yok; bu schedule hem durum panosu taşımasını
+  hem WhatsApp hatırlatmalarını çalıştırır.
+- **Elle / harici:**
 
 ```text
 POST https://ALAN-ADINIZ/api/cron/reminders
 Authorization: Bearer <CRON_SECRET>
 ```
+
+Aynı endpoint hem durum panosu taşımasını (`advanceFinishedAppointments`:
+biten ameliyat → Ameliyat edildi) hem WhatsApp hatırlatmalarını çalıştırır.
+Ameliyat sonrası mesajlar (bilgilendirme + yorum isteği, açıksa ikisi de)
+gönderildikten sonra lead otomatik **Bitti**ye alınır; **Ameliyat edildi**
+etiketi (`had_surgery`) kalır.
 
 Idempotency: `message_dispatches (appointment_id, rule_key)`. Opt-out:
 `wa_message_opt_outs` veya hasta mesajı `DUR` / `STOP` / `IPTAL`.

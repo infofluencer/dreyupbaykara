@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition, type FormEvent } from "react";
-import { createAppointment, updateLeadStatus } from "@/app/admin/actions";
+import { useEffect, useState, useTransition } from "react";
+import { updateLeadStatus } from "@/app/admin/actions";
 import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
 import { Spinner } from "@/components/admin/Spinner";
 import {
@@ -11,27 +11,16 @@ import {
   LEAD_STATUSES,
   type LeadPipelineStatus,
 } from "@/lib/crm/lead-status";
-import { clinicSlots } from "@/lib/crm/schedule";
-import { istanbulYmd } from "@/lib/date/tr";
 
 const selectClass =
   "min-h-10 rounded-xl border border-[#123524]/15 bg-white px-3 py-2 text-sm font-semibold text-[#123524] outline-none focus:border-[#0b6b45]";
-
-const TIME_SLOTS = clinicSlots();
-
-function defaultTimeLabel() {
-  const now = new Date();
-  const label = `${String(now.getHours()).padStart(2, "0")}:00`;
-  return TIME_SLOTS.some((s) => s.label === label)
-    ? label
-    : (TIME_SLOTS[8]?.label ?? "10:00");
-}
 
 export function LeadStatusControl({
   leadId,
   status,
   lostReason,
   needsFollowup,
+  hadSurgery,
   onOptimisticChange,
   showBadge = true,
   showFollowupToggle = true,
@@ -42,6 +31,7 @@ export function LeadStatusControl({
   status: string | null | undefined;
   lostReason?: string | null;
   needsFollowup?: boolean | null;
+  hadSurgery?: boolean | null;
   onOptimisticChange?: (next: LeadPipelineStatus) => void;
   showBadge?: boolean;
   /** Liste satırlarında takip checkbox’ını gizle */
@@ -55,9 +45,6 @@ export function LeadStatusControl({
   const [error, setError] = useState<string | null>(null);
   const [doneReasonOpen, setDoneReasonOpen] = useState(false);
   const [doneReason, setDoneReason] = useState(lostReason ?? "");
-  const [apptOpen, setApptOpen] = useState(false);
-  const [apptPending, setApptPending] = useState(false);
-  const [apptFormVersion, setApptFormVersion] = useState(0);
 
   useEffect(() => {
     setDisplay(asLeadStatus(status));
@@ -65,7 +52,6 @@ export function LeadStatusControl({
     setDoneReason(lostReason ?? "");
     setError(null);
     setDoneReasonOpen(false);
-    setApptOpen(false);
   }, [leadId, status, needsFollowup, lostReason]);
 
   function commitStatus(
@@ -102,21 +88,13 @@ export function LeadStatusControl({
   }
 
   function onSelectChange(next: LeadPipelineStatus) {
-    if (next === "randevulu") {
-      setApptOpen(true);
-      setDoneReasonOpen(false);
-      setError(null);
-      return;
-    }
     if (isDoneStatus(next)) {
       setDoneReasonOpen(true);
       setDoneReason(lostReason ?? "");
-      setApptOpen(false);
       setError(null);
       return;
     }
     setDoneReasonOpen(false);
-    setApptOpen(false);
     commitStatus(next);
   }
 
@@ -127,35 +105,16 @@ export function LeadStatusControl({
     });
   }
 
-  async function onAppointmentSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    setApptPending(true);
-    setError(null);
-    try {
-      const result = await createAppointment(new FormData(form));
-      if (!result.ok) {
-        setError(result.error || "Randevu eklenemedi.");
-        return;
-      }
-      setApptFormVersion((value) => value + 1);
-      setApptOpen(false);
-      setDisplay("randevulu");
-      setFollowup(false);
-      onOptimisticChange?.("randevulu");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Randevu eklenemedi.");
-    } finally {
-      setApptPending(false);
-    }
-  }
-
   return (
     <div
       className={`flex flex-wrap items-center gap-2 ${className ?? ""}`.trim()}
     >
       {showBadge ? (
-        <LeadStatusBadge status={display} needsFollowup={followup} />
+        <LeadStatusBadge
+          status={display}
+          needsFollowup={followup}
+          hadSurgery={hadSurgery}
+        />
       ) : null}
       {pending ? (
         <Spinner size="sm" className="text-[#0b6b45]" label="Durum güncelleniyor" />
@@ -166,13 +125,13 @@ export function LeadStatusControl({
       <select
         id={`lead-status-${leadId}`}
         value={display}
-        disabled={pending || apptPending}
+        disabled={pending}
         aria-label="Talep durumu"
         onChange={(event) =>
           onSelectChange(event.target.value as LeadPipelineStatus)
         }
         className={`${selectClass} ${size === "sm" ? "min-h-9 text-xs" : ""} ${
-          pending || apptPending ? "opacity-60" : ""
+          pending ? "opacity-60" : ""
         }`}
       >
         {LEAD_STATUSES.map((value) => (
@@ -253,84 +212,6 @@ export function LeadStatusControl({
                 Vazgeç
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
-
-      {apptOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#123524]/40 p-4 sm:items-center">
-          <div
-            role="dialog"
-            aria-labelledby={`appt-title-${leadId}`}
-            className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
-          >
-            <h3
-              id={`appt-title-${leadId}`}
-              className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold text-[#123524]"
-            >
-              Randevu tarihi seç
-            </h3>
-            <p className="mt-1 text-sm text-[#466254]">
-              Takvime randevu yazılır ve durum Randevulu olur.
-            </p>
-            <form
-              key={apptFormVersion}
-              onSubmit={onAppointmentSubmit}
-              className="mt-4 space-y-3"
-            >
-              <input type="hidden" name="lead_id" value={leadId} />
-              <input type="hidden" name="appointment_type" value="consultation" />
-              <input type="hidden" name="duration_minutes" value="30" />
-              <label className="block text-sm font-medium text-[#123524]">
-                Tarih
-                <input
-                  name="starts_date"
-                  type="date"
-                  required
-                  defaultValue={istanbulYmd()}
-                  className="mt-1.5 min-h-11 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b6b45]"
-                />
-              </label>
-              <label className="block text-sm font-medium text-[#123524]">
-                Saat
-                <select
-                  name="starts_time"
-                  required
-                  defaultValue={defaultTimeLabel()}
-                  className="mt-1.5 min-h-11 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b6b45]"
-                >
-                  {TIME_SLOTS.map((slot) => (
-                    <option key={slot.label} value={slot.label}>
-                      {slot.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="flex flex-wrap gap-2 pt-1">
-                <button
-                  type="submit"
-                  disabled={apptPending}
-                  className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-[#0b6b45] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {apptPending ? (
-                    <>
-                      <Spinner size="sm" className="text-white" label="Kaydediliyor" />
-                      Kaydediliyor…
-                    </>
-                  ) : (
-                    "Randevu oluştur"
-                  )}
-                </button>
-                <button
-                  type="button"
-                  disabled={apptPending}
-                  onClick={() => setApptOpen(false)}
-                  className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded-full px-3 text-sm font-medium text-[#466254] disabled:cursor-not-allowed"
-                >
-                  Vazgeç
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       ) : null}

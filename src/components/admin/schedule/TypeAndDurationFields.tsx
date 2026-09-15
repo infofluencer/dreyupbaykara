@@ -6,20 +6,16 @@ import {
   defaultDurationForType,
 } from "@/lib/crm/duration";
 
+/** Takvim yalnızca ameliyat — tür sabit procedure. */
 export function TypeAndDurationFields({
-  defaultType = "consultation",
   defaultDuration,
 }: {
+  /** @deprecated Tür artık her zaman ameliyat; yok sayılır. */
   defaultType?: string;
   defaultDuration?: number;
 }) {
-  const [type, setType] = useState(defaultType);
-  const [durationTouched, setDurationTouched] = useState(
-    defaultDuration != null,
-  );
-  const [duration, setDuration] = useState(
-    defaultDuration ?? defaultDurationForType(defaultType),
-  );
+  const initial = defaultDuration ?? defaultDurationForType("procedure");
+  const [duration, setDuration] = useState(initial);
   const options =
     DURATION_OPTIONS.some((item) => item.minutes === duration)
       ? DURATION_OPTIONS
@@ -29,35 +25,14 @@ export function TypeAndDurationFields({
         ].sort((a, b) => a.minutes - b.minutes);
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:contents">
-      <label className="text-sm font-medium">
-        Tür
-        <select
-          name="appointment_type"
-          value={type}
-          onChange={(event) => {
-            const next = event.target.value;
-            setType(next);
-            if (!durationTouched) setDuration(defaultDurationForType(next));
-          }}
-          className="mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-3 text-base"
-        >
-          <option value="consultation">İlk muayene</option>
-          <option value="control">Kontrol</option>
-          <option value="procedure">Ameliyat</option>
-          <option value="online">Online görüşme</option>
-          <option value="other">Diğer</option>
-        </select>
-      </label>
-      <label className="text-sm font-medium">
+    <div className="grid grid-cols-1 gap-3 sm:contents">
+      <input type="hidden" name="appointment_type" value="procedure" />
+      <label className="text-sm font-medium sm:col-span-2">
         Süre
         <select
           name="duration_minutes"
           value={duration}
-          onChange={(event) => {
-            setDurationTouched(true);
-            setDuration(Number(event.target.value));
-          }}
+          onChange={(event) => setDuration(Number(event.target.value))}
           className="mt-1.5 min-h-12 w-full rounded-xl border border-[#123524]/15 bg-white px-3 py-3 text-base"
         >
           {options.map((item) => (

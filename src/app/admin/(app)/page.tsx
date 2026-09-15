@@ -116,7 +116,7 @@ function Header({
         <Skeleton className="mt-2 h-4 w-64 max-w-full" />
       ) : counts ? (
         <p className="mt-2 text-sm text-balance text-[#466254]">
-          Bugün: {counts.appointmentCount} randevu · {counts.newLeadCount} yeni
+          Bugün: {counts.appointmentCount} ameliyat · {counts.newLeadCount} yeni
           talep
           {email ? (
             <span className="hidden break-all sm:inline"> · {email}</span>
@@ -151,9 +151,9 @@ function QuickLinks() {
       <QuickLink
         href="/admin/leads"
         icon={CalendarDays}
-        title="Takvim"
-        short="Takvim"
-        desc="Randevu ekle / sil, gün-ay-yıl planı"
+        title="Ameliyat"
+        short="Ameliyat"
+        desc="Ameliyat ekle / sil, gün-ay-yıl planı"
       />
       <QuickLink
         href="/admin/messages"

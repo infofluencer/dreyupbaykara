@@ -92,7 +92,7 @@ export function LeadQueue({
         <div className="max-h-72 overflow-y-auto xl:max-h-none xl:flex-1">
           {!leads.length ? (
             <p className="px-4 py-8 text-center text-sm text-[#466254]">
-              Hasta yok. Formdan ad ve telefonla randevu ekleyebilirsiniz.
+              Hasta yok. Formdan ad ve telefonla ameliyat ekleyebilirsiniz.
             </p>
           ) : (
             leads.map((lead) => {

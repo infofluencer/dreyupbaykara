@@ -61,7 +61,7 @@ export default async function AppointmentDetailPage({
   const minutes = durationMinutes(start, appointment.ends_at);
   const cancelled = appointment.status === "cancelled";
   const past = !cancelled && new Date(end) < now;
-  const whenLabel = cancelled ? "İptal" : past ? "Geçmiş randevu" : "Yaklaşan randevu";
+  const whenLabel = cancelled ? "İptal" : past ? "Geçmiş ameliyat" : "Yaklaşan ameliyat";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -89,7 +89,7 @@ export default async function AppointmentDetailPage({
       <div className="rounded-2xl border border-[#0b6b45]/20 bg-[#e7f5ed] p-4 text-sm text-[#24543e]">
         <p className="font-semibold">Bu sayfa nedir?</p>
         <p className="mt-1">
-          Yalnızca <strong>bu randevu</strong> düzenlenir: gün, başlangıç, süre
+          Yalnızca <strong>bu ameliyat</strong> düzenlenir: gün, başlangıç, süre
           (muayene / ameliyat), tür, durum ve not. Hasta kartı ayrıdır.
         </p>
       </div>
@@ -127,8 +127,8 @@ export default async function AppointmentDetailPage({
       >
         <input type="hidden" name="id" value={appointment.id} />
         <input type="hidden" name="lead_id" value={appointment.lead_id} />
-        <input type="hidden" name="title" value={appointment.title || "Muayene randevusu"} />
-        <h2 className="font-semibold">Randevuyu düzenle</h2>
+        <input type="hidden" name="title" value={appointment.title || "Ameliyat"} />
+        <h2 className="font-semibold">Ameliyatı düzenle</h2>
         <FormPendingShell className="space-y-4">
         {formError ? (
           <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -139,7 +139,7 @@ export default async function AppointmentDetailPage({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             label="Tarih"
-            hint="Randevu günü. Takvim kutularından gün seçilmez."
+            hint="Ameliyat günü. Takvim kutularından gün seçilmez."
           >
             <input
               name="starts_date"
@@ -175,7 +175,7 @@ export default async function AppointmentDetailPage({
         </div>
         <Field
           label="Durum"
-          hint="Planlandı: henüz gelmedi. Onaylandı: hasta teyit etti. Tamamlandı: muayene bitti. İptal: saat boşalır."
+          hint="Planlandı: henüz gelmedi. Onaylandı: teyit edildi. Tamamlandı: ameliyat bitti. İptal: saat boşalır."
         >
           <select
             name="status"
@@ -189,7 +189,7 @@ export default async function AppointmentDetailPage({
           </select>
         </Field>
         <Field
-          label="Randevu notu"
+          label="Ameliyat notu"
           hint="Sadece bu saate ait not. Hasta kartındaki genel notlardan ayrıdır."
         >
           <textarea
@@ -203,7 +203,7 @@ export default async function AppointmentDetailPage({
         </FormPendingShell>
 
         <div className="flex flex-wrap gap-3">
-          <SubmitButton pendingLabel="Randevu kaydediliyor…" className="min-h-12 px-6 text-base sm:text-sm">
+          <SubmitButton pendingLabel="Ameliyat kaydediliyor…" className="min-h-12 px-6 text-base sm:text-sm">
             Kaydet
           </SubmitButton>
           {contact?.id ? (
@@ -218,14 +218,14 @@ export default async function AppointmentDetailPage({
       </form>
 
       <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
-        <p className="text-sm font-semibold text-red-900">Randevuyu sil</p>
+        <p className="text-sm font-semibold text-red-900">Ameliyatı sil</p>
         <p className="mt-1 text-sm text-red-800">
           Bu muayene takvimden kalkar, saat tekrar boşalır. Hasta kartı silinmez.
         </p>
         <div className="mt-4">
           <DeleteAppointmentButton
             id={appointment.id}
-            label="Randevuyu sil"
+            label="Ameliyatı sil"
             className="rounded-full border border-red-300 bg-white px-5 py-2.5 text-sm font-semibold text-red-700"
             redirectTo={`/admin/leads?date=${startDate}`}
           />

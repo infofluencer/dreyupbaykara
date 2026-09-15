@@ -95,7 +95,7 @@ function DayTimeline({
       <div className="overflow-hidden rounded-2xl border border-[#123524]/10 bg-white">
         <div className="flex border-b border-[#123524]/08 bg-[#f7f9f8] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#6b7d73]">
           <span className="w-14 shrink-0 sm:w-16">Saat</span>
-          <span className="min-w-0 flex-1">Randevu akışı · 08:00–20:00</span>
+          <span className="min-w-0 flex-1">Ameliyat akışı · 08:00–20:00</span>
         </div>
 
         <div
@@ -168,8 +168,8 @@ function DayTimeline({
                           top: hourTop + (minute / 30) * UNIT_PX,
                           height: UNIT_PX / 2,
                         }}
-                        aria-label={`${slot} için randevu ekle`}
-                        title={`${slot} — randevu ekle`}
+                        aria-label={`${slot} için ameliyat ekle`}
+                        title={`${slot} — ameliyat ekle`}
                       />
                     );
                   })}
@@ -261,7 +261,7 @@ function DayTimeline({
         <div className="flex flex-wrap items-center gap-3">
           <StatusLegend />
           <span className="text-[10px] font-medium text-[#8a9a90]">
-            Boş saate tıklayarak randevu ekleyebilirsiniz
+            Boş saate tıklayarak ameliyat ekleyebilirsiniz
           </span>
         </div>
       ) : null}
@@ -300,7 +300,7 @@ export async function DayAppointments({
   const laidOut = layoutDay(appointments);
   const hasAppointments = appointments.length > 0;
   const bannerMessage = hasAppointments
-    ? "Yeni randevu ekleyin."
+    ? "Yeni ameliyat ekleyin."
     : emptyText;
 
   return (
@@ -317,7 +317,7 @@ export async function DayAppointments({
         <div className="space-y-2.5 sm:hidden">
           <AgendaCardList
             appointments={appointments}
-            heading={`Günün randevuları · ${appointments.length}`}
+            heading={`Günün ameliyatları · ${appointments.length}`}
           />
           <StatusLegend />
         </div>

@@ -80,3 +80,24 @@ export function resolveCampaignSite(
 
   return { prefix: null, site: null, siteMatchSource: "unmatched" };
 }
+
+function normalizeAdAccountExternalId(value: string): string {
+  return value.replace(/^act_/i, "").replace(/\D/g, "");
+}
+
+/**
+ * Meta çoklu site hesabı: kampanya site'siz (prefix yok) ama hesap haritasında
+ * siteFilter varsa bu siteye aittir — Meta Ads tarafında [PREFIX] gerekmez.
+ */
+export function metaCampaignBelongsToSiteViaAccountMap(
+  platform: string,
+  campaignSite: string | null,
+  accountExternalId: string | null | undefined,
+  siteFilter: string,
+  metaSitesByExternalId: Record<string, string[]>,
+): boolean {
+  if (platform !== "meta" || campaignSite) return false;
+  const id = normalizeAdAccountExternalId(accountExternalId ?? "");
+  if (!id) return false;
+  return (metaSitesByExternalId[id] ?? []).includes(siteFilter);
+}

@@ -1,11 +1,14 @@
 /**
  * Meta şablonlarının yerel karşılıkları.
- *   appt_1d | appt_1h | surgery_day | surgery_google_review
+ *   appt_1d | appt_1h | surgery_2d | surgery_day | surgery_google_review
  *
  * Dil: Turkish (tr)
  *
  * appt_1d / appt_1h — body değişkenleri:
  *   {{1}} hasta adı · {{2}} tarih · {{3}} saat
+ *
+ * surgery_2d — body değişkenleri:
+ *   {{1}} hasta adı · {{2}} tarih  (saat yok)
  *
  * surgery_day / surgery_google_review — sabit metin (değişken yok).
  *
@@ -53,6 +56,18 @@ export const WA_AUTOMATION_TEMPLATE_SPECS = [
     bodyParams: ["name", "date", "time"] as const,
     sampleBody:
       "Merhaba {{1}}, bugün saat {{3}} randevunuz var ({{2}}). Op. Dr. Eyüp Baykara.",
+  },
+  {
+    key: "surgery_2d",
+    templateName: "ameliyat_2_gun",
+    bodyParams: ["name", "date"] as const,
+    sampleBody: `Merhaba {{1}},
+
+{{2}} tarihinde ameliyat randevunuz bulunmaktadır.
+
+Planlamamızı netleştirebilmemiz için katılımınızı bu mesaja cevap vererek teyit etmenizi rica ederiz.
+
+Op. Dr. Eyüp Baykara.`,
   },
   {
     key: "surgery_day",

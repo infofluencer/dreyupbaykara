@@ -1,37 +1,34 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LeadPipelineStatus } from "@/lib/crm/lead-status";
 
-/** ends_at boş randevular için varsayılan süre (DB'deki no-overlap kuralıyla aynı). */
+/** ends_at boş ameliyatlar için varsayılan süre (DB'deki no-overlap kuralıyla aynı). */
 const DEFAULT_DURATION_MS = 30 * 60 * 1000;
 
 /**
  * Geçmişi toplu taşımamak için tarama penceresi. Sisteme geçmeden önceki
- * eski randevular olduğu gibi kalır; yalnızca son 7 günde biten randevular taşınır.
+ * eski kayıtlar olduğu gibi kalır; yalnızca son 7 günde biten ameliyatlar taşınır.
  */
 const ADVANCE_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Randevu oluşturulunca / tipi güncellenince lead durumu. */
+/** Ameliyat oluşturulunca / tipi güncellenince lead durumu. */
 export function leadStatusForBookedAppointment(
-  appointmentType: string,
-): Extract<LeadPipelineStatus, "ameliyat_olacak" | "randevulu"> {
-  return appointmentType === "procedure" ? "ameliyat_olacak" : "randevulu";
+  _appointmentType?: string,
+): Extract<LeadPipelineStatus, "ameliyat_olacak"> {
+  return "ameliyat_olacak";
 }
 
-/** Randevu bitiş saati geçince lead durumu. */
+/** Ameliyat bitiş saati geçince lead durumu. */
 export function leadStatusAfterAppointmentEnds(
-  appointmentType: string,
-): Extract<LeadPipelineStatus, "ameliyat_edildi" | "muayene_edildi"> {
-  return appointmentType === "procedure" ? "ameliyat_edildi" : "muayene_edildi";
+  _appointmentType?: string,
+): Extract<LeadPipelineStatus, "ameliyat_edildi"> {
+  return "ameliyat_edildi";
 }
 
-/** Bu durumdaki lead, randevu bitince ileri taşınabilir. */
+/** Bu durumdaki lead, ameliyat bitince ileri taşınabilir. */
 export function advanceableFromStatuses(
-  appointmentType: string,
+  _appointmentType?: string,
 ): LeadPipelineStatus[] {
-  // Ameliyat: randevulu da olabilir (ameliyat randevusu sonradan eklenmişse)
-  return appointmentType === "procedure"
-    ? ["ameliyat_olacak", "randevulu", "muayene_edildi"]
-    : ["randevulu"];
+  return ["ameliyat_olacak", "muayene_edildi"];
 }
 
 export function appointmentEndMs(row: {
@@ -45,7 +42,7 @@ export function appointmentEndMs(row: {
   return new Date(row.starts_at).getTime() + DEFAULT_DURATION_MS;
 }
 
-/** Randevu bitti mi (ends_at yoksa starts_at + 30dk). */
+/** Ameliyat bitti mi (ends_at yoksa starts_at + 30dk). */
 export function isAppointmentFinished(
   row: { starts_at: string; ends_at?: string | null },
   now = new Date(),
@@ -54,20 +51,24 @@ export function isAppointmentFinished(
 }
 
 /**
- * Randevu tamamlandığında lead'i ileri taşır.
+ * Ameliyat tamamlandığında lead'i ileri taşır.
  * Dönüş: true = lead taşındı, false = zaten ileride / eşleşmedi.
- * Hata durumunda throw eder (çağıran randevuyu completed yapmamalı).
+ * Hata durumunda throw eder (çağıran kaydı completed yapmamalı).
  */
 export async function advanceLeadForFinishedAppointment(
   supabase: SupabaseClient,
   input: { leadId: string; appointmentType: string },
 ): Promise<boolean> {
+  // Yalnızca ameliyat (procedure) lead durumunu ilerletir.
+  if (input.appointmentType !== "procedure") return false;
+
   const { data, error } = await supabase
     .from("leads")
     .update({
       status: leadStatusAfterAppointmentEnds(input.appointmentType),
       needs_followup: false,
       stage: "appointment",
+      had_surgery: true,
     })
     .eq("id", input.leadId)
     .in("status", advanceableFromStatuses(input.appointmentType))
@@ -79,12 +80,12 @@ export async function advanceLeadForFinishedAppointment(
 }
 
 /**
- * Bitiş saati geçmiş scheduled/confirmed randevular:
- *   1) lead'i muayene_edildi / ameliyat_edildi'ye taşı
- *   2) sonra randevuyu completed yap
+ * Bitiş saati geçmiş scheduled/confirmed procedure kayıtları:
+ *   1) lead'i ameliyat_edildi'ye taşı
+ *   2) sonra kaydı completed yap
  *
- * Sıralama önemli: lead güncellemesi patlarsa (ör. migration uygulanmadıysa)
- * randevu scheduled kalır ve sonraki turda tekrar denenir.
+ * Sıralama önemli: lead güncellemesi patlarsa
+ * kayıt scheduled kalır ve sonraki turda tekrar denenir.
  */
 export async function advanceFinishedAppointments(
   supabase: SupabaseClient,
@@ -100,6 +101,7 @@ export async function advanceFinishedAppointments(
   const { data, error } = await supabase
     .from("appointments")
     .select("id, lead_id, appointment_type, starts_at, ends_at, status")
+    .eq("appointment_type", "procedure")
     .in("status", ["scheduled", "confirmed"])
     .gte("starts_at", lookbackFrom.toISOString())
     .lte("starts_at", now.toISOString())
@@ -135,7 +137,7 @@ export async function advanceFinishedAppointments(
       .in("status", ["scheduled", "confirmed"]);
 
     if (apptErr) {
-      pipelineFailures.push(`randevu ${row.id}: ${apptErr.message}`);
+      pipelineFailures.push(`ameliyat ${row.id}: ${apptErr.message}`);
       continue;
     }
     appointmentsCompleted += 1;

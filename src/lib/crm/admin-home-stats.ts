@@ -65,6 +65,7 @@ export async function loadAdminHomeHeaderCounts() {
     supabase
       .from("appointments")
       .select("*", { count: "exact", head: true })
+      .eq("appointment_type", "procedure")
       .gte("starts_at", todayIso)
       .lt("starts_at", tomorrowIso)
       .neq("status", "cancelled"),

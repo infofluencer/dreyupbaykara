@@ -64,7 +64,7 @@ export async function AdminHomeWorklist() {
           </h2>
           <p className="mt-1 text-sm text-pretty text-[#466254]">
             Sırayla: bekleyen mesajları yanıtlayın, bugün gelen talepleri
-            karşılayın, günün randevularını kontrol edin.
+            karşılayın, günün ameliyatlarını kontrol edin.
           </p>
         </div>
         {nothingToDo ? null : (
@@ -80,7 +80,7 @@ export async function AdminHomeWorklist() {
       {nothingToDo ? (
         <div className="mt-4 rounded-2xl border border-[#123524]/08 bg-white px-4 py-8 sm:px-5">
           <p className="text-center text-sm text-[#466254]">
-            Bekleyen iş yok 👍 Yanıtlanmamış mesaj, yeni talep ve bugüne randevu
+            Bekleyen iş yok 👍 Yanıtlanmamış mesaj, yeni talep ve bugüne ameliyat
             bulunmuyor.
           </p>
         </div>
@@ -200,7 +200,7 @@ function LeadsCard({
               href={planHref({ date: todayYmd, lead: row.leadId })}
               className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-[#0b6b45]/25 px-3 text-center text-[13px] font-semibold text-[#0b6b45] active:bg-[#e7f5ed]"
             >
-              Randevu ver
+              Ameliyat ekle
             </Link>
           </div>
         </li>
@@ -218,12 +218,12 @@ function AppointmentsCard({
 }) {
   return (
     <Card
-      title="Bugünün randevuları"
+      title="Bugünün ameliyatları"
       hint="Saat sırasına göre"
       count={block.total}
       shown={block.rows.length}
       allHref={planHref({ date: todayYmd })}
-      empty="Bugün randevu yok."
+      empty="Bugün ameliyat yok."
     >
       {block.rows.map((row) => (
         <li key={row.id}>

@@ -54,7 +54,7 @@ export default async function PatientDetailPage({
       supabase
         .from("leads")
         .select(
-          "id, stage, status, lost_reason, needs_followup, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, ctwa_clid, lead_ref, created_at",
+          "id, stage, status, lost_reason, needs_followup, had_surgery, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, fbclid, ctwa_clid, lead_ref, created_at",
         )
         .eq("contact_id", id)
         .order("created_at", { ascending: false })
@@ -75,6 +75,7 @@ export default async function PatientDetailPage({
           .from("appointments")
           .select("id, title, starts_at, ends_at, status, appointment_type")
           .in("lead_id", leadIds)
+          .eq("appointment_type", "procedure")
           .neq("status", "cancelled")
           .order("starts_at", { ascending: false })
           .limit(100)
@@ -123,6 +124,7 @@ export default async function PatientDetailPage({
             <LeadStatusBadge
               status={activeLead.status}
               needsFollowup={activeLead.needs_followup}
+              hadSurgery={activeLead.had_surgery}
             />
           ) : (
             <span className="text-xs text-[#466254]">Aktif talep yok</span>
@@ -265,7 +267,7 @@ export default async function PatientDetailPage({
       <section className="rounded-2xl border border-[#123524]/10 bg-white p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">Takvim randevuları</h2>
+            <h2 className="text-lg font-semibold">Ameliyatlar</h2>
             <p className="mt-1 text-sm text-[#466254]">
               Bu hastanın klinik takvimindeki tüm saatler.
             </p>
@@ -281,7 +283,7 @@ export default async function PatientDetailPage({
         </div>
         {!appointments?.length ? (
           <p className="mt-4 text-sm text-[#466254]">
-            Bu hastanın henüz randevusu yok.
+            Bu hastanın henüz ameliyatı yok.
           </p>
         ) : (
           <div className="mt-4 space-y-2">
@@ -320,7 +322,7 @@ export default async function PatientDetailPage({
                     href={`/admin/calendar/${appointment.id}`}
                     className="text-xs font-semibold text-[#0b6b45]"
                   >
-                    Randevu detayı
+                    Ameliyat detayı
                   </Link>
                 </div>
               );
@@ -333,7 +335,7 @@ export default async function PatientDetailPage({
         <h2 className="text-lg font-semibold text-red-900">Hastayı sil</h2>
         <p className="mt-1 max-w-xl text-sm text-red-900/80">
           Hastalar listesinden kaldırır. WhatsApp konuşması, talepler ve
-          randevular silinmez; aynı telefonla yeniden hasta eklenebilir.
+          ameliyatlar silinmez; aynı telefonla yeniden hasta eklenebilir.
         </p>
         <div className="mt-4">
           <DeletePatientButton

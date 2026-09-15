@@ -58,7 +58,7 @@ function DensityBar({ count, maxCount }: { count: number; maxCount: number }) {
       <div
         className="h-full rounded-full bg-[#0b6b45]/75 transition-[width]"
         style={{ width: `${pct}%` }}
-        title={`${count} randevu`}
+        title={`${count} ameliyat`}
       />
     </div>
   );
@@ -107,7 +107,7 @@ function PreviewRow({ item }: { item: YearMonthPreview }) {
           {formatTimeTr(item.starts_at)}
         </span>{" "}
         <span className="font-medium">
-          {item.title?.trim() || "Randevu"}
+          {item.title?.trim() || "Ameliyat"}
         </span>
       </span>
     </Link>
@@ -153,8 +153,8 @@ export function YearCalendar({
       <ScheduleAddBanner
         message={
           yearEmpty
-            ? "Bu yıl için randevu yok."
-            : "Yeni randevu ekleyin."
+            ? "Bu yıl için ameliyat yok."
+            : "Yeni ameliyat ekleyin."
         }
         date={bannerDate}
         selectedLeadId={selectedLeadId}
@@ -185,8 +185,8 @@ export function YearCalendar({
                 </p>
                 <p className="mt-0.5 text-xs text-[#466254]">
                   {summary.count
-                    ? `${summary.count} randevu`
-                    : "Randevu yok"}
+                    ? `${summary.count} ameliyat`
+                    : "Ameliyat yok"}
                   {current ? " · bu ay" : ""}
                 </p>
                 <StatusPips byStatus={summary.byStatus} />
@@ -223,8 +223,8 @@ export function YearCalendar({
                   </h3>
                   <p className="mt-0.5 text-[11px] text-[#466254]">
                     {summary.count
-                      ? `${summary.count} randevu`
-                      : "Randevu yok"}
+                      ? `${summary.count} ameliyat`
+                      : "Ameliyat yok"}
                     {current ? " · bu ay" : ""}
                   </p>
                 </div>

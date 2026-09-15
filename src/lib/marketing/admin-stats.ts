@@ -25,6 +25,7 @@ import {
   isMarketingAdSite,
   MARKETING_CLICK_LOGS_SITE,
 } from "@/lib/marketing/constants";
+import { metaCampaignBelongsToSiteViaAccountMap } from "@/lib/marketing/site-matcher";
 
 function parseSummary(data: unknown): MarketingSummary | null {
   if (!data || typeof data !== "object") return null;
@@ -131,18 +132,44 @@ export async function loadSiteOptions(): Promise<string[]> {
 
 export async function loadUnmatchedCampaigns() {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("ad_campaigns")
-    .select("id, platform, name, status, created_at")
-    .eq("site_match_source", "unmatched")
-    .order("name");
+  const [{ data, error }, metaSiteMap, { data: accounts }] = await Promise.all([
+    supabase
+      .from("ad_campaigns")
+      .select("id, platform, name, status, created_at, account_id")
+      .eq("site_match_source", "unmatched")
+      .order("name"),
+    loadCustomerSiteMap("meta"),
+    supabase.from("ad_accounts_safe").select("id, external_account_id, platform"),
+  ]);
 
   if (error) {
     console.error("[marketing] unmatched:", error.message);
     return [];
   }
 
-  return data ?? [];
+  const accountExternalById = new Map(
+    (accounts ?? [])
+      .filter((a) => a.platform === "meta")
+      .map((a) => [
+        a.id as string,
+        String(a.external_account_id ?? "")
+          .replace(/^act_/i, "")
+          .replace(/\D/g, ""),
+      ]),
+  );
+
+  // Meta hesabı ≥2 siteye bağlıysa unmatched beklenen (prefix kullanılmıyor)
+  const multiSiteMetaAccounts = new Set(
+    Object.entries(metaSiteMap)
+      .filter(([, sites]) => sites.length >= 2)
+      .map(([id]) => id),
+  );
+
+  return (data ?? []).filter((row) => {
+    if (row.platform !== "meta") return true;
+    const externalId = accountExternalById.get(row.account_id as string);
+    return !externalId || !multiSiteMetaAccounts.has(externalId);
+  });
 }
 
 function extractUtmCampaignFromLandingUrl(url: string): string | null {
@@ -274,18 +301,46 @@ export async function loadCampaignPerformance(
   let campaignQuery = supabase
     .from("ad_campaigns")
     .select(
-      "id, platform, name, site, site_match_source, status, external_campaign_id",
+      "id, platform, name, site, site_match_source, status, external_campaign_id, account_id",
     );
 
-  if (siteFilter) {
-    campaignQuery = campaignQuery.eq("site", siteFilter);
-  }
   if (platformFilter) {
     campaignQuery = campaignQuery.eq("platform", platformFilter);
   }
 
-  const { data: campaigns, error: campaignError } = await campaignQuery;
-  if (campaignError || !campaigns?.length) {
+  const [{ data: rawCampaigns, error: campaignError }, metaSiteMap, { data: accounts }] =
+    await Promise.all([
+      campaignQuery,
+      siteFilter && (platformFilter === "meta" || platformFilter == null)
+        ? loadCustomerSiteMap("meta")
+        : Promise.resolve({} as Record<string, string[]>),
+      siteFilter
+        ? supabase
+            .from("ad_accounts_safe")
+            .select("id, external_account_id, platform")
+        : Promise.resolve({ data: [] as { id: string; external_account_id: string; platform: string }[] }),
+    ]);
+
+  const accountExternalById = new Map(
+    (accounts ?? []).map((a) => [
+      a.id as string,
+      String(a.external_account_id ?? ""),
+    ]),
+  );
+
+  const campaigns = (rawCampaigns ?? []).filter((c) => {
+    if (!siteFilter) return true;
+    if (c.site === siteFilter) return true;
+    return metaCampaignBelongsToSiteViaAccountMap(
+      c.platform as string,
+      c.site as string | null,
+      accountExternalById.get(c.account_id as string),
+      siteFilter,
+      metaSiteMap,
+    );
+  });
+
+  if (campaignError || !campaigns.length) {
     return {
       rows: [],
       attribution: {
@@ -361,13 +416,29 @@ export async function loadCampaignPerformance(
       ? await loadLandingUtmSlugs(campaignIds)
       : new Set<string>();
 
-  const campaignsForMatch = campaigns.map((c) => ({
-    id: c.id as string,
-    name: c.name as string,
-    externalCampaignId: (c.external_campaign_id as string) ?? "",
-    site: c.site as string | null,
-    platform: c.platform as string,
-  }));
+  const campaignsForMatch = campaigns.map((c) => {
+    const rawSite = c.site as string | null;
+    const effectiveSite =
+      rawSite ??
+      (siteFilter &&
+      metaCampaignBelongsToSiteViaAccountMap(
+        c.platform as string,
+        rawSite,
+        accountExternalById.get(c.account_id as string),
+        siteFilter,
+        metaSiteMap,
+      )
+        ? siteFilter
+        : null);
+
+    return {
+      id: c.id as string,
+      name: c.name as string,
+      externalCampaignId: (c.external_campaign_id as string) ?? "",
+      site: effectiveSite,
+      platform: c.platform as string,
+    };
+  });
 
   const allLeads = rawLeads
     .map((lead) =>

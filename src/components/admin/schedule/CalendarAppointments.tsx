@@ -30,6 +30,7 @@ async function loadYearOverview(year: number): Promise<YearMonthSummary[]> {
   const { data: rows } = await supabase
     .from("appointments")
     .select(YEAR_LIGHT_SELECT)
+    .eq("appointment_type", "procedure")
     .gte("starts_at", yearFrom)
     .lt("starts_at", yearTo)
     .neq("status", "cancelled")
@@ -144,6 +145,7 @@ export async function CalendarAppointments({
   const { data: appointments, error } = await supabase
     .from("appointments")
     .select(DETAIL_SELECT)
+    .eq("appointment_type", "procedure")
     .gte("starts_at", new Date(rangeStart).toISOString())
     .lt("starts_at", new Date(rangeEnd).toISOString())
     .neq("status", "cancelled")
@@ -168,8 +170,8 @@ export async function CalendarAppointments({
         appointments={items}
         emptyText={
           date === todayYmd
-            ? "Bugün için randevu yok."
-            : "Bu tarihte randevu yok."
+            ? "Bugün için ameliyat yok."
+            : "Bu tarihte ameliyat yok."
         }
         selectedLeadId={selectedLeadId}
         stage={stage}

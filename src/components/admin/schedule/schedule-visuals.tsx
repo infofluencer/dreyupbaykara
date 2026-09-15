@@ -169,7 +169,7 @@ export function AgendaCardList({
   if (!sorted.length) {
     return (
       <p className="rounded-2xl border border-dashed border-[#123524]/12 bg-[#f7f9f8] px-4 py-5 text-sm text-[#8a9a90]">
-        Randevu yok
+        Ameliyat yok
       </p>
     );
   }
@@ -281,7 +281,7 @@ export function ScheduleAddBanner({
         })}
         className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-[#0b6b45] px-4 text-sm font-semibold text-white"
       >
-        Randevu ekle
+        Ameliyat ekle
       </Link>
     </div>
   );

@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { selectMetaAdAccount } from "@/app/admin/marketing-actions";
 import { fetchMetaAdAccounts } from "@/lib/marketing/meta/client";
-import { loadSiteOptions } from "@/lib/marketing/admin-stats";
 import { META_PENDING_COOKIE } from "@/lib/marketing/meta/pending";
 
 const ACCOUNT_STATUS: Record<number, string> = {
@@ -51,8 +50,6 @@ export default async function MetaSelectAccountPage({
     listError =
       err instanceof Error ? err.message : "Reklam hesapları listelenemedi";
   }
-
-  const siteOptions = await loadSiteOptions();
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -126,23 +123,6 @@ export default async function MetaSelectAccountPage({
                       ) : null}
                     </span>
                   </label>
-                  <div className="mt-2 pl-7">
-                    <label className="text-xs font-medium text-[#466254]">
-                      Bu hesap → site
-                      <select
-                        name={`site_${account.id}`}
-                        defaultValue=""
-                        className="mt-1 min-h-9 w-full rounded-lg border border-[#123524]/12 bg-[#f7f9f8] px-2 text-sm"
-                      >
-                        <option value="">— Varsayılan / sonra —</option>
-                        {siteOptions.map((site) => (
-                          <option key={site} value={site}>
-                            {site}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
                 </li>
               ))}
             </ul>
@@ -163,28 +143,6 @@ export default async function MetaSelectAccountPage({
             placeholder="2990529357911124, ..."
             className="mt-2 w-full rounded-xl border border-[#123524]/12 bg-[#f7f9f8] px-3 py-2 font-mono text-sm"
           />
-        </div>
-
-        <div>
-          <label className="text-sm font-semibold text-[#123524]">
-            Varsayılan site (opsiyonel)
-          </label>
-          <p className="mt-1 text-xs text-[#466254]">
-            Hesap satırında site seçilmediyse burası uygulanır. Sonra Meta
-            sekmesinden de değiştirebilirsiniz.
-          </p>
-          <select
-            name="site"
-            className="mt-2 min-h-10 w-full rounded-xl border border-[#123524]/12 bg-[#f7f9f8] px-3 text-sm"
-            defaultValue=""
-          >
-            <option value="">— Sonra eşleştir —</option>
-            {siteOptions.map((site) => (
-              <option key={site} value={site}>
-                {site}
-              </option>
-            ))}
-          </select>
         </div>
 
         <button

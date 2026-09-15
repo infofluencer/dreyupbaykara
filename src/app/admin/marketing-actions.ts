@@ -64,79 +64,6 @@ export async function addSitePrefix(formData: FormData): Promise<void> {
   revalidatePath("/admin/marketing/connect");
 }
 
-/** Meta (veya Google) reklam hesabı → CRM site eşlemesi (çoklu site). */
-export async function setAdAccountSite(formData: FormData): Promise<void> {
-  await requireAdminSession(["admin", "doctor", "agency"]);
-
-  const platform = String(formData.get("platform") ?? "").trim();
-  const externalId = String(formData.get("external_account_id") ?? "")
-    .trim()
-    .replace(/^act_/, "")
-    .replace(/\D/g, "");
-  const sites = formData
-    .getAll("site")
-    .map((value) => String(value).trim())
-    .filter(Boolean);
-  const label = String(formData.get("label") ?? "").trim() || null;
-  const accountId = String(formData.get("account_id") ?? "").trim();
-
-  if (!externalId || (platform !== "meta" && platform !== "google_ads")) {
-    return;
-  }
-
-  const supabase = await createClient();
-
-  await supabase
-    .from("ad_customer_site_map")
-    .delete()
-    .eq("platform", platform)
-    .eq("external_customer_id", externalId);
-
-  if (sites.length) {
-    const { error } = await supabase.from("ad_customer_site_map").insert(
-      sites.map((site) => ({
-        platform,
-        external_customer_id: externalId,
-        site,
-        label,
-      })),
-    );
-    if (error) {
-      console.error("[marketing] setAdAccountSite:", error.message);
-      return;
-    }
-  }
-
-  // Tek site: tüm otomatik kampanyalar o siteye. Çoklu: hesap bazlı atama yok
-  // (prefix / manuel); yanlış tek-site atamasını temizle.
-  if (accountId) {
-    if (sites.length === 1) {
-      await supabase
-        .from("ad_campaigns")
-        .update({
-          site: sites[0],
-          site_match_source: "auto",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("account_id", accountId)
-        .neq("site_match_source", "manual");
-    } else {
-      await supabase
-        .from("ad_campaigns")
-        .update({
-          site: null,
-          site_match_source: "unmatched",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("account_id", accountId)
-        .neq("site_match_source", "manual");
-    }
-  }
-
-  revalidatePath("/admin/marketing");
-  revalidatePath("/admin/marketing/connect");
-}
-
 /** OAuth sonrası seçilen Meta reklam hesabını/hesaplarını kaydeder. */
 export async function selectMetaAdAccount(formData: FormData): Promise<void> {
   await requireAdminSession(["admin", "doctor", "agency"]);
@@ -173,8 +100,6 @@ export async function selectMetaAdAccount(formData: FormData): Promise<void> {
     redirect("/admin/marketing/connect/meta-select?error=meta_pick");
   }
 
-  const defaultSite = String(formData.get("site") ?? "").trim();
-
   const cookieStore = await cookies();
   const raw = cookieStore.get(META_PENDING_COOKIE)?.value;
   if (!raw) {
@@ -202,8 +127,6 @@ export async function selectMetaAdAccount(formData: FormData): Promise<void> {
 
   for (const account of accounts) {
     const displayName = account.name || `Meta act_${account.id}`;
-    const site =
-      String(formData.get(`site_${account.id}`) ?? "").trim() || defaultSite;
 
     await upsertAdAccount(supabase, {
       platform: "meta",
@@ -213,18 +136,6 @@ export async function selectMetaAdAccount(formData: FormData): Promise<void> {
       refreshToken: null,
       tokenExpiresAt: pending.expiresAt ?? null,
     });
-
-    if (site) {
-      await supabase.from("ad_customer_site_map").upsert(
-        {
-          platform: "meta",
-          external_customer_id: account.id,
-          site,
-          label: displayName,
-        },
-        { onConflict: "platform,external_customer_id,site" },
-      );
-    }
   }
 
   cookieStore.delete(META_PENDING_COOKIE);

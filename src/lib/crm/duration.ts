@@ -39,8 +39,8 @@ export function formatDurationTr(minutes: number): string {
 }
 
 export function titleFromType(type?: string | null): string {
-  if (type === "procedure") return "Ameliyat randevusu";
-  if (type === "control") return "Kontrol randevusu";
+  if (type === "procedure") return "Ameliyat";
+  if (type === "control") return "Kontrol";
   if (type === "online") return "Online görüşme";
-  return "Muayene randevusu";
+  return "Muayene";
 }
