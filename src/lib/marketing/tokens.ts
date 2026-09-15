@@ -247,6 +247,7 @@ export type EnvBootstrapResult = {
  */
 export async function bootstrapAdAccountsFromEnv(
   supabase: SupabaseClient,
+  options?: { skipGoogle?: boolean; skipMeta?: boolean },
 ): Promise<EnvBootstrapResult> {
   const result: EnvBootstrapResult = {
     google: { applied: false },
@@ -257,7 +258,11 @@ export async function bootstrapAdAccountsFromEnv(
   const googleAccess = process.env.GOOGLE_ADS_ACCESS_TOKEN?.trim();
   const { loginCustomerId, clientId, clientSecret } = googleAdsConfig();
 
-  if (loginCustomerId && (googleRefresh || googleAccess)) {
+  if (
+    !options?.skipGoogle &&
+    loginCustomerId &&
+    (googleRefresh || googleAccess)
+  ) {
     try {
       let accessToken = googleAccess || "";
       let expiresAt: string | null = null;
@@ -290,7 +295,7 @@ export async function bootstrapAdAccountsFromEnv(
   const metaToken = process.env.META_ACCESS_TOKEN?.trim();
   const metaIds = metaAdAccountIds();
 
-  if (metaToken && metaIds.length) {
+  if (!options?.skipMeta && metaToken && metaIds.length) {
     try {
       for (const adAccountId of metaIds) {
         await upsertAdAccount(supabase, {

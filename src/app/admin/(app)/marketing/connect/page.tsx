@@ -38,7 +38,13 @@ export default async function MarketingConnectPage({
 
   const service = createServiceClient();
   if (service) {
-    await bootstrapAdAccountsFromEnv(service);
+    // OAuth callback az önce DB'ye yazdı — eski env refresh token ile ezme
+    // (kullanıcı yeni token'ı kopyalayıp Dokploy'a yapıştırabilsin).
+    if (query.connected === "google") {
+      await bootstrapAdAccountsFromEnv(service, { skipGoogle: true });
+    } else {
+      await bootstrapAdAccountsFromEnv(service);
+    }
   }
 
   let envExport: { googleRefreshToken: string | null; metaAccessToken: string | null } | null =
@@ -130,6 +136,8 @@ export default async function MarketingConnectPage({
           account={googleAccount}
           connectHref="/api/marketing/oauth/google"
           envHint="GOOGLE_ADS_* + GOOGLE_ADS_REFRESH_TOKEN · Özet pastası için Analytics readonly scope (yeniden bağla)"
+          alwaysShowOAuth
+          oauthLabel="Google’ı yeniden bağla (Analytics)"
         />
         <AccountCard
           title="Meta"
@@ -166,8 +174,13 @@ export default async function MarketingConnectPage({
             <code>/p123456789/</code>). Measurement ID (<code>G-…</code>) değil.
           </li>
           <li>
-            Bu sayfadan <strong>Google’ı yeniden bağlayın</strong> — Analytics
-            okuma izni eklenir (eski token’da yok).
+            Yukarıdaki <strong>Google’ı yeniden bağla (Analytics)</strong> — izin
+            ekranında Analytics de işaretlensin.
+          </li>
+          <li>
+            Bağlandıktan sonra çıkan <code>GOOGLE_ADS_REFRESH_TOKEN</code>{" "}
+            satırını Dokploy Environment’a yapıştırıp redeploy edin (eski env
+            token Analytics yetkisi taşımıyor).
           </li>
         </ol>
       </section>
@@ -236,7 +249,8 @@ export default async function MarketingConnectPage({
           </div>
         ) : null}
         <p className="mt-3 text-xs">
-          Env token tanımlıysa OAuth butonları gizlenir; cron env&apos;den bootstrap eder.
+          Meta için env token varsa OAuth gizlenir. Google’da Analytics için
+          yeniden bağla her zaman görünür; yeni refresh token’ı env’e yazın.
         </p>
       </section>
 
@@ -343,6 +357,8 @@ function AccountCard({
   connectHref,
   envHint,
   extra,
+  alwaysShowOAuth = false,
+  oauthLabel,
 }: {
   title: string;
   configured: boolean;
@@ -358,8 +374,11 @@ function AccountCard({
   connectHref: string;
   envHint: string;
   extra?: ReactNode;
+  alwaysShowOAuth?: boolean;
+  oauthLabel?: string;
 }) {
   const connected = account?.is_active && account?.has_token;
+  const showOAuth = configured && (alwaysShowOAuth || !hasEnvToken);
 
   return (
     <article className="rounded-2xl border border-[#123524]/08 bg-white p-5">
@@ -399,18 +418,30 @@ function AccountCard({
         <p className="mt-3 text-sm text-amber-900">
           Env eksik: <code>{envHint}</code>
         </p>
-      ) : hasEnvToken ? (
+      ) : null}
+
+      {configured && hasEnvToken && !alwaysShowOAuth ? (
         <p className="mt-3 text-sm text-[#0b6b45]">
           Env token tanımlı — sync/cron otomatik bağlar. OAuth gerekmez.
         </p>
-      ) : (
+      ) : null}
+
+      {configured && hasEnvToken && alwaysShowOAuth ? (
+        <p className="mt-3 text-sm text-[#466254]">
+          Ads sync env token ile çalışır. Özet pastası (GA4) için Analytics
+          izniyle yeniden bağlayın; çıkan refresh token’ı Dokploy env’e yazın.
+        </p>
+      ) : null}
+
+      {showOAuth ? (
         <a
           href={connectHref}
           className="mt-4 inline-flex min-h-10 items-center justify-center rounded-xl bg-[#123524] px-4 text-sm font-semibold text-white"
         >
-          {connected ? "Yeniden bağla (OAuth)" : `${title} bağla (OAuth)`}
+          {oauthLabel ||
+            (connected ? "Yeniden bağla (OAuth)" : `${title} bağla (OAuth)`)}
         </a>
-      )}
+      ) : null}
 
       {configured && hasEnvToken && !connected ? (
         <p className="mt-2 text-xs text-[#466254]">
