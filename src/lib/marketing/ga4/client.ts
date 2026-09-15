@@ -19,6 +19,9 @@ export type Ga4TrafficSourceStats = {
   error?: string;
   /** OAuth yeniden bağlama gerekir (Analytics scope yok) */
   needsReconnect?: boolean;
+  /** Cloud Console’da Analytics Data API kapalı */
+  apiDisabled?: boolean;
+  enableApiUrl?: string;
 };
 
 const emptyPlatforms = (): Record<AdPlatform, number> => ({
@@ -119,15 +122,78 @@ type RunReportRow = {
   metricValues?: Array<{ value?: string }>;
 };
 
+export type Ga4ReportFailure = {
+  ok: false;
+  message: string;
+  needsReconnect?: boolean;
+  /** Cloud Console’da Analytics Data API kapalı */
+  apiDisabled?: boolean;
+  enableApiUrl?: string;
+};
+
+const ANALYTICS_DATA_API_ENABLE =
+  "https://console.developers.google.com/apis/api/analyticsdata.googleapis.com/overview";
+
+/** OAuth client ID’den Cloud proje numarası (…apps.googleusercontent.com öncesi). */
+export function googleCloudProjectNumberFromClientId(
+  clientId: string | null | undefined,
+): string | null {
+  const match = (clientId ?? "").match(/^(\d+)-/);
+  return match?.[1] ?? null;
+}
+
+function classifyGa4HttpError(
+  status: number,
+  message: string,
+): Omit<Ga4ReportFailure, "ok"> {
+  const lower = message.toLowerCase();
+  const apiDisabled =
+    lower.includes("has not been used") ||
+    lower.includes("is disabled") ||
+    lower.includes("service_disabled") ||
+    lower.includes("access not configured");
+
+  const { clientId } = googleAdsConfig();
+  const projectNumber = googleCloudProjectNumberFromClientId(clientId);
+  const enableApiUrl = projectNumber
+    ? `${ANALYTICS_DATA_API_ENABLE}?project=${projectNumber}`
+    : ANALYTICS_DATA_API_ENABLE;
+
+  if (apiDisabled) {
+    return {
+      message:
+        "Google Analytics Data API bu Cloud projesinde kapalı. Aşağıdaki linkten Enable’a basın; 1–2 dk sonra Özet’i yenileyin.",
+      apiDisabled: true,
+      enableApiUrl,
+    };
+  }
+
+  const needsReconnect =
+    status === 403 &&
+    (lower.includes("scope") ||
+      lower.includes("insufficient authentication") ||
+      lower.includes("access_token_scope"));
+
+  const propertyDenied =
+    lower.includes("sufficient permissions for this property") ||
+    lower.includes("caller does not have permission");
+
+  if (propertyDenied) {
+    return {
+      message:
+        "OAuth ile bağlanan Google hesabının bu GA4 property’sinde Viewer yetkisi yok. Analytics → Admin → Property access management’tan ekleyin.",
+    };
+  }
+
+  return { message, needsReconnect };
+}
+
 async function runPropertyReport(
   accessToken: string,
   propertyId: string,
   startDate: string,
   endDate: string,
-): Promise<
-  | { ok: true; platforms: Record<AdPlatform, number> }
-  | { ok: false; message: string; needsReconnect?: boolean }
-> {
+): Promise<{ ok: true; platforms: Record<AdPlatform, number> } | Ga4ReportFailure> {
   const platforms = emptyPlatforms();
   const res = await fetch(
     `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
@@ -152,13 +218,8 @@ async function runPropertyReport(
   };
 
   if (!res.ok) {
-    const message = json.error?.message || `GA4 hata (${res.status})`;
-    const needsReconnect =
-      res.status === 403 &&
-      (message.includes("scope") ||
-        message.includes("PERMISSION_DENIED") ||
-        message.includes("insufficient"));
-    return { ok: false, message, needsReconnect };
+    const raw = json.error?.message || `GA4 hata (${res.status})`;
+    return { ok: false, ...classifyGa4HttpError(res.status, raw) };
   }
 
   for (const row of json.rows ?? []) {
@@ -209,6 +270,8 @@ export async function loadGa4TrafficSourceStats(
 
   const errors: string[] = [];
   let needsReconnect = false;
+  let apiDisabled = false;
+  let enableApiUrl: string | undefined;
 
   for (const propertyId of propertyIds) {
     const result = await runPropertyReport(
@@ -221,6 +284,10 @@ export async function loadGa4TrafficSourceStats(
       console.error(`[ga4] property ${propertyId}:`, result.message);
       errors.push(`${propertyId}: ${result.message}`);
       if (result.needsReconnect) needsReconnect = true;
+      if (result.apiDisabled) {
+        apiDisabled = true;
+        enableApiUrl = result.enableApiUrl;
+      }
       continue;
     }
     for (const key of Object.keys(platforms) as AdPlatform[]) {
@@ -238,10 +305,14 @@ export async function loadGa4TrafficSourceStats(
       startDate,
       endDate,
       propertyId: propertyIds.join(","),
-      error: needsReconnect
-        ? "Google token’da Analytics yetkisi yok. Reklam → Hesap bağla’dan Google’ı yeniden bağlayın."
-        : errors[0],
+      error: apiDisabled
+        ? errors[0]!.replace(/^\d+:\s*/, "")
+        : needsReconnect
+          ? "Google token’da Analytics yetkisi yok. Reklam → Hesap bağla’dan Google’ı yeniden bağlayın."
+          : errors[0],
       needsReconnect,
+      apiDisabled,
+      enableApiUrl,
     };
   }
 

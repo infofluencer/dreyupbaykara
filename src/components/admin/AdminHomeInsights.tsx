@@ -132,6 +132,16 @@ export async function AdminHomeInsights({
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
             <p className="font-semibold">GA4 site trafiği alınamadı</p>
             <p className="mt-1">{traffic.error}</p>
+            {traffic.apiDisabled && traffic.enableApiUrl ? (
+              <a
+                href={traffic.enableApiUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block font-semibold underline"
+              >
+                Google Cloud → Analytics Data API’yi aç (Enable) →
+              </a>
+            ) : null}
             {traffic.needsReconnect ? (
               <Link
                 href="/admin/marketing/connect"

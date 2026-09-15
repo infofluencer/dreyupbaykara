@@ -166,21 +166,29 @@ export default async function MarketingConnectPage({
         <p className="font-semibold text-[#123524]">GA4 site trafiği (Özet pastası)</p>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
           <li>
-            Google Cloud’da <strong>Google Analytics Data API</strong> açık olsun
-            (Ads OAuth client ile aynı proje).
+            Google Cloud’da{" "}
+            <a
+              href="https://console.developers.google.com/apis/api/analyticsdata.googleapis.com/overview?project=986484728647"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-[#0b6b45] underline"
+            >
+              Google Analytics Data API
+            </a>{" "}
+            açık olsun (Ads OAuth client ile aynı proje:{" "}
+            <code>986484728647</code>). <strong>Enable</strong>’a basın.
           </li>
           <li>
             Env: <code>GA4_PROPERTY_ID</code> = GA property sayısal ID (URL’de{" "}
             <code>/p123456789/</code>). Measurement ID (<code>G-…</code>) değil.
           </li>
           <li>
-            Yukarıdaki <strong>Google’ı yeniden bağla (Analytics)</strong> — izin
-            ekranında Analytics de işaretlensin.
+            Bağlı Google hesabının her property’de en az{" "}
+            <strong>Viewer</strong> yetkisi olsun (Admin → Property access).
           </li>
           <li>
-            Bağlandıktan sonra çıkan <code>GOOGLE_ADS_REFRESH_TOKEN</code>{" "}
-            satırını Dokploy Environment’a yapıştırıp redeploy edin (eski env
-            token Analytics yetkisi taşımıyor).
+            İlk kurulumda Analytics scope için{" "}
+            <strong>Google’ı yeniden bağla (Analytics)</strong> gerekebilir.
           </li>
         </ol>
       </section>

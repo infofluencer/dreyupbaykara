@@ -23,7 +23,7 @@ insert into public.message_rules (
 values (
   'surgery_2d',
   'Ameliyat — 2 gün önce (teyit)',
-  false,
+  true,
   'ameliyat_2_gun',
   'tr',
   2880,
