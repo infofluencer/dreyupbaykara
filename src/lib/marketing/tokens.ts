@@ -63,7 +63,11 @@ export async function deactivateAdAccount(
 
 async function exchangeGoogleRefreshToken(
   refreshToken: string,
-): Promise<{ accessToken: string; expiresAt: string | null }> {
+): Promise<{
+  accessToken: string;
+  expiresAt: string | null;
+  scope: string | null;
+}> {
   const { clientId, clientSecret } = googleAdsConfig();
   if (!clientId || !clientSecret) {
     throw new MarketingTokenError(
@@ -88,6 +92,7 @@ async function exchangeGoogleRefreshToken(
   const json = (await res.json()) as {
     access_token?: string;
     expires_in?: number;
+    scope?: string;
     error?: string;
     error_description?: string;
   };
@@ -103,7 +108,16 @@ async function exchangeGoogleRefreshToken(
     ? new Date(Date.now() + json.expires_in * 1000).toISOString()
     : null;
 
-  return { accessToken: json.access_token, expiresAt };
+  return {
+    accessToken: json.access_token,
+    expiresAt,
+    scope: json.scope?.trim() || null,
+  };
+}
+
+function googleTokenHasAnalyticsScope(scope: string | null | undefined): boolean {
+  const s = (scope ?? "").toLowerCase();
+  return s.includes("analytics.readonly") || s.includes("/auth/analytics");
 }
 
 async function refreshGoogleAccessToken(
@@ -244,6 +258,9 @@ export type EnvBootstrapResult = {
 /**
  * OAuth yerine env'deki kalıcı token'ları ad_accounts'a yazar.
  * Cron sync başlamadan önce çağrılır — site OAuth akışına bağlı kalmaz.
+ *
+ * Google: env refresh Analytics scope taşımıyorsa ve DB'deki token taşıyorsa
+ * DB korunur (eski Dokploy env, Analytics’li OAuth’u ezmesin).
  */
 export async function bootstrapAdAccountsFromEnv(
   supabase: SupabaseClient,
@@ -266,23 +283,52 @@ export async function bootstrapAdAccountsFromEnv(
     try {
       let accessToken = googleAccess || "";
       let expiresAt: string | null = null;
+      let refreshTokenToStore: string | null = googleRefresh ?? null;
+      let envScope: string | null = null;
 
       if (googleRefresh && clientId && clientSecret) {
         const refreshed = await exchangeGoogleRefreshToken(googleRefresh);
         accessToken = refreshed.accessToken;
         expiresAt = refreshed.expiresAt;
+        envScope = refreshed.scope;
       }
 
       if (!accessToken) {
         throw new Error("GOOGLE_ADS_ACCESS_TOKEN veya REFRESH_TOKEN gerekli");
       }
 
+      const existing = await getActiveAdAccount(supabase, "google_ads");
+      const existingRefresh = existing?.refresh_token?.trim() || null;
+
+      if (
+        existingRefresh &&
+        googleRefresh &&
+        existingRefresh !== googleRefresh &&
+        !googleTokenHasAnalyticsScope(envScope)
+      ) {
+        try {
+          const existingRefreshed =
+            await exchangeGoogleRefreshToken(existingRefresh);
+          if (googleTokenHasAnalyticsScope(existingRefreshed.scope)) {
+            // Env Ads-only; DB Analytics’li — cron/connect eski env ile ezmesin
+            refreshTokenToStore = existingRefresh;
+            accessToken = existingRefreshed.accessToken;
+            expiresAt = existingRefreshed.expiresAt;
+            console.info(
+              "[marketing] bootstrap: DB Google refresh korundu (Analytics scope)",
+            );
+          }
+        } catch {
+          /* env ile devam */
+        }
+      }
+
       await upsertAdAccount(supabase, {
         platform: "google_ads",
         externalAccountId: loginCustomerId,
-        displayName: "Google Ads (env)",
+        displayName: existing?.display_name || "Google Ads (env)",
         accessToken,
-        refreshToken: googleRefresh ?? null,
+        refreshToken: refreshTokenToStore,
         tokenExpiresAt: expiresAt,
       });
       result.google.applied = true;

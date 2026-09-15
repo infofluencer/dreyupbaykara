@@ -95,7 +95,9 @@ export default async function MarketingConnectPage({
 
       {query.connected === "google" ? (
         <Notice ok>
-          Google Ads hesabı bağlandı.
+          Google Ads + Analytics bağlandı. Aşağıdaki{" "}
+          <code>GOOGLE_ADS_REFRESH_TOKEN</code> satırını Dokploy Environment’a
+          yapıştırıp redeploy edin — eski env token Analytics’siz kalmasın.
           {session.role === "admin" && envExport?.googleRefreshToken ? (
             <MarketingEnvCopy
               lines={[

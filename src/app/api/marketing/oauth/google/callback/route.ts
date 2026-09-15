@@ -77,12 +77,26 @@ export async function GET(request: NextRequest) {
     /* optional */
   }
 
+  // Google bazen yeniden bağlayınca refresh_token vermez — mevcut Analytics’li
+  // token’ı silme.
+  const { data: existing } = await supabase
+    .from("ad_accounts")
+    .select("refresh_token")
+    .eq("platform", "google_ads")
+    .eq("external_account_id", loginCustomerId)
+    .maybeSingle();
+
+  const refreshToken =
+    tokenJson.refresh_token?.trim() ||
+    (existing?.refresh_token as string | null | undefined)?.trim() ||
+    null;
+
   await upsertAdAccount(supabase, {
     platform: "google_ads",
     externalAccountId: loginCustomerId,
     displayName,
     accessToken: tokenJson.access_token,
-    refreshToken: tokenJson.refresh_token ?? null,
+    refreshToken,
     tokenExpiresAt: tokenJson.expires_in
       ? new Date(Date.now() + tokenJson.expires_in * 1000).toISOString()
       : null,
