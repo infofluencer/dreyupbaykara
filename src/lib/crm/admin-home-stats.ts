@@ -137,8 +137,43 @@ export async function loadAdminHomeWaStats(): Promise<AdminHomeWaStats> {
 
 export async function loadAdminHomeSourceStats(
   siteFilter: string | null = null,
+  startDate: string | null = null,
+  endDate: string | null = null,
 ): Promise<AdminHomeSourceStats> {
   const supabase = await createClient();
+
+  // Zaman aralığı varsa lead_sources üzerinden say (site + tarih)
+  if (startDate && endDate) {
+    const fromIso = new Date(`${startDate}T00:00:00+03:00`).toISOString();
+    const endExclusive = new Date(`${endDate}T24:00:00+03:00`).toISOString();
+
+    let query = supabase
+      .from("lead_sources")
+      .select(
+        "channel, utm_source, utm_medium, utm_campaign, campaign, gclid, gbraid, wbraid, fbclid, ctwa_clid, msclkid, ttclid, site",
+      )
+      .gte("created_at", fromIso)
+      .lt("created_at", endExclusive)
+      .limit(5000);
+
+    if (siteFilter) {
+      query = query.eq("site", siteFilter);
+    }
+
+    const { data: rows, error } = await query;
+    if (error) {
+      console.error("[admin-home] lead_sources:", error.message);
+    }
+
+    const platforms = emptyPlatforms();
+    const events = emptyEvents();
+    for (const row of rows ?? []) {
+      platforms[classifyAdPlatform(row)] += 1;
+      events[classifySourceEvent(row.channel)] += 1;
+    }
+    return { platforms, events };
+  }
+
   const rpcResult = await supabase.rpc("admin_dashboard_source_stats", {
     p_site: siteFilter,
   });

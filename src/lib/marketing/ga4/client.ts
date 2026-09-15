@@ -59,22 +59,59 @@ export function mapGa4ChannelToPlatform(channel: string): AdPlatform {
   return "other";
 }
 
-/** Tek veya virgüllü çoklu: GA4_PROPERTY_ID=474676141,524968102,549325905 */
-export function ga4PropertyIdsFromEnv(): string[] {
+/** Env sırası (bare ID listesi): endospine | fıtık | bel */
+export const GA4_DEFAULT_SITE_ORDER = [
+  "endospineistanbul",
+  "fitikameliyati",
+  "endoskopikbelameliyati",
+] as const;
+
+/**
+ * GA4_PROPERTY_ID parse:
+ * - `474,524,549` → sırayla GA4_DEFAULT_SITE_ORDER
+ * - `endospineistanbul:474,fitikameliyati:524` → açık eşleme
+ */
+export function ga4SitePropertyMapFromEnv(): Record<string, string> {
   const raw =
     process.env.GA4_PROPERTY_ID?.trim() ||
     process.env.GA4_PROPERTY_IDS?.trim() ||
     process.env.GOOGLE_ANALYTICS_PROPERTY_ID?.trim() ||
     "";
-  if (!raw) return [];
-  return [
-    ...new Set(
-      raw
-        .split(/[,;\s]+/)
-        .map((part) => part.replace(/^properties\//, "").replace(/\D/g, ""))
-        .filter(Boolean),
-    ),
-  ];
+  if (!raw) return {};
+
+  const map: Record<string, string> = {};
+  const parts = raw.split(/[,;\s]+/).filter(Boolean);
+  const bareIds: string[] = [];
+
+  for (const part of parts) {
+    const named = part.match(/^([a-z0-9_]+):(\d+)$/i);
+    if (named) {
+      map[named[1]!.toLowerCase()] = named[2]!;
+      continue;
+    }
+    const id = part.replace(/^properties\//, "").replace(/\D/g, "");
+    if (id) bareIds.push(id);
+  }
+
+  bareIds.forEach((id, index) => {
+    const site = GA4_DEFAULT_SITE_ORDER[index];
+    if (site && !map[site]) map[site] = id;
+  });
+
+  return map;
+}
+
+/** Tek veya virgüllü çoklu: GA4_PROPERTY_ID=474676141,524968102,549325905 */
+export function ga4PropertyIdsFromEnv(): string[] {
+  return [...new Set(Object.values(ga4SitePropertyMapFromEnv()))];
+}
+
+function propertyIdsForSiteFilter(siteFilter: string | null): string[] {
+  const map = ga4SitePropertyMapFromEnv();
+  const all = [...new Set(Object.values(map))];
+  if (!siteFilter?.trim()) return all;
+  const id = map[siteFilter.trim()];
+  return id ? [id] : all;
 }
 
 async function getGoogleAccessToken(): Promise<
@@ -233,15 +270,16 @@ async function runPropertyReport(
 }
 
 /**
- * GA4 aktif kullanıcılar — tüm property'ler toplanır (3 site).
+ * GA4 aktif kullanıcılar — tüm property'ler veya tek site.
  * Token: service role ile ad_accounts (RLS bypass).
  */
 export async function loadGa4TrafficSourceStats(
   startDate: string,
   endDate: string,
+  siteFilter: string | null = null,
 ): Promise<Ga4TrafficSourceStats> {
   const platforms = emptyPlatforms();
-  const propertyIds = ga4PropertyIdsFromEnv();
+  const propertyIds = propertyIdsForSiteFilter(siteFilter);
 
   if (!propertyIds.length) {
     return {

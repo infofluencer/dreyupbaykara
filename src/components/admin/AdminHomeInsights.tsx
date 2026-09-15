@@ -14,9 +14,11 @@ import {
   EVENT_LABEL,
   PLATFORM_COLOR,
 } from "@/lib/crm/source-kind";
-import { istanbulYmd } from "@/lib/date/tr";
 import { loadSiteOptions } from "@/lib/marketing/admin-stats";
-import { formatMarketingDateRangeTr } from "@/lib/marketing/date-range";
+import {
+  formatMarketingDateRangeTr,
+  type MarketingPeriod,
+} from "@/lib/marketing/date-range";
 import { loadGa4TrafficSourceStats } from "@/lib/marketing/ga4/client";
 import { loadSurgerySourceStats } from "@/lib/marketing/surgery-sources";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
@@ -30,15 +32,6 @@ const TRAFFIC_LABEL: Record<(typeof PLATFORMS)[number], string> = {
   organic: "Organik",
   other: "Diğer",
 };
-
-function last30DayRange() {
-  const end = istanbulYmd();
-  const endDate = new Date(`${end}T12:00:00+03:00`);
-  const startDate = new Date(endDate);
-  startDate.setDate(startDate.getDate() - 29);
-  const start = istanbulYmd(startDate.toISOString());
-  return { start, end };
-}
 
 export function AdminHomeInsightsFallback() {
   return (
@@ -59,24 +52,34 @@ export function AdminHomeInsightsFallback() {
 
 export async function AdminHomeInsights({
   siteFilter = null,
+  startDate,
+  endDate,
+  period,
 }: {
   siteFilter?: string | null;
+  startDate: string;
+  endDate: string;
+  period: MarketingPeriod;
 }) {
   const apiEnabled = isWhatsAppEnabled();
-  const { start, end } = last30DayRange();
-  const rangeLabel = formatMarketingDateRangeTr(start, end);
+  const rangeLabel = formatMarketingDateRangeTr(startDate, endDate);
+  const siteLabel = siteFilter ?? "tüm siteler";
 
   const [wa, sources, siteOptions, surgery, traffic] = await Promise.all([
     loadAdminHomeWaStats(),
-    loadAdminHomeSourceStats(siteFilter),
+    loadAdminHomeSourceStats(siteFilter, startDate, endDate),
     loadSiteOptions(),
-    loadSurgerySourceStats(start, end, null),
-    loadGa4TrafficSourceStats(start, end),
+    loadSurgerySourceStats(startDate, endDate, siteFilter),
+    loadGa4TrafficSourceStats(startDate, endDate, siteFilter),
   ]);
 
-  const marketingHref = siteFilter
-    ? `/admin/marketing?site=${encodeURIComponent(siteFilter)}`
-    : "/admin/marketing";
+  const marketingHref = (() => {
+    const params = new URLSearchParams();
+    if (siteFilter) params.set("site", siteFilter);
+    if (period && period !== "1") params.set("period", period);
+    const qs = params.toString();
+    return qs ? `/admin/marketing?${qs}` : "/admin/marketing";
+  })();
 
   return (
     <>
@@ -106,24 +109,25 @@ export async function AdminHomeInsights({
       </Suspense>
 
       <div className="space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold text-[#123524]">
               Site trafiği
             </h2>
             <p className="mt-0.5 text-sm text-[#466254]">
-              Sol: GA4 aktif kullanıcı ({rangeLabel}). Sağ: izlenen tıklama /
-              WA Ref kayıtları.
+              Sol: GA4 aktif kullanıcı. Sağ: izlenen tıklama / WA Ref. Aynı dönem
+              · {siteLabel}.
             </p>
           </div>
           <Suspense
             fallback={
-              <div className="h-11 w-full animate-pulse rounded-xl bg-[#eef2f0] sm:w-44" />
+              <div className="h-11 w-full animate-pulse rounded-xl bg-[#eef2f0] sm:w-72" />
             }
           >
             <AdminHomeSiteFilter
               siteOptions={siteOptions}
               currentSite={siteFilter}
+              currentPeriod={period}
             />
           </Suspense>
         </div>
@@ -161,7 +165,7 @@ export async function AdminHomeInsights({
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
           <AdminSourcePie
             title="Site ziyaretçileri"
-            hint={`${rangeLabel} · GA4 aktif kullanıcı · Google / Meta / organik`}
+            hint={`${rangeLabel} · ${siteLabel} · GA4 aktif kullanıcı`}
             totalLabel="kişi"
             href={marketingHref}
             slices={PLATFORMS.map((id) => ({
@@ -174,7 +178,7 @@ export async function AdminHomeInsights({
           />
           <AdminSourcePie
             title="Ne yaptı? (izlenen)"
-            hint="Tüm zamanlar · site inişi / WA linki / form (lead_sources kayıt)"
+            hint={`${rangeLabel} · ${siteLabel} · site inişi / WA linki / form`}
             totalLabel="kayıt"
             href={marketingHref}
             slices={EVENTS.map((id) => ({
@@ -190,12 +194,12 @@ export async function AdminHomeInsights({
         </div>
 
         <AdminSurgerySourcePanel
-          title="Ameliyat — kaynak (30 gün)"
-          hint="Tüm siteler · pasta dilimine tıklayınca liste filtrelenir. Kaynak WhatsApp Ref / CTWA / click ID ile tespit edilir."
+          title="Ameliyat — kaynak"
+          hint={`${rangeLabel} · ${siteLabel} · pasta dilimine tıklayınca liste filtrelenir. Kaynak WhatsApp Ref / CTWA / click ID ile tespit edilir.`}
           total={surgery.total}
           platforms={surgery.platforms}
           patients={surgery.patients}
-          href="/admin/marketing"
+          href={marketingHref}
         />
       </div>
     </>

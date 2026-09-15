@@ -1,4 +1,4 @@
-import { loadMarketingSummary } from "@/lib/marketing/admin-stats";
+import { loadMarketingSummaryResult } from "@/lib/marketing/admin-stats";
 import {
   MarketingDailyChart,
   MarketingPlatformBars,
@@ -17,12 +17,22 @@ export async function MarketingSummarySection({
   siteFilter: string | null;
   channel: "google" | "meta";
 }) {
-  const summary = await loadMarketingSummary(startDate, endDate, siteFilter);
+  const { summary, error } = await loadMarketingSummaryResult(
+    startDate,
+    endDate,
+    siteFilter,
+  );
   if (!summary) {
     return (
       <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-        Özet alınamadı. Migration uygulandı mı? (
-        <code>20260903220000_marketing_summary_fast.sql</code>)
+        Özet alınamadı
+        {error ? (
+          <>
+            : <span className="font-mono text-xs">{error}</span>
+          </>
+        ) : null}
+        . Migration uygulandı mı? (
+        <code>20260915120000_remove_randevulu_surgery_calendar.sql</code>)
       </p>
     );
   }

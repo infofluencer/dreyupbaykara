@@ -20,7 +20,10 @@ import {
 import { Skeleton } from "@/components/admin/AdminSkeleton";
 import { requireAdminSession } from "@/lib/admin/auth";
 import { loadAdminHomeHeaderCounts } from "@/lib/crm/admin-home-stats";
-import { pickMarketingQueryParam } from "@/lib/marketing/date-range";
+import {
+  pickMarketingQueryParam,
+  resolveMarketingDateRange,
+} from "@/lib/marketing/date-range";
 
 /** Mobilde daha sıkı dikey ritim + iOS home indicator payı. */
 const PAGE_CLASS =
@@ -29,7 +32,12 @@ const PAGE_CLASS =
 export default async function AdminHomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ site?: string | string[] }>;
+  searchParams: Promise<{
+    site?: string | string[];
+    period?: string | string[];
+    start?: string | string[];
+    end?: string | string[];
+  }>;
 }) {
   const configured =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
@@ -65,6 +73,11 @@ export default async function AdminHomePage({
   const session = await requireAdminSession();
   const raw = await searchParams;
   const siteFilter = pickMarketingQueryParam(raw.site) || null;
+  const { startDate, endDate, period } = resolveMarketingDateRange({
+    period: pickMarketingQueryParam(raw.period),
+    start: pickMarketingQueryParam(raw.start),
+    end: pickMarketingQueryParam(raw.end),
+  });
 
   return (
     <div className={PAGE_CLASS}>
@@ -85,7 +98,12 @@ export default async function AdminHomePage({
       </Suspense>
 
       <Suspense fallback={<AdminHomeInsightsFallback />}>
-        <AdminHomeInsights siteFilter={siteFilter} />
+        <AdminHomeInsights
+          siteFilter={siteFilter}
+          startDate={startDate}
+          endDate={endDate}
+          period={period}
+        />
       </Suspense>
 
       <QuickLinks />

@@ -39,6 +39,11 @@ import {
   leadStatusForBookedAppointment,
 } from "@/lib/crm/appointment-pipeline";
 import {
+  attributionInsertFields,
+  findContactAttribution,
+  inheritedSite,
+} from "@/lib/crm/inherit-attribution";
+import {
   findFreeAppointmentSlot,
   IMPLIED_APPOINTMENT_MS,
   toOccupiedRange,
@@ -153,13 +158,15 @@ export async function createManualLead(formData: FormData) {
     .maybeSingle();
   if (existing) redirect(`/admin/patients/${contact.id}`);
 
+  const inherited = await findContactAttribution(supabase, contact.id);
   const { data: lead, error } = await supabase
     .from("leads")
     .insert({
       contact_id: contact.id,
       stage: "new",
-      site: "manual",
+      site: inheritedSite(inherited) ?? "manual",
       channel: text(formData, "channel") || "manual",
+      ...attributionInsertFields(inherited),
       notes: optionalText(formData, "notes"),
       assigned_to: session.userId,
     })
@@ -223,11 +230,13 @@ export async function createPatient(formData: FormData) {
     .limit(1)
     .maybeSingle();
   if (!existingLead) {
+    const inherited = await findContactAttribution(supabase, contact.id);
     const { error: leadError } = await supabase.from("leads").insert({
       contact_id: contact.id,
       stage: "new",
-      site: "manual",
+      site: inheritedSite(inherited) ?? "manual",
       channel: text(formData, "channel") || "manual",
+      ...attributionInsertFields(inherited),
       assigned_to: session.userId,
     });
     if (leadError) throw new Error(leadError.message);
@@ -1026,13 +1035,15 @@ async function ensureLeadId(
     .maybeSingle();
   if (existing) return existing.id;
 
+  const inherited = await findContactAttribution(supabase, contact.id);
   const { data: lead, error } = await supabase
     .from("leads")
     .insert({
       contact_id: contact.id,
       stage: "appointment",
-      site: "manual",
+      site: inheritedSite(inherited) ?? "manual",
       channel: "calendar",
+      ...attributionInsertFields(inherited),
       assigned_to: userId,
       notes: optionalText(formData, "notes"),
     })

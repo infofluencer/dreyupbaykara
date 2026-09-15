@@ -35,7 +35,7 @@ export function MarketingSurgerySourcesFallback() {
 export async function MarketingSurgerySourcesSection({
   startDate,
   endDate,
-  siteFilter: _siteFilter,
+  siteFilter,
   period,
   channel,
 }: {
@@ -45,9 +45,9 @@ export async function MarketingSurgerySourcesSection({
   period: string;
   channel: "google" | "meta";
 }) {
-  // Ameliyat kaynağı site filtresinden bağımsız — her zaman tüm siteler
-  const stats = await loadSurgerySourceStats(startDate, endDate, null);
+  const stats = await loadSurgerySourceStats(startDate, endDate, siteFilter);
   const rangeLabel = formatMarketingDateRangeTr(startDate, endDate);
+  const siteLabel = siteFilter ?? "tüm siteler";
 
   const slices = PLATFORMS.map((id) => ({
     id,
@@ -60,6 +60,7 @@ export async function MarketingSurgerySourcesSection({
       end: endDate,
       channel,
       platform: id,
+      site: siteFilter ?? undefined,
     }),
   }));
 
@@ -79,7 +80,7 @@ export async function MarketingSurgerySourcesSection({
     <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
       <AdminSourcePie
         title="Ameliyat — kaynak"
-        hint={`Dönemde ameliyat edilen hastalar · ${rangeLabel} · tüm siteler. Kaynak WhatsApp Ref, CTWA, gclid/fbclid veya UTM ile tespit edilir.`}
+        hint={`Dönemde ameliyat edilen hastalar · ${rangeLabel} · ${siteLabel}. Kaynak WhatsApp Ref, CTWA, gclid/fbclid veya UTM ile tespit edilir.`}
         totalLabel="ameliyat"
         slices={slices}
       />
@@ -89,7 +90,7 @@ export async function MarketingSurgerySourcesSection({
           Özet
         </h2>
         <p className="mt-1 text-sm text-[#466254]">
-          {rangeLabel} · tüm siteler
+          {rangeLabel} · {siteLabel}
         </p>
 
         <dl className="mt-5 grid grid-cols-2 gap-3">

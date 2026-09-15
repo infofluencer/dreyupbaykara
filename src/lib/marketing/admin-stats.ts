@@ -36,7 +36,7 @@ async function loadMarketingSummaryUncached(
   startDate: string,
   endDate: string,
   siteFilter: string | null,
-): Promise<MarketingSummary | null> {
+): Promise<{ summary: MarketingSummary | null; error: string | null }> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_marketing_summary", {
     start_date: startDate,
@@ -46,14 +46,35 @@ async function loadMarketingSummaryUncached(
 
   if (error) {
     console.error("[marketing] summary rpc:", error.message);
-    return null;
+    return { summary: null, error: error.message };
   }
 
-  return parseSummary(data);
+  const summary = parseSummary(data);
+  if (!summary) {
+    return {
+      summary: null,
+      error: "Özet yanıtı boş veya geçersiz.",
+    };
+  }
+
+  return { summary, error: null };
 }
 
 /** Aynı request içinde özet + kampanya paylaşır. */
-export const loadMarketingSummary = cache(loadMarketingSummaryUncached);
+export const loadMarketingSummaryResult = cache(loadMarketingSummaryUncached);
+
+export async function loadMarketingSummary(
+  startDate: string,
+  endDate: string,
+  siteFilter: string | null,
+): Promise<MarketingSummary | null> {
+  const { summary } = await loadMarketingSummaryResult(
+    startDate,
+    endDate,
+    siteFilter,
+  );
+  return summary;
+}
 
 export async function loadAdAccountsSafe(): Promise<AdAccountSafe[]> {
   const supabase = await createClient();
