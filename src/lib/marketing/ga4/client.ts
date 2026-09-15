@@ -1,6 +1,5 @@
 import "server-only";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AdPlatform } from "@/lib/crm/source-kind";
 import { googleAdsConfig } from "@/lib/marketing/config";
 import {
@@ -8,6 +7,7 @@ import {
   getActiveAdAccount,
   MarketingTokenError,
 } from "@/lib/marketing/tokens";
+import { createServiceClient } from "@/lib/supabase/admin";
 
 export type Ga4TrafficSourceStats = {
   total: number;
@@ -74,22 +74,27 @@ export function ga4PropertyIdsFromEnv(): string[] {
   ];
 }
 
-async function getGoogleAccessToken(
-  supabase: SupabaseClient,
-): Promise<{ accessToken: string } | { error: string; needsReconnect?: boolean }> {
-  const account = await getActiveAdAccount(supabase, "google_ads");
-  if (!account) {
-    const { clientId } = googleAdsConfig();
-    if (!clientId) {
-      return { error: "Google OAuth yapılandırılmamış." };
-    }
-    return {
-      error: "Google hesabı bağlı değil.",
-      needsReconnect: true,
-    };
+async function getGoogleAccessToken(): Promise<
+  { accessToken: string } | { error: string; needsReconnect?: boolean }
+> {
+  const supabase = createServiceClient();
+  if (!supabase) {
+    return { error: "SUPABASE_SERVICE_ROLE_KEY eksik." };
   }
 
   try {
+    const account = await getActiveAdAccount(supabase, "google_ads");
+    if (!account) {
+      const { clientId } = googleAdsConfig();
+      if (!clientId) {
+        return { error: "Google OAuth yapılandırılmamış." };
+      }
+      return {
+        error: "Google hesabı bağlı değil.",
+        needsReconnect: true,
+      };
+    }
+
     const accessToken = await ensureValidAccessToken(supabase, account);
     return { accessToken };
   } catch (err) {
@@ -99,7 +104,13 @@ async function getGoogleAccessToken(
         : err instanceof Error
           ? err.message
           : "Google token alınamadı";
-    return { error: message, needsReconnect: true };
+    return {
+      error: message,
+      needsReconnect:
+        message.includes("permission denied") ||
+        message.includes("refresh") ||
+        message.includes("bağlı değil"),
+    };
   }
 }
 
@@ -162,10 +173,9 @@ async function runPropertyReport(
 
 /**
  * GA4 aktif kullanıcılar — tüm property'ler toplanır (3 site).
- * Mevcut Google OAuth token'ı — Analytics readonly scope gerekir.
+ * Token: service role ile ad_accounts (RLS bypass).
  */
 export async function loadGa4TrafficSourceStats(
-  supabase: SupabaseClient,
   startDate: string,
   endDate: string,
 ): Promise<Ga4TrafficSourceStats> {
@@ -184,7 +194,7 @@ export async function loadGa4TrafficSourceStats(
     };
   }
 
-  const token = await getGoogleAccessToken(supabase);
+  const token = await getGoogleAccessToken();
   if ("error" in token) {
     return {
       total: 0,

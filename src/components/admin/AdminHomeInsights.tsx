@@ -19,7 +19,6 @@ import { loadSiteOptions } from "@/lib/marketing/admin-stats";
 import { formatMarketingDateRangeTr } from "@/lib/marketing/date-range";
 import { loadGa4TrafficSourceStats } from "@/lib/marketing/ga4/client";
 import { loadSurgerySourceStats } from "@/lib/marketing/surgery-sources";
-import { createClient } from "@/lib/supabase/server";
 import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 
 const PLATFORMS = ["google_ads", "meta", "other", "organic"] as const;
@@ -66,14 +65,13 @@ export async function AdminHomeInsights({
   const apiEnabled = isWhatsAppEnabled();
   const { start, end } = last30DayRange();
   const rangeLabel = formatMarketingDateRangeTr(start, end);
-  const supabase = await createClient();
 
   const [wa, sources, siteOptions, surgery, traffic] = await Promise.all([
     loadAdminHomeWaStats(),
     loadAdminHomeSourceStats(siteFilter),
     loadSiteOptions(),
     loadSurgerySourceStats(start, end, null),
-    loadGa4TrafficSourceStats(supabase, start, end),
+    loadGa4TrafficSourceStats(start, end),
   ]);
 
   const marketingHref = siteFilter
