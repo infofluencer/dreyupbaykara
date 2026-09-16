@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Archive, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { setLeadStatus } from "@/app/admin/actions";
+import { setLeadArchived, setLeadStatus } from "@/app/admin/actions";
 import {
   asLeadStatus,
   LEAD_STATUS_LABEL,
@@ -16,6 +17,7 @@ const CARD_LINK_BASE =
   "inline-flex min-h-9 flex-1 items-center justify-center rounded-full px-3 text-[11px] font-semibold xl:min-h-8 xl:px-2";
 const CARD_LINK_PRIMARY = `${CARD_LINK_BASE} bg-[#0b6b45] text-white active:bg-[#095538]`;
 const CARD_LINK_SECONDARY = `${CARD_LINK_BASE} border border-[#0b6b45]/30 bg-white text-[#0b6b45] active:bg-[#e7f5ed]`;
+const CARD_LINK_ARCHIVE = `${CARD_LINK_BASE} border border-[#123524]/15 bg-white text-[#466254] active:bg-[#f3f6f4]`;
 
 export type PipelineLead = {
   id: string;
@@ -34,15 +36,24 @@ function leadsSnapshotKey(leads: PipelineLead[]) {
     .join("|");
 }
 
+function isInteractiveDragTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest("button, a, select, input, label"))
+  );
+}
+
 /**
- * Salt genel bakış. Masaüstünde 7 kolonlu kanban (sürükle-bırak),
+ * Salt genel bakış. Masaüstünde 6 kolonlu kanban (sürükle-bırak),
  * mobilde aynı durumlar tek akışta yapışkan başlıklarla alt alta;
  * durum kartın içindeki menüden değişir.
  */
 export function LeadPipelineBoard({
   leads: initialLeads,
+  archivedView = false,
 }: {
   leads: PipelineLead[];
+  archivedView?: boolean;
 }) {
   const [leads, setLeads] = useState(initialLeads);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -143,16 +154,42 @@ export function LeadPipelineBoard({
     });
   }
 
+  function toggleArchived(leadId: string) {
+    const prev = leads;
+    setLeads((rows) => rows.filter((row) => row.id !== leadId));
+    setError(null);
+
+    startTransition(() => {
+      void setLeadArchived(leadId, !archivedView).catch((err: unknown) => {
+        setLeads(prev);
+        setError(
+          err instanceof Error
+            ? err.message
+            : archivedView
+              ? "Hasta panoya alınamadı."
+              : "Hasta arşivlenemedi.",
+        );
+      });
+    });
+  }
+
   return (
     <div className="space-y-3">
-      <p className="text-sm text-[#466254]">
-        Genel bakış. Telefonda karttaki durum menüsünü kullanın; masaüstünde
-        kartı kolonlar arasında sürükleyin. Günlük takip için{" "}
-        <Link href="/admin/messages" className="font-semibold text-[#0b6b45]">
-          WhatsApp
-        </Link>
-        .
-      </p>
+      {archivedView ? (
+        <p className="text-sm text-[#466254]">
+          Arşiv. Kartı kolonlar arasında sürükleyebilir, panoya geri
+          alabilirsiniz.
+        </p>
+      ) : (
+        <p className="text-sm text-[#466254]">
+          Genel bakış. Telefonda karttaki durum menüsünü kullanın; masaüstünde
+          kartı kolonlar arasında sürükleyin. Günlük takip için{" "}
+          <Link href="/admin/messages" className="font-semibold text-[#0b6b45]">
+            WhatsApp
+          </Link>
+          .
+        </p>
+      )}
       {error ? (
         <p className="text-sm text-red-700" role="alert">
           {error}
@@ -161,11 +198,13 @@ export function LeadPipelineBoard({
 
       {leads.length === 0 ? (
         <p className="rounded-2xl border border-[#123524]/10 bg-white px-5 py-10 text-center text-sm text-[#466254]">
-          Panoda hasta yok. Yeni hasta ekleyin; talep oluştukça buraya düşer.
+          {archivedView
+            ? "Arşivde hasta yok. Aktif panodaki bir karttan Arşivle’ye basın."
+            : "Panoda hasta yok. Yeni hasta ekleyin; talep oluştukça buraya düşer."}
         </p>
       ) : null}
 
-      <div className="flex flex-col gap-2.5 xl:grid xl:grid-cols-7 xl:gap-3">
+      <div className="flex flex-col gap-2.5 xl:grid xl:grid-cols-6 xl:gap-3">
         {LEAD_STATUSES.map((column) => {
           const rows = byStatus[column];
           const empty = rows.length === 0;
@@ -219,6 +258,10 @@ export function LeadPipelineBoard({
                       <article
                         draggable
                         onDragStart={(event) => {
+                          if (isInteractiveDragTarget(event.target)) {
+                            event.preventDefault();
+                            return;
+                          }
                           setDragId(row.id);
                           event.dataTransfer.setData("text/lead-id", row.id);
                           event.dataTransfer.effectAllowed = "move";
@@ -300,6 +343,19 @@ export function LeadPipelineBoard({
                             Kart
                           </Link>
                         </div>
+                        <button
+                          type="button"
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={() => toggleArchived(row.id)}
+                          className={`${CARD_LINK_ARCHIVE} mt-1.5 w-full gap-1`}
+                        >
+                          {archivedView ? (
+                            <Undo2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          ) : (
+                            <Archive className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          )}
+                          {archivedView ? "Panoya al" : "Arşivle"}
+                        </button>
                       </article>
                     </li>
                   ))}

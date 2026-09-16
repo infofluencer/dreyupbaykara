@@ -774,6 +774,7 @@ export async function updateLead(formData: FormData) {
 
 function revalidatePipeline(leadId?: string, contactId?: string | null) {
   revalidatePath("/admin/pipeline");
+  revalidatePath("/admin/pipeline?archive=1");
   revalidatePath("/admin/messages");
   revalidatePath("/admin/patients");
   revalidatePath("/admin");
@@ -831,6 +832,25 @@ export async function setLeadStatus(
   if (status === "ameliyat_edildi") {
     await backfillSurgeryAppointment(supabase, leadId);
   }
+
+  revalidatePipeline(leadId, leadRow?.contact_id);
+}
+
+/** Durum panosu arşivi — status değişmez, yalnızca panodaki görünüm ayrılır. */
+export async function setLeadArchived(leadId: string, archived: boolean) {
+  await requireAdminSession(["admin", "doctor", "assistant"]);
+  const supabase = await createClient();
+  const { data: leadRow } = await supabase
+    .from("leads")
+    .select("contact_id")
+    .eq("id", leadId)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("leads")
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq("id", leadId);
+  if (error) throw new Error(error.message);
 
   revalidatePipeline(leadId, leadRow?.contact_id);
 }

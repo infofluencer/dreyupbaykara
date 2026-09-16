@@ -252,6 +252,22 @@ try {
     }
   }
 
+  // ── 5) leads.archived_at ────────────────────────────────────────────────
+  const { error: archErr } = await admin
+    .from("leads")
+    .select("archived_at")
+    .eq("id", lead.id)
+    .maybeSingle();
+  if (archErr) {
+    fail(
+      "leads.archived_at kolonu yok",
+      "20260916120000_lead_archive.sql",
+      `${archErr.message} — durum panosu arşivi bu kolon olmadan çalışmaz.`,
+    );
+  } else {
+    ok("leads.archived_at var (durum panosu arşivi)");
+  }
+
   for (const key of ["appt_1d", "appt_1h"]) {
     const rule = byKey[key];
     if (!rule) {
