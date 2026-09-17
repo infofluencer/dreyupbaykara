@@ -14,7 +14,6 @@
     "test:sources": "node scripts/test-sources.mjs",
     "test:bot": "node scripts/test-bot.mjs",
     "test:whatsapp": "node scripts/test-whatsapp.mjs",
-<<<<<<< HEAD
     "test:automations": "node --experimental-strip-types --import ./scripts/lib/register-hooks.mjs scripts/test-automations.mjs",
     "test:lead-status": "node --experimental-strip-types scripts/test-lead-status.mjs",
     "test:pipeline": "node --experimental-strip-types --import ./scripts/lib/register-hooks.mjs scripts/simulate-pipeline.mjs",
@@ -24,11 +23,8 @@
     "test:schedule": "node scripts/test-schedule.mjs",
     "test:consent": "node scripts/test-cookie-consent.mjs",
     "test:site-matcher": "node --experimental-strip-types scripts/test-site-matcher.mjs",
-    "marketing:tokens": "node scripts/marketing-get-tokens.mjs"
-=======
-    "test:consent": "node scripts/test-cookie-consent.mjs",
+    "marketing:tokens": "node scripts/marketing-get-tokens.mjs",
     "seo:ping": "node scripts/seo-ping.mjs"
->>>>>>> 2668534 (Enhance SEO and metadata for improved site visibility)
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
