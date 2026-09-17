@@ -29,6 +29,7 @@ export type TrackingParams = {
   wbraid?: string | null;
   msclkid?: string | null;
   ttclid?: string | null;
+  oppref?: string | null;
 };
 
 export const TRACKING_QUERY_KEYS = [
@@ -43,6 +44,7 @@ export const TRACKING_QUERY_KEYS = [
   "wbraid",
   "msclkid",
   "ttclid",
+  "oppref",
   "campaign",
   "channel",
   "site",
@@ -62,6 +64,7 @@ const FIRST_TOUCH_KEYS = new Set<string>([
   "wbraid",
   "msclkid",
   "ttclid",
+  "oppref",
   "campaign",
 ]);
 
@@ -94,6 +97,7 @@ export function pickTrackingParams(
     wbraid: get("wbraid"),
     msclkid: get("msclkid"),
     ttclid: get("ttclid"),
+    oppref: get("oppref"),
   };
 }
 
@@ -132,6 +136,7 @@ export function hasPaidTrackingParams(params: TrackingParams): boolean {
       params.wbraid ||
       params.msclkid ||
       params.ttclid ||
+      params.oppref ||
       params.utm_source ||
       params.utm_medium ||
       params.utm_campaign ||
@@ -325,6 +330,7 @@ async function reportLanding(attribution: Record<string, string>) {
     attribution.fbclid || "",
     attribution.msclkid || "",
     attribution.ttclid || "",
+    attribution.oppref || "",
     attribution.utm_source || "",
     attribution.utm_campaign || "",
     attribution.landing_page || "",
@@ -356,6 +362,7 @@ async function reportLanding(attribution: Record<string, string>) {
         wbraid: attribution.wbraid,
         msclkid: attribution.msclkid,
         ttclid: attribution.ttclid,
+        oppref: attribution.oppref,
         landing_url: window.location.href,
       }),
       keepalive: true,

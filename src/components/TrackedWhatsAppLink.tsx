@@ -8,6 +8,10 @@ import {
 } from "react";
 import { pushDataLayerEvent } from "@/components/analytics/data-layer";
 import { trackMetaEvent } from "@/components/analytics/track-meta";
+import {
+  createOpenAiEventId,
+  trackOpenAiEvent,
+} from "@/components/analytics/track-openai";
 import { buildTrackingPath, DEFAULT_SITE } from "@/lib/crm/tracking";
 
 type TrackedWhatsAppLinkProps = Omit<
@@ -40,9 +44,20 @@ export function TrackedWhatsAppLink({
 }: TrackedWhatsAppLinkProps) {
   const fallbackHref = buildFallbackHref(site, channel);
   const anchorRef = useRef<HTMLAnchorElement>(null);
+  const eventIdRef = useRef("");
+
+  const ensureEventId = () => {
+    if (!eventIdRef.current) eventIdRef.current = createOpenAiEventId();
+    return eventIdRef.current;
+  };
 
   const syncHref = () =>
-    buildTrackingPath({ site, channel, campaign });
+    buildTrackingPath({
+      site,
+      channel,
+      campaign,
+      extra: { oai_event_id: ensureEventId() },
+    });
 
   useLayoutEffect(() => {
     if (anchorRef.current) {
@@ -63,8 +78,15 @@ export function TrackedWhatsAppLink({
         onPointerDown?.(event);
       }}
       onClick={(event) => {
+        const eventId = ensureEventId();
         event.currentTarget.href = syncHref();
         trackMetaEvent("Contact", { content_name: `whatsapp_${channel}` });
+        trackOpenAiEvent(
+          "lead_created",
+          { type: "customer_action" },
+          { event_id: eventId },
+        );
+        eventIdRef.current = "";
         pushDataLayerEvent("whatsapp_click", { channel });
         onClick?.(event);
       }}

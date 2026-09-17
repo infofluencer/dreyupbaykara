@@ -8,6 +8,7 @@ import {
   pickTrackingParams,
   pickTrackingParamsFromUrl,
 } from "@/lib/crm/tracking";
+import { scheduleOpenAiLeadConversion } from "@/lib/marketing/openai-ads/conversions";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -36,6 +37,8 @@ export async function GET(request: NextRequest) {
 
   const hasForm = Boolean(form.name);
   const leadRef = generateLeadRef();
+  const eventId =
+    first(searchParams.get("oai_event_id")) || crypto.randomUUID();
 
   const message = hasForm
     ? buildFormWhatsAppMessage(leadRef, form)
@@ -75,6 +78,14 @@ export async function GET(request: NextRequest) {
       "[/r] Supabase service role missing — redirecting without DB save",
     );
   }
+
+  scheduleOpenAiLeadConversion({
+    request,
+    eventId,
+    pagePath: tracking.page,
+    fullName: form.name,
+    oppref: tracking.oppref,
+  });
 
   return NextResponse.redirect(buildWhatsAppUrl(message), 302);
 }

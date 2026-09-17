@@ -8,6 +8,7 @@ import {
   GoogleTagManager,
   MetaPixel,
   MicrosoftClarity,
+  OpenAiAdsPixel,
   TikTokPixel,
 } from "@/components/analytics";
 import { ClientOnly } from "@/components/layouts/client-only";
@@ -23,6 +24,7 @@ export default function MarketingLayout({
   return (
     <>
       <link rel="preconnect" href="https://www.googletagmanager.com" />
+      <link rel="preconnect" href="https://bzrcdn.openai.com" />
       <GoogleConsentModeScript />
       <GoogleTagManager />
       <GoogleGtagLoader />
@@ -30,6 +32,7 @@ export default function MarketingLayout({
       <MicrosoftClarity initialConsent={null} />
       <MetaPixel initialConsent={null} />
       <TikTokPixel initialConsent={null} />
+      <OpenAiAdsPixel initialConsent={null} />
       <Suspense fallback={null}>
         <AttributionCapture />
       </Suspense>

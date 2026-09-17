@@ -3,6 +3,10 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { pushDataLayerEvent } from "@/components/analytics/data-layer";
 import { trackMetaEvent } from "@/components/analytics/track-meta";
+import {
+  createOpenAiEventId,
+  trackOpenAiEvent,
+} from "@/components/analytics/track-openai";
 import { buildTrackingPath } from "@/lib/crm/tracking";
 import { HOME_FALLBACK, type HomeCopyBlock } from "@/lib/cms/home";
 
@@ -42,6 +46,7 @@ export function LeadForm({
     e.preventDefault();
     if (!form.name.trim()) return;
 
+    const eventId = createOpenAiEventId();
     const href = buildTrackingPath({
       site: "endoskopikbelameliyati",
       channel: "lead_form",
@@ -52,6 +57,7 @@ export function LeadForm({
         lastMri: form.lastMri || undefined,
         seenSpecialist: form.seenSpecialist || undefined,
         age: form.age || undefined,
+        oai_event_id: eventId,
       },
     });
 
@@ -59,6 +65,11 @@ export function LeadForm({
       content_name: "randevu_formu",
       content_category: "lead_form",
     });
+    trackOpenAiEvent(
+      "lead_created",
+      { type: "customer_action" },
+      { event_id: eventId },
+    );
     pushDataLayerEvent("generate_lead", { content_name: "randevu_formu" });
     window.location.href = href;
   };

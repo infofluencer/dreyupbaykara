@@ -48,7 +48,7 @@ const CATEGORIES: {
     key: "marketing",
     title: "Pazarlama",
     description:
-      "Reklam ölçümü ve yeniden pazarlama pikselleri (ör. Meta, TikTok, Google Ads).",
+      "Reklam ölçümü ve yeniden pazarlama pikselleri (ör. Meta, TikTok, Google Ads, OpenAI Ads).",
   },
 ];
 

@@ -26,7 +26,7 @@ const CATEGORIES = [
   },
   {
     title: "Pazarlama çerezleri",
-    body: "Reklam ölçümü, dönüşüm takibi ve yeniden pazarlama için kullanılır. Meta Pixel, TikTok Pixel ve Google Ads bu kategoriye girer. Onay vermezseniz bu pikseller yüklenmez.",
+    body: "Reklam ölçümü, dönüşüm takibi ve yeniden pazarlama için kullanılır. Meta Pixel, TikTok Pixel, Google Ads ve OpenAI Ads bu kategoriye girer. Onay vermezseniz bu pikseller yüklenmez.",
   },
 ] as const;
 
@@ -102,6 +102,10 @@ export default function CerezlerPage() {
               </li>
               <li>
                 <strong>TikTok Pixel</strong> — pazarlama.
+              </li>
+              <li>
+                <strong>OpenAI Ads Measurement Pixel</strong> — pazarlama /
+                ChatGPT reklam dönüşümü.
               </li>
               <li>
                 <strong>Google Ads</strong> — pazarlama / dönüşüm (AW etiketi +

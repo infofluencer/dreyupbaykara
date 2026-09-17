@@ -23,6 +23,9 @@
     "fbclid",
     "gbraid",
     "wbraid",
+    "msclkid",
+    "ttclid",
+    "oppref",
   ];
   var STORAGE = "eyupbaykara_xsite_attr";
 

@@ -15,5 +15,8 @@ declare global {
       track?: (...args: unknown[]) => void;
       [key: string]: unknown;
     };
+    oaiq: ((...args: unknown[]) => void) & {
+      q?: unknown[];
+    };
   }
 }

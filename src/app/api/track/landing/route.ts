@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     wbraid: clip(body.wbraid),
     msclkid: clip(body.msclkid),
     ttclid: clip(body.ttclid),
+    oppref: clip(body.oppref),
     landing_url: clip(body.landing_url),
   };
 

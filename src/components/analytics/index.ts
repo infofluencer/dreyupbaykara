@@ -5,3 +5,4 @@ export { GoogleAnalytics } from "./google-analytics";
 export { MicrosoftClarity } from "./microsoft-clarity";
 export { MetaPixel } from "./meta-pixel";
 export { TikTokPixel } from "./tiktok-pixel";
+export { OpenAiAdsPixel } from "./openai-ads-pixel";
