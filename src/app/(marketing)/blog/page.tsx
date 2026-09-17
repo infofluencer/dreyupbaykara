@@ -15,9 +15,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const content = await getPublishedPage("/blog");
   const seo = PAGE_SEO.blog;
   return {
-    title: content?.seo_title || seo.title,
-    description: content?.seo_description || seo.description,
+    title: seo.title,
+    description: seo.description,
     alternates: { canonical: content?.canonical_url || "/blog" },
+    openGraph: {
+      title: seo.title,
+      description: seo.description,
+    },
   };
 }
 
