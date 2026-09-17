@@ -1,14 +1,12 @@
 "use client";
 
+import { readBrowserCookie } from "@/lib/cookie-consent";
 import { hasMarketingConsent } from "./track-meta";
 import { OPENAI_ADS_PIXEL_ID } from "@/lib/marketing/openai-ads/pixel";
 
 export { OPENAI_ADS_PIXEL_ID };
 
-export type OpenAiMeasureEvent =
-  | "page_viewed"
-  | "contents_viewed"
-  | "lead_created";
+export type OpenAiMeasureEvent = "page_viewed" | "lead_created";
 
 export function createOpenAiEventId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -27,4 +25,45 @@ export function trackOpenAiEvent(
   if (typeof window.oaiq !== "function") return;
   if (options) window.oaiq("measure", event, data, options);
   else window.oaiq("measure", event, data);
+}
+
+function readOppRef(): string | null {
+  const fromCookie = readBrowserCookie("__oppref")?.trim();
+  if (fromCookie) return fromCookie;
+  try {
+    return new URLSearchParams(window.location.search).get("oppref")?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function sendOpenAiServerEvent(payload: {
+  type: OpenAiMeasureEvent;
+  event_id: string;
+  source_url: string;
+  oppref: string | null;
+}): void {
+  void fetch("/api/track/openai-event", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch(() => {
+    /* pixel already sent; CAPI is best-effort */
+  });
+}
+
+/** Pixel + Conversions API, aynı event_id ile. */
+export function trackOpenAiPageViewed(): void {
+  if (typeof window === "undefined") return;
+  if (!hasMarketingConsent()) return;
+
+  const eventId = createOpenAiEventId();
+  trackOpenAiEvent("page_viewed", { type: "contents" }, { event_id: eventId });
+  sendOpenAiServerEvent({
+    type: "page_viewed",
+    event_id: eventId,
+    source_url: window.location.href,
+    oppref: readOppRef(),
+  });
 }

@@ -24,15 +24,17 @@ type OpenAiUser = {
   user_agent?: string;
 };
 
+export type OpenAiConversionType = "page_viewed" | "lead_created";
+
 type OpenAiConversionEvent = {
   id: string;
-  type: "lead_created";
+  type: OpenAiConversionType;
   timestamp_ms: number;
   oppref?: string;
   source_url: string;
   action_source: "web";
   user?: OpenAiUser;
-  data: { type: "customer_action" };
+  data: { type: "contents" } | { type: "customer_action" };
 };
 
 function sha256Hex(value: string): string {
@@ -74,6 +76,22 @@ function cookieValue(request: NextRequest, name: string): string | null {
   return value || null;
 }
 
+function absoluteSourceUrl(sourceUrl: string | null | undefined, pagePath?: string | null) {
+  const raw = sourceUrl?.trim();
+  if (raw) {
+    try {
+      const parsed = new URL(raw);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.toString();
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  const path = pagePath?.trim() || "/";
+  return `${SITE_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 async function postConversionEvent(event: OpenAiConversionEvent): Promise<void> {
   const apiKey = API_KEY();
   if (!apiKey) return;
@@ -106,10 +124,11 @@ async function postConversionEvent(event: OpenAiConversionEvent): Promise<void> 
   }
 }
 
-/** WhatsApp / form dönüşümünü yanıt gittikten sonra CAPI’ye yollar. */
-export function scheduleOpenAiLeadConversion(options: {
+export function scheduleOpenAiConversion(options: {
   request: NextRequest;
   eventId: string;
+  type: OpenAiConversionType;
+  sourceUrl?: string | null;
   pagePath?: string | null;
   fullName?: string | null;
   oppref?: string | null;
@@ -125,10 +144,10 @@ export function scheduleOpenAiLeadConversion(options: {
     options.oppref?.trim() || cookieValue(options.request, "__oppref");
   const obref = cookieValue(options.request, "__obref");
   const referer = firstHeader(options.request, "referer");
-  const pagePath = options.pagePath?.trim() || "/";
-  const sourceUrl =
-    referer ||
-    `${SITE_ORIGIN}${pagePath.startsWith("/") ? pagePath : `/${pagePath}`}`;
+  const sourceUrl = absoluteSourceUrl(
+    options.sourceUrl || referer,
+    options.pagePath,
+  );
   const ip =
     firstHeader(options.request, "x-forwarded-for") ||
     firstHeader(options.request, "x-real-ip");
@@ -145,16 +164,33 @@ export function scheduleOpenAiLeadConversion(options: {
 
   const event: OpenAiConversionEvent = {
     id: options.eventId,
-    type: "lead_created",
+    type: options.type,
     timestamp_ms: Date.now(),
     ...(oppref ? { oppref } : {}),
     source_url: sourceUrl,
     action_source: "web",
     user,
-    data: { type: "customer_action" },
+    data:
+      options.type === "page_viewed"
+        ? { type: "contents" }
+        : { type: "customer_action" },
   };
 
   after(() => {
     void postConversionEvent(event);
+  });
+}
+
+/** WhatsApp / form dönüşümünü yanıt gittikten sonra CAPI’ye yollar. */
+export function scheduleOpenAiLeadConversion(options: {
+  request: NextRequest;
+  eventId: string;
+  pagePath?: string | null;
+  fullName?: string | null;
+  oppref?: string | null;
+}): void {
+  scheduleOpenAiConversion({
+    ...options,
+    type: "lead_created",
   });
 }

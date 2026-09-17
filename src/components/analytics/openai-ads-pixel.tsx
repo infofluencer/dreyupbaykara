@@ -5,7 +5,7 @@ import Script from "next/script";
 import { usePathname } from "next/navigation";
 import type { CookieConsentPreferences } from "@/lib/cookie-consent";
 import { useCookieConsent } from "./use-cookie-consent";
-import { OPENAI_ADS_PIXEL_ID, trackOpenAiEvent } from "./track-openai";
+import { OPENAI_ADS_PIXEL_ID, trackOpenAiPageViewed } from "./track-openai";
 
 export function OpenAiAdsPixel({
   initialConsent,
@@ -24,35 +24,8 @@ export function OpenAiAdsPixel({
     ) {
       return;
     }
-
-    const isInitial = !hasTrackedInitialPage.current;
-    hasTrackedInitialPage.current = true;
-
-    if (!isInitial) {
-      trackOpenAiEvent("page_viewed", {
-        type: "contents",
-        contents: [
-          {
-            id: pathname,
-            name: pathname,
-            content_type: "page",
-          },
-        ],
-      });
-    }
-
-    if (pathname.startsWith("/tedaviler/")) {
-      trackOpenAiEvent("contents_viewed", {
-        type: "contents",
-        contents: [
-          {
-            id: pathname,
-            name: pathname,
-            content_type: "page",
-          },
-        ],
-      });
-    }
+    if (!hasTrackedInitialPage.current) return;
+    trackOpenAiPageViewed();
   }, [pathname, consent?.marketing]);
 
   if (
@@ -64,7 +37,14 @@ export function OpenAiAdsPixel({
   }
 
   return (
-    <Script id="openai-ads-pixel" strategy="afterInteractive">
+    <Script
+      id="openai-ads-pixel"
+      strategy="afterInteractive"
+      onReady={() => {
+        hasTrackedInitialPage.current = true;
+        trackOpenAiPageViewed();
+      }}
+    >
       {`(function (w, d, s, u) {
   if (w.oaiq) return;
   var q = function () { q.q.push(arguments); };
@@ -76,11 +56,7 @@ export function OpenAiAdsPixel({
   var f = d.getElementsByTagName(s)[0];
   f.parentNode.insertBefore(js, f);
 })(window, document, "script", "https://bzrcdn.openai.com/sdk/oaiq.min.js");
-oaiq("init", { pixelId: "${OPENAI_ADS_PIXEL_ID}" });
-oaiq("measure", "page_viewed", {
-  type: "contents",
-  contents: [{ id: window.location.pathname, name: document.title, content_type: "page" }]
-});`}
+oaiq("init", { pixelId: "${OPENAI_ADS_PIXEL_ID}" });`}
     </Script>
   );
 }
