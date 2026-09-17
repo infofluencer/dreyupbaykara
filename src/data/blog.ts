@@ -24,6 +24,161 @@ export type BlogPost = {
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "endoskopik-ameliyat",
+    title: "Endoskopik Ameliyat",
+    date: "2026-09-17",
+    excerpt:
+      "Endoskopik ameliyat, milimetrik kesiden kamera ile yapılan minimal invaziv cerrahidir. Bel fıtığı ve kanal darlığında hızlı iyileşme sunar.",
+    image: "/hero/belfitigi.webp",
+    imageAlt: "Endoskopik ameliyat — full endoskopik omurga cerrahisi",
+    metaTitle: "Endoskopik Ameliyat | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Endoskopik ameliyat nedir? Bel fıtığı ve kanal darlığında full endoskopik kapalı cerrahi: küçük kesi, hızlı iyileşme, aynı gün taburcu.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Endoskopik ameliyat için değerlendirme",
+    contactCardBody:
+      "Size uygun olup olmadığını öğrenmek ve randevu almak için iletişime geçin.",
+    toc: [
+      { id: "nedir", label: "Endoskopik ameliyat nedir?" },
+      { id: "nasil-yapilir", label: "Endoskopik ameliyat nasıl yapılır?" },
+      { id: "avantajlar", label: "Avantajları nelerdir?" },
+      { id: "bel-fitigi", label: "Bel fıtığında endoskopik ameliyat" },
+      { id: "kanal-darligi", label: "Kanal darlığında endoskopik ameliyat" },
+      { id: "kimlere", label: "Kimlere uygulanır?" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Endoskopik ameliyat</strong>, omurga cerrahisinde milimetrik bir kesiden girilerek kamera (endoskop) ve mikro aletlerle yapılan modern, minimal invaziv bir yöntemdir. Açık cerrahiye kıyasla daha az doku travması, daha az ağrı ve daha hızlı iyileşme hedeflenir.</p>
+<p>Bu yazıda endoskopik ameliyatın ne olduğunu, nasıl uygulandığını ve bel fıtığı ile kanal darlığındaki yerini özetliyoruz.</p>
+
+<h2 id="nedir">Endoskopik ameliyat nedir?</h2>
+<p>Endoskopik ameliyatta cerrah, birkaç milimetrelik tek bir girişten yüksek çözünürlüklü kamera ile hedef bölgeyi görüntüler. Sinire baskı yapan disk veya daraltan dokular bu görüntü eşliğinde temizlenir. Kaslar kesilmeden korunmaya çalışılır; bu da hasta konforunu artırır.</p>
+<p>Halk arasında sıklıkla <strong>kapalı ameliyat</strong> veya <strong>full endoskopik tam kapalı ameliyat</strong> olarak da anılır. Ayrıntılı bir giriş için <a href="/blog/endoskopik-ameliyat-nedir">endoskopik ameliyat nedir</a> yazımıza da bakabilirsiniz.</p>
+
+<figure><img src="/hero/belfitigi.webp" alt="Endoskopik ameliyatta milimetrik giriş" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="nasil-yapilir">Endoskopik ameliyat nasıl yapılır?</h2>
+<ol>
+<li>Muayene ve MR ile uygunluk değerlendirilir.</li>
+<li>Lokal veya genel anestezi altında milimetrik kesi açılır.</li>
+<li>Endoskop ile fıtık veya darlık bölgesi görüntülenir.</li>
+<li>Mikro aletlerle sinir baskısı giderilir.</li>
+<li>Çoğu hastada aynı gün ayağa kalkma ve taburcu planlanır.</li>
+</ol>
+<p>İşlem süresi vakaya göre değişmekle birlikte genellikle kısa tutulur; amaç hedefe yönelik, dokuyu koruyan müdahaledir.</p>
+
+<h2 id="avantajlar">Avantajları nelerdir?</h2>
+<ul>
+<li>Küçük kesi ve minimal iz</li>
+<li>Kas ve bağ dokularına daha az hasar</li>
+<li>Genellikle daha az ameliyat sonrası ağrı</li>
+<li>Kısa hastane yatışı / aynı gün taburcu ihtimali</li>
+<li>Günlük yaşama ve işe daha hızlı dönüş hedefi</li>
+</ul>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara endoskopik ameliyat" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="bel-fitigi">Bel fıtığında endoskopik ameliyat</h2>
+<p>Bel fıtığında taşan disk materyali sinir köküne baskı yaparak bel-bacak ağrısı, uyuşma ve güç kaybına yol açabilir. <a href="/tedaviler/bel-fitigi-ameliyati">Full endoskopik bel fıtığı ameliyatı</a>nda bu baskı kamera altında giderilir.</p>
+<p>Konservatif tedaviler (ilaç, fizik tedavi) yetersiz kaldığında veya nörolojik kayıp varsa cerrahi gündeme gelir. Endoskopik yaklaşım, seçilmiş hastalarda açık cerrahiye güçlü bir alternatiftir.</p>
+
+<figure><img src="/hero/kanaldarligi.webp" alt="Kanal darlığında endoskopik ameliyat" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="kanal-darligi">Kanal darlığında endoskopik ameliyat</h2>
+<p>Omurga kanal darlığında sinirlerin geçtiği alan daralır; yürüme mesafesi kısalır, ağrı ve uyuşma artabilir. <a href="/tedaviler/kanal-darligi-ameliyati">Full endoskopik kanal darlığı ameliyatı</a> ile daraltan dokular kontrollü biçimde temizlenerek kanal genişletilir.</p>
+<p>Seçilmiş hastalarda platin olmadan dekompresyon mümkün olabilir; kesin karar muayene ve görüntülemeyle verilir.</p>
+
+<h2 id="kimlere">Kimlere uygulanır?</h2>
+<ul>
+<li>İlaç ve fizik tedaviye rağmen geçmeyen bel veya bacak ağrısı</li>
+<li>MR’da sinir baskısı gösteren bel fıtığı</li>
+<li>Yürüme mesafesini kısaltan kanal darlığı</li>
+<li>Güç kaybı, ilerleyici uyuşma gibi nörolojik bulgular</li>
+</ul>
+<p>Her hasta için uygun değildir; doğru teknik seçimi Op. Dr. Eyüp Baykara tarafından kişiye özel planlanır.</p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p>Endoskopik ameliyat, bel fıtığı ve kanal darlığı tedavisinde minimal invaziv, hızlı iyileşme odaklı bir seçenektir. Size uygun olup olmadığını öğrenmek için <a href="/iletisim">iletişim</a> sayfamızdan randevu alabilirsiniz.</p>`,
+  },
+  {
+    slug: "kapali-fitik-ameliyati",
+    title: "Kapalı Fıtık Ameliyatı",
+    date: "2026-09-17",
+    excerpt:
+      "Kapalı fıtık ameliyatı, full endoskopik yöntemle milimetrik kesiden yapılan modern cerrahidir. Az ağrı, hızlı iyileşme ve aynı gün taburcu hedefi sunar.",
+    image: "/hero/boyunfitigi.webp",
+    imageAlt: "Kapalı fıtık ameliyatı — full endoskopik yöntem",
+    metaTitle: "Kapalı Fıtık Ameliyatı | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Kapalı fıtık ameliyatı (full endoskopik): bel ve boyun fıtığında milimetrik kesi, az ağrı ve hızlı günlük yaşama dönüş.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Kapalı fıtık ameliyatı için bilgi alın",
+    contactCardBody:
+      "Bel veya boyun fıtığınız için kapalı yöntemin size uygun olup olmadığını konuşmak üzere yazın.",
+    toc: [
+      { id: "nedir", label: "Kapalı fıtık ameliyatı nedir?" },
+      { id: "acik-fark", label: "Açık ameliyattan farkı nedir?" },
+      { id: "bel", label: "Kapalı bel fıtığı ameliyatı" },
+      { id: "boyun", label: "Kapalı boyun fıtığı ameliyatı" },
+      { id: "surec", label: "Ameliyat süreci ve iyileşme" },
+      { id: "kimlere", label: "Kimler için uygundur?" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Kapalı fıtık ameliyatı</strong>, bel veya boyun fıtığında büyük kesi yerine milimetrik bir girişten kamera ve mikro aletlerle yapılan endoskopik cerrahidir. Amaç; sinire baskı yapan fıtık dokusunu çıkarmak, kasları korumak ve hastanın günlük yaşama hızlı dönmesini sağlamaktır.</p>
+<p>Günümüzde bu yaklaşımın en ileri hali <strong>full endoskopik tam kapalı fıtık ameliyatı</strong> olarak anılır.</p>
+
+<h2 id="nedir">Kapalı fıtık ameliyatı nedir?</h2>
+<p>Kapalı yöntemde ciltte yalnızca birkaç milimetrelik bir delik açılır. Endoskop adı verilen ince kamera sistemi fıtık bölgesini yüksek çözünürlükle gösterir; cerrah bu görüntü eşliğinde sinir üzerindeki baskıyı kaldırır.</p>
+<p>Klasik açık ameliyatlardaki geniş kesi, kas kesisi ve uzun yatış süresi yerine daha az travma hedeflenir. Detaylı karşılaştırma için <a href="/blog/kapali-fitik-ameliyati-nedir">kapalı fıtık ameliyatı nedir</a> ve <a href="/blog/kapali-ameliyat">kapalı ameliyat</a> yazılarımıza da göz atabilirsiniz.</p>
+
+<figure><img src="/hero/belfitigi.webp" alt="Kapalı bel fıtığı ameliyatı" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="acik-fark">Açık ameliyattan farkı nedir?</h2>
+<ul>
+<li><strong>Kesi:</strong> Açıkta santimetrelerce kesi; kapalıda milimetrik tek giriş</li>
+<li><strong>Kaslar:</strong> Açıkta kesilebilir; kapalıda mümkün olduğunca korunur</li>
+<li><strong>Ağrı ve iz:</strong> Kapalı yöntemde genellikle daha az ağrı ve daha küçük iz</li>
+<li><strong>Taburcu:</strong> Birçok hastada aynı gün veya kısa sürede taburcu</li>
+<li><strong>İyileşme:</strong> Günlük aktivitelere dönüş süresi kısaltılmaya çalışılır</li>
+</ul>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara kapalı fıtık ameliyatı" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="bel">Kapalı bel fıtığı ameliyatı</h2>
+<p>Bel fıtığında kalçadan bacağa vuran ağrı, uyuşma ve güçsüzlük sık görülür. <a href="/tedaviler/bel-fitigi-ameliyati">Kapalı / full endoskopik bel fıtığı ameliyatı</a>nda sinire baskı yapan disk parçası kamera altında çıkarılır.</p>
+<p>İlaç ve fizik tedaviye yanıt vermeyen, MR’da belirgin bası gösteren veya nörolojik kayıp gelişen hastalarda etkili bir seçenek olabilir.</p>
+
+<figure><img src="/hero/boyunfitigi.webp" alt="Kapalı boyun fıtığı ameliyatı" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="boyun">Kapalı boyun fıtığı ameliyatı</h2>
+<p>Boyun fıtığında ağrı omuza ve kola yayılabilir; uyuşma ve el becerisinde azalma görülebilir. <a href="/tedaviler/boyun-fitigi-ameliyati">Full endoskopik boyun fıtığı ameliyatı</a> milimetrik girişle sinir baskısını hedef alır; boyun hareketlerini mümkün olduğunca korumayı amaçlar.</p>
+
+<h2 id="surec">Ameliyat süreci ve iyileşme</h2>
+<ol>
+<li>Muayene, öykü ve MR değerlendirmesi</li>
+<li>Endoskopik kapalı işlem (genellikle kısa süreli)</li>
+<li>Erken mobilizasyon — çoğu hastada aynı gün ayağa kalkma</li>
+<li>Kısa gözlem sonrası taburcu planı</li>
+<li>Hekimin önerdiği tempo ile iş ve spor dönüşü</li>
+</ol>
+<p>İyileşme kişiden kişiye değişir; ağır kaldırma ve zorlayıcı spor için hekim takvimine uyulmalıdır.</p>
+
+<h2 id="kimlere">Kimler için uygundur?</h2>
+<ul>
+<li>Bel veya boyun fıtığına bağlı geçmeyen ağrı</li>
+<li>Konservatif tedaviye rağmen süren şikayetler</li>
+<li>Kola veya bacağa vuran ağrı / uyuşma</li>
+<li>Güç kaybı veya yaşam kalitesinde belirgin düşüş</li>
+</ul>
+<p>Uygunluk, Op. Dr. Eyüp Baykara tarafından muayene ve görüntüleme ile belirlenir.</p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p>Kapalı fıtık ameliyatı; küçük kesi, daha az doku hasarı ve hızlı iyileşme hedefiyle bel ve boyun fıtığında öne çıkan modern bir çözümdür. Bilgi ve randevu için <a href="/iletisim">iletişim</a> sayfamızı kullanabilirsiniz.</p>`,
+  },
+  {
     slug: "kalcadan-bacaga-vuran-agri-siyatik",
     title: "Kalçadan Bacağa Vuran Ağrı (Siyatik)",
     date: "2026-08-23",
