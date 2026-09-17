@@ -13,6 +13,9 @@ function absolute(path: string) {
   return `${siteUrl()}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/** Sitemap her deploy’da taze kalsın; botlar güncel URL listesini görsün. */
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
@@ -24,6 +27,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     {
+      url: absolute("/hizmetler"),
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.95,
+    },
+    {
       url: absolute("/hakkimizda"),
       lastModified: now,
       changeFrequency: "monthly",
@@ -33,25 +42,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: absolute("/iletisim"),
       lastModified: now,
       changeFrequency: "monthly",
-      priority: 0.8,
+      priority: 0.85,
     },
     {
       url: absolute("/hasta-deneyimleri"),
       lastModified: now,
       changeFrequency: "weekly",
-      priority: 0.7,
+      priority: 0.75,
     },
     {
       url: absolute("/blog"),
       lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.7,
+      changeFrequency: "daily",
+      priority: 0.8,
     },
     {
       url: absolute("/cerezler"),
       lastModified: now,
       changeFrequency: "yearly",
-      priority: 0.3,
+      priority: 0.2,
     },
   ];
 
@@ -59,8 +68,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     (treatment) => ({
       url: absolute(`/tedaviler/${treatment.slug}`),
       lastModified: now,
-      changeFrequency: "monthly" as const,
-      priority: 0.9,
+      changeFrequency: "weekly" as const,
+      priority: 0.95,
     }),
   );
 
@@ -69,21 +78,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     url: absolute(`/blog/${post.slug}`),
     lastModified: new Date(post.date),
     changeFrequency: "monthly" as const,
-    priority: 0.6,
+    priority: 0.65,
   }));
 
-  const cmsBlogPages = await getPublishedPagesByType("blog");
-  for (const page of cmsBlogPages) {
-    const slug = page.slug.replace(/^\/blog\//, "").replace(/^\//, "");
-    if (!slug || staticBlogSlugs.has(slug)) continue;
-    blogRoutes.push({
-      url: absolute(`/blog/${slug}`),
-      lastModified: page.published_at
-        ? new Date(page.published_at)
-        : now,
-      changeFrequency: "monthly",
-      priority: 0.6,
-    });
+  try {
+    const cmsBlogPages = await getPublishedPagesByType("blog");
+    for (const page of cmsBlogPages) {
+      const slug = page.slug.replace(/^\/blog\//, "").replace(/^\//, "");
+      if (!slug || staticBlogSlugs.has(slug)) continue;
+      blogRoutes.push({
+        url: absolute(`/blog/${slug}`),
+        lastModified: page.published_at
+          ? new Date(page.published_at)
+          : now,
+        changeFrequency: "monthly",
+        priority: 0.65,
+      });
+    }
+  } catch {
+    // CMS erişilemezse statik sitemap yine de yayınlanır; 500 vermez.
   }
 
   return [...staticRoutes, ...treatmentRoutes, ...blogRoutes];

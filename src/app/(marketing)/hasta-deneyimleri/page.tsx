@@ -11,10 +11,14 @@ export async function generateMetadata(): Promise<Metadata> {
   const content = await getPublishedPage("/hasta-deneyimleri");
   const seo = PAGE_SEO.hastaDeneyimleri;
   return {
-    title: content?.seo_title || seo.title,
-    description: content?.seo_description || seo.description,
+    title: seo.title,
+    description: seo.description,
     alternates: {
       canonical: content?.canonical_url || "/hasta-deneyimleri",
+    },
+    openGraph: {
+      title: seo.title,
+      description: seo.description,
     },
   };
 }
