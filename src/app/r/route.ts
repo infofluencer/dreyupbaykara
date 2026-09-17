@@ -8,7 +8,7 @@ import {
   pickTrackingParams,
   pickTrackingParamsFromUrl,
 } from "@/lib/crm/tracking";
-import { scheduleOpenAiLeadConversion } from "@/lib/marketing/openai-ads/conversions";
+import { scheduleOpenAiWpformConversion } from "@/lib/marketing/openai-ads/conversions";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  scheduleOpenAiLeadConversion({
+  scheduleOpenAiWpformConversion({
     request,
     eventId,
     pagePath: tracking.page,

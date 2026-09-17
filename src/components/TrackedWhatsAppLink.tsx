@@ -10,7 +10,7 @@ import { pushDataLayerEvent } from "@/components/analytics/data-layer";
 import { trackMetaEvent } from "@/components/analytics/track-meta";
 import {
   createOpenAiEventId,
-  trackOpenAiEvent,
+  trackOpenAiWpform,
 } from "@/components/analytics/track-openai";
 import { buildTrackingPath, DEFAULT_SITE } from "@/lib/crm/tracking";
 
@@ -81,11 +81,7 @@ export function TrackedWhatsAppLink({
         const eventId = ensureEventId();
         event.currentTarget.href = syncHref();
         trackMetaEvent("Contact", { content_name: `whatsapp_${channel}` });
-        trackOpenAiEvent(
-          "lead_created",
-          { type: "customer_action" },
-          { event_id: eventId },
-        );
+        trackOpenAiWpform(eventId);
         eventIdRef.current = "";
         pushDataLayerEvent("whatsapp_click", { channel });
         onClick?.(event);

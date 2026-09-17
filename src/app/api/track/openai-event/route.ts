@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  if (body.type !== "page_viewed") {
+  if (body.type !== "page_viewed" && body.type !== "contents_viewed") {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
@@ -63,11 +63,12 @@ export async function POST(request: NextRequest) {
 
   const sourceUrl = clip(body.source_url);
   const oppref = clip(body.oppref, 256);
+  const type = body.type as "page_viewed" | "contents_viewed";
 
   scheduleOpenAiConversion({
     request,
     eventId,
-    type: "page_viewed",
+    type,
     sourceUrl,
     oppref,
   });

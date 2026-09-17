@@ -24,18 +24,43 @@ type OpenAiUser = {
   user_agent?: string;
 };
 
-export type OpenAiConversionType = "page_viewed" | "lead_created";
+export type OpenAiConversionType =
+  | "page_viewed"
+  | "lead_created"
+  | "contents_viewed";
 
-type OpenAiConversionEvent = {
-  id: string;
-  type: OpenAiConversionType;
-  timestamp_ms: number;
-  oppref?: string;
-  source_url: string;
-  action_source: "web";
-  user?: OpenAiUser;
-  data: { type: "contents" } | { type: "customer_action" };
-};
+type OpenAiConversionEvent =
+  | {
+      id: string;
+      type: "page_viewed" | "contents_viewed";
+      timestamp_ms: number;
+      oppref?: string;
+      source_url: string;
+      action_source: "web";
+      user?: OpenAiUser;
+      data: { type: "contents" };
+    }
+  | {
+      id: string;
+      type: "lead_created";
+      timestamp_ms: number;
+      oppref?: string;
+      source_url: string;
+      action_source: "web";
+      user?: OpenAiUser;
+      data: { type: "customer_action" };
+    }
+  | {
+      id: string;
+      type: "custom";
+      custom_event_name: string;
+      timestamp_ms: number;
+      oppref?: string;
+      source_url: string;
+      action_source: "web";
+      user?: OpenAiUser;
+      data: { type: "custom" };
+    };
 
 function sha256Hex(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -76,7 +101,10 @@ function cookieValue(request: NextRequest, name: string): string | null {
   return value || null;
 }
 
-function absoluteSourceUrl(sourceUrl: string | null | undefined, pagePath?: string | null) {
+function absoluteSourceUrl(
+  sourceUrl: string | null | undefined,
+  pagePath?: string | null,
+) {
   const raw = sourceUrl?.trim();
   if (raw) {
     try {
@@ -90,6 +118,26 @@ function absoluteSourceUrl(sourceUrl: string | null | undefined, pagePath?: stri
   }
   const path = pagePath?.trim() || "/";
   return `${SITE_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function buildUser(
+  request: NextRequest,
+  fullName?: string | null,
+): OpenAiUser {
+  const obref = cookieValue(request, "__obref");
+  const ip =
+    firstHeader(request, "x-forwarded-for") ||
+    firstHeader(request, "x-real-ip");
+  const userAgent = firstHeader(request, "user-agent");
+  const nameHashes = hashPersonName(fullName);
+
+  return {
+    ...(obref ? { obref } : {}),
+    ...nameHashes,
+    countries: ["TR"],
+    ...(ip ? { ip_address: ip } : {}),
+    ...(userAgent ? { user_agent: userAgent } : {}),
+  };
 }
 
 async function postConversionEvent(event: OpenAiConversionEvent): Promise<void> {
@@ -124,6 +172,34 @@ async function postConversionEvent(event: OpenAiConversionEvent): Promise<void> 
   }
 }
 
+function resolveSourceAndOpp(
+  options: {
+    request: NextRequest;
+    sourceUrl?: string | null;
+    pagePath?: string | null;
+    oppref?: string | null;
+    preferPageUrl?: boolean;
+  },
+): { sourceUrl: string; oppref?: string } | null {
+  const consent = parseCookieConsent(
+    options.request.cookies.get(COOKIE_CONSENT_NAME)?.value,
+  );
+  if (!consent?.marketing) return null;
+
+  const oppref =
+    options.oppref?.trim() || cookieValue(options.request, "__oppref");
+  const referer = firstHeader(options.request, "referer");
+  const pageUrl = absoluteSourceUrl(null, options.pagePath);
+  const sourceUrl = options.preferPageUrl
+    ? absoluteSourceUrl(options.sourceUrl, options.pagePath) || pageUrl
+    : absoluteSourceUrl(options.sourceUrl || referer, options.pagePath);
+
+  return {
+    sourceUrl,
+    ...(oppref ? { oppref } : {}),
+  };
+}
+
 export function scheduleOpenAiConversion(options: {
   request: NextRequest;
   eventId: string;
@@ -135,45 +211,60 @@ export function scheduleOpenAiConversion(options: {
 }): void {
   if (!API_KEY()) return;
 
-  const consent = parseCookieConsent(
-    options.request.cookies.get(COOKIE_CONSENT_NAME)?.value,
-  );
-  if (!consent?.marketing) return;
+  const resolved = resolveSourceAndOpp({
+    ...options,
+    preferPageUrl:
+      options.type === "page_viewed" || options.type === "contents_viewed",
+  });
+  if (!resolved) return;
 
-  const oppref =
-    options.oppref?.trim() || cookieValue(options.request, "__oppref");
-  const obref = cookieValue(options.request, "__obref");
-  const referer = firstHeader(options.request, "referer");
-  const sourceUrl = absoluteSourceUrl(
-    options.sourceUrl || referer,
-    options.pagePath,
-  );
-  const ip =
-    firstHeader(options.request, "x-forwarded-for") ||
-    firstHeader(options.request, "x-real-ip");
-  const userAgent = firstHeader(options.request, "user-agent");
-  const nameHashes = hashPersonName(options.fullName);
-
-  const user: OpenAiUser = {
-    ...(obref ? { obref } : {}),
-    ...nameHashes,
-    countries: ["TR"],
-    ...(ip ? { ip_address: ip } : {}),
-    ...(userAgent ? { user_agent: userAgent } : {}),
+  const base = {
+    id: options.eventId,
+    timestamp_ms: Date.now(),
+    ...(resolved.oppref ? { oppref: resolved.oppref } : {}),
+    source_url: resolved.sourceUrl,
+    action_source: "web" as const,
+    user: buildUser(options.request, options.fullName),
   };
+
+  const event: OpenAiConversionEvent =
+    options.type === "lead_created"
+      ? { ...base, type: "lead_created", data: { type: "customer_action" } }
+      : {
+          ...base,
+          type: options.type,
+          data: { type: "contents" },
+        };
+
+  after(() => {
+    void postConversionEvent(event);
+  });
+}
+
+/** WhatsApp / form → custom wpform CAPI. */
+export function scheduleOpenAiWpformConversion(options: {
+  request: NextRequest;
+  eventId: string;
+  pagePath?: string | null;
+  fullName?: string | null;
+  oppref?: string | null;
+  sourceUrl?: string | null;
+}): void {
+  if (!API_KEY()) return;
+
+  const resolved = resolveSourceAndOpp(options);
+  if (!resolved) return;
 
   const event: OpenAiConversionEvent = {
     id: options.eventId,
-    type: options.type,
+    type: "custom",
+    custom_event_name: "wpform",
     timestamp_ms: Date.now(),
-    ...(oppref ? { oppref } : {}),
-    source_url: sourceUrl,
+    ...(resolved.oppref ? { oppref: resolved.oppref } : {}),
+    source_url: resolved.sourceUrl,
     action_source: "web",
-    user,
-    data:
-      options.type === "page_viewed"
-        ? { type: "contents" }
-        : { type: "customer_action" },
+    user: buildUser(options.request, options.fullName),
+    data: { type: "custom" },
   };
 
   after(() => {
@@ -192,5 +283,19 @@ export function scheduleOpenAiLeadConversion(options: {
   scheduleOpenAiConversion({
     ...options,
     type: "lead_created",
+  });
+}
+
+/** İletişim sayfası görüntülenmesi — contents_viewed CAPI. */
+export function scheduleOpenAiContentsViewedConversion(options: {
+  request: NextRequest;
+  eventId: string;
+  pagePath?: string | null;
+  sourceUrl?: string | null;
+  oppref?: string | null;
+}): void {
+  scheduleOpenAiConversion({
+    ...options,
+    type: "contents_viewed",
   });
 }

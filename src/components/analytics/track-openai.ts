@@ -6,7 +6,16 @@ import { OPENAI_ADS_PIXEL_ID } from "@/lib/marketing/openai-ads/pixel";
 
 export { OPENAI_ADS_PIXEL_ID };
 
-export type OpenAiMeasureEvent = "page_viewed" | "lead_created";
+export type OpenAiMeasureEvent =
+  | "page_viewed"
+  | "contents_viewed"
+  | "lead_created"
+  | "custom";
+
+export type OpenAiMeasureOptions = {
+  event_id?: string;
+  custom_event_name?: string;
+};
 
 export function createOpenAiEventId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -18,7 +27,7 @@ export function createOpenAiEventId(): string {
 export function trackOpenAiEvent(
   event: OpenAiMeasureEvent,
   data: Record<string, unknown>,
-  options?: { event_id?: string },
+  options?: OpenAiMeasureOptions,
 ): void {
   if (typeof window === "undefined") return;
   if (!hasMarketingConsent()) return;
@@ -38,7 +47,7 @@ function readOppRef(): string | null {
 }
 
 function sendOpenAiServerEvent(payload: {
-  type: OpenAiMeasureEvent;
+  type: "page_viewed" | "contents_viewed";
   event_id: string;
   source_url: string;
   oppref: string | null;
@@ -66,4 +75,32 @@ export function trackOpenAiPageViewed(): void {
     source_url: window.location.href,
     oppref: readOppRef(),
   });
+}
+
+/** İletişim sayfası — contents_viewed pixel + CAPI. */
+export function trackOpenAiContentsViewed(): void {
+  if (typeof window === "undefined") return;
+  if (!hasMarketingConsent()) return;
+
+  const eventId = createOpenAiEventId();
+  trackOpenAiEvent(
+    "contents_viewed",
+    { type: "contents" },
+    { event_id: eventId },
+  );
+  sendOpenAiServerEvent({
+    type: "contents_viewed",
+    event_id: eventId,
+    source_url: window.location.href,
+    oppref: readOppRef(),
+  });
+}
+
+/** WhatsApp / randevu formu — custom wpform (CAPI /r üzerinden). */
+export function trackOpenAiWpform(eventId: string): void {
+  trackOpenAiEvent(
+    "custom",
+    { type: "custom" },
+    { custom_event_name: "wpform", event_id: eventId },
+  );
 }

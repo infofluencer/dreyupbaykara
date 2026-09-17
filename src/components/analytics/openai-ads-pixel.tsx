@@ -5,7 +5,18 @@ import Script from "next/script";
 import { usePathname } from "next/navigation";
 import type { CookieConsentPreferences } from "@/lib/cookie-consent";
 import { useCookieConsent } from "./use-cookie-consent";
-import { OPENAI_ADS_PIXEL_ID, trackOpenAiPageViewed } from "./track-openai";
+import {
+  OPENAI_ADS_PIXEL_ID,
+  trackOpenAiContentsViewed,
+  trackOpenAiPageViewed,
+} from "./track-openai";
+
+function trackPathEvents(pathname: string) {
+  trackOpenAiPageViewed();
+  if (pathname === "/iletisim") {
+    trackOpenAiContentsViewed();
+  }
+}
 
 export function OpenAiAdsPixel({
   initialConsent,
@@ -25,7 +36,7 @@ export function OpenAiAdsPixel({
       return;
     }
     if (!hasTrackedInitialPage.current) return;
-    trackOpenAiPageViewed();
+    trackPathEvents(pathname);
   }, [pathname, consent?.marketing]);
 
   if (
@@ -42,7 +53,7 @@ export function OpenAiAdsPixel({
       strategy="afterInteractive"
       onReady={() => {
         hasTrackedInitialPage.current = true;
-        trackOpenAiPageViewed();
+        trackPathEvents(pathname);
       }}
     >
       {`(function (w, d, s, u) {
