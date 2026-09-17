@@ -80,7 +80,7 @@ export function PageHero({
                 const isLast = i === breadcrumb.length - 1;
                 return (
                   <li
-                    key={`${crumb.href}-${crumb.label}`}
+                    key={`crumb-${i}`}
                     className="flex items-center gap-2"
                   >
                     {i > 0 ? <span aria-hidden>/</span> : null}

@@ -83,6 +83,29 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // www → apex (tek canonical host)
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.endoskopikbelameliyati.com" }],
+        destination: "https://endoskopikbelameliyati.com/:path*",
+        permanent: true,
+      },
+      // GSC’de görülen bozuk breadcrumb-key URL’leri
+      {
+        source: "/-Anasayfa",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/hakkimizda-Hakk%C4%B1m%C4%B1zda",
+        destination: "/hakkimizda",
+        permanent: true,
+      },
+      {
+        source: "/hakkimizda-:slug",
+        destination: "/hakkimizda",
+        permanent: true,
+      },
       {
         source: "/dr-baykara-kimdir",
         destination: "/hakkimizda",

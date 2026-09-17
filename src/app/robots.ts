@@ -6,25 +6,21 @@ function siteUrl() {
   ).replace(/\/$/, "");
 }
 
+/**
+ * Sadece admin / API / takip yönlendirmesini engelle.
+ * `Disallow: /r` tek başına /randevu gibi yolları da keserdi; bu yüzden
+ * Google’ın desteklediği `$` ve `?` ile sadece /r takip rotası kapatılır.
+ */
 export default function robots(): MetadataRoute.Robots {
   const base = siteUrl();
+  const disallow = ["/admin", "/admin/", "/api/", "/r$", "/r?"];
 
   return {
     rules: [
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin", "/admin/", "/api/", "/r"],
-      },
-      {
-        userAgent: "Googlebot",
-        allow: "/",
-        disallow: ["/admin", "/admin/", "/api/", "/r"],
-      },
-      {
-        userAgent: "Bingbot",
-        allow: "/",
-        disallow: ["/admin", "/admin/", "/api/", "/r"],
+        disallow,
       },
     ],
     sitemap: `${base}/sitemap.xml`,
