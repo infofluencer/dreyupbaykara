@@ -3,19 +3,12 @@ import { AdminSourcePie } from "@/components/admin/AdminSourcePie";
 import { Skeleton } from "@/components/admin/AdminSkeleton";
 import {
   PLATFORM_COLOR,
+  SURGERY_PLATFORM_LABEL,
   type AdPlatform,
 } from "@/lib/crm/source-kind";
 import { formatMarketingDateRangeTr } from "@/lib/marketing/date-range";
 import { loadSurgerySourceStats } from "@/lib/marketing/surgery-sources";
 import { buildMarketingHref } from "@/lib/marketing/urls";
-
-/** Ameliyat grafiği: other → Bilinmiyor (UTM yok / sınıflanamayan). */
-const SURGERY_PLATFORM_LABEL: Record<AdPlatform, string> = {
-  google_ads: "Google",
-  meta: "Meta",
-  organic: "Organik",
-  other: "Bilinmiyor",
-};
 
 const PLATFORMS: AdPlatform[] = ["google_ads", "meta", "organic", "other"];
 
@@ -80,7 +73,7 @@ export async function MarketingSurgerySourcesSection({
     <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
       <AdminSourcePie
         title="Ameliyat — kaynak"
-        hint={`Dönemde ameliyat edilen hastalar · ${rangeLabel} · ${siteLabel}. Kaynak: lead → Ref/click log → contact first-touch mirası.`}
+        hint={`Dönemde ameliyat · ${rangeLabel} · ${siteLabel}. İz yok = sinyal yok (eski kayıtlar); yeni Ref/CTWA otomatik.`}
         totalLabel="ameliyat"
         slices={slices}
       />
@@ -124,11 +117,13 @@ export async function MarketingSurgerySourcesSection({
           </li>
           <li>
             <span className="font-semibold text-[#123524]">Meta</span> — fbclid,
-            Click-to-WhatsApp (ctwa_clid) veya Meta UTM
+            Click-to-WhatsApp veya Meta UTM
           </li>
           <li>
-            <span className="font-semibold text-[#123524]">Organik</span> —
-            reklam izi yok (doğrudan WhatsApp vb.)
+            <span className="font-semibold text-[#123524]">İz yok</span> —
+            CRM’de reklam sinyali yok. Eski takvim/manuel kayıtlar buraya
+            düşer; “organik geldi” demek değildir. Yeni hastalarda Ref/CTWA
+            varsa otomatik Meta/Google yazılır.
           </li>
           <li>
             <span className="font-semibold text-[#123524]">Bilinmiyor</span> —

@@ -195,7 +195,7 @@ export async function AdminHomeInsights({
 
         <AdminSurgerySourcePanel
           title="Ameliyat — kaynak"
-          hint={`${rangeLabel} · ${siteLabel} · pasta dilimine tıklayınca liste filtrelenir. Kaynak: lead alanları → Ref/click log → contact mirası. Satırda sinyal görünür.`}
+          hint={`${rangeLabel} · ${siteLabel}. İz yok = CRM’de reklam sinyali yok (eski takvim kayıtları dahil). Yeni Ref/CTWA otomatik Meta/Google.`}
           total={surgery.total}
           platforms={surgery.platforms}
           patients={surgery.patients}

@@ -118,6 +118,18 @@ export const PLATFORM_LABEL: Record<AdPlatform, string> = {
   organic: "Organik",
 };
 
+/**
+ * Ameliyat pastası etiketleri.
+ * `organic` = CRM'de reklam sinyali yok → "İz yok" (gerçek organik varsayımı değil).
+ * Eski takvim/manuel kayıtlar da buraya düşer; yeni Ref/CTWA otomatik Meta/Google olur.
+ */
+export const SURGERY_PLATFORM_LABEL: Record<AdPlatform, string> = {
+  google_ads: "Google",
+  meta: "Meta",
+  organic: "İz yok",
+  other: "Bilinmiyor",
+};
+
 export const EVENT_LABEL: Record<SourceEvent, string> = {
   landing: "Sayfa inişi",
   whatsapp: "WhatsApp",

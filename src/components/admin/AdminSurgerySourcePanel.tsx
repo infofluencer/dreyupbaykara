@@ -4,19 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   PLATFORM_COLOR,
+  SURGERY_PLATFORM_LABEL,
   type AdPlatform,
 } from "@/lib/crm/source-kind";
 import type {
   SurgeryAttrOrigin,
   SurgerySourcePatient,
 } from "@/lib/marketing/surgery-sources";
-
-const PLATFORM_LABEL: Record<AdPlatform, string> = {
-  google_ads: "Google",
-  meta: "Meta",
-  organic: "Organik",
-  other: "Bilinmiyor",
-};
 
 const ORIGIN_LABEL: Record<SurgeryAttrOrigin, string> = {
   lead: "lead",
@@ -73,7 +67,7 @@ export function AdminSurgerySourcePanel({
     () =>
       PLATFORM_ORDER.map((id) => ({
         id,
-        label: PLATFORM_LABEL[id],
+        label: SURGERY_PLATFORM_LABEL[id],
         value: platforms[id] ?? 0,
         color: PLATFORM_COLOR[id],
       })),
@@ -244,7 +238,7 @@ export function AdminSurgerySourcePanel({
               Hastalar
               {active !== "all" ? (
                 <span className="ml-1.5 font-normal text-[#466254]">
-                  · {PLATFORM_LABEL[active]}
+                  · {SURGERY_PLATFORM_LABEL[active]}
                 </span>
               ) : null}
             </p>
@@ -276,7 +270,7 @@ export function AdminSurgerySourcePanel({
                         style={{
                           backgroundColor: PLATFORM_COLOR[row.platform],
                         }}
-                        title={PLATFORM_LABEL[row.platform]}
+                        title={SURGERY_PLATFORM_LABEL[row.platform]}
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold text-[#123524]">
@@ -288,7 +282,7 @@ export function AdminSurgerySourcePanel({
                         </span>
                       </span>
                       <span className="hidden shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-[#123524] sm:inline-flex">
-                        {PLATFORM_LABEL[row.platform]}
+                        {SURGERY_PLATFORM_LABEL[row.platform]}
                       </span>
                       {row.surgeryAt ? (
                         <span className="shrink-0 text-xs tabular-nums text-[#466254]">
