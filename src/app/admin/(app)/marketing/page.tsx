@@ -4,6 +4,7 @@ import { AlertTriangle, Link2, TrendingUp } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
   loadAdAccountsSafe,
+  loadCustomerSiteMap,
   loadSiteOptions,
   loadUnmatchedCampaigns,
 } from "@/lib/marketing/admin-stats";
@@ -16,6 +17,10 @@ import {
   MarketingGoogleInsightsFallback,
   MarketingGoogleInsightsSection,
 } from "@/components/admin/MarketingGoogleInsightsSection";
+import {
+  MarketingMetaInsightsFallback,
+  MarketingMetaInsightsSection,
+} from "@/components/admin/MarketingMetaInsightsSection";
 import {
   MarketingCampaignPerformanceFallback,
   MarketingCampaignPerformanceSection,
@@ -91,14 +96,22 @@ export default async function AdminMarketingPage({
   const search = query.q?.trim() || "";
 
   // Sadece hafif sorgular — özet/kampanya Suspense ile ayrı
-  const [unmatched, siteOptions, accounts] = await Promise.all([
+  const [unmatched, siteOptions, accounts, metaSiteMap] = await Promise.all([
     loadUnmatchedCampaigns(),
     loadSiteOptions(),
     loadAdAccountsSafe(),
+    loadCustomerSiteMap("meta"),
   ]);
 
-  const inactiveAccounts = accounts.filter((a) => !a.is_active || !a.has_token);
-  const hasAccounts = accounts.some((a) => a.is_active && a.has_token);
+  const inactiveAccounts = accounts.filter((a) => {
+    const forChannel =
+      channel === "meta" ? a.platform === "meta" : a.platform === "google_ads";
+    return forChannel && (!a.is_active || !a.has_token);
+  });
+  const hasAccounts = accounts.some(
+    (a) =>
+      a.platform === adPlatform && a.is_active && a.has_token,
+  );
   const googleConnected = accounts.some(
     (a) => a.platform === "google_ads" && a.is_active && a.has_token,
   );
@@ -119,10 +132,9 @@ export default async function AdminMarketingPage({
             Reklam
           </h1>
           <p className="mt-2 text-sm text-[#466254]">
-            Google Ads ve Meta harcama, dönüşüm ve CRM lead — kanal seçerek
-            yönetin. Veri gece 02:00’de otomatik yenilenir (son 30 gün). 720
-            günlük geçmiş bir kez curl ile çekilir. Uzun aralıklar için
-            varsayılan 1–3 ay kullanın.
+            {channel === "meta"
+              ? "Meta harcama, Ads Manager sonuçları ve Meta’ya atfedilen CRM lead. Veri gece 02:00’de yenilenir."
+              : "Google Ads harcama, dönüşüm ve CRM lead. Veri gece 02:00’de otomatik yenilenir (son 30 gün). 720 günlük geçmiş bir kez curl ile çekilir."}
           </p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
@@ -178,8 +190,9 @@ export default async function AdminMarketingPage({
             Henüz reklam hesabı bağlı değil
           </p>
           <p className="mx-auto mt-2 max-w-md text-sm text-[#466254]">
-            Google ve Meta hesaplarını bağladıktan sonra cron sync harcama
-            verilerini çeker.
+            {channel === "meta"
+              ? "Meta hesabını bağladıktan sonra cron sync harcama ve sonuç verilerini çeker."
+              : "Google Ads hesabını bağladıktan sonra cron sync harcama verilerini çeker."}
           </p>
           <Link
             href="/admin/marketing/connect"
@@ -215,56 +228,79 @@ export default async function AdminMarketingPage({
           />
         </Suspense>
       ) : (
-        <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
-          <div>
-            <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
-              Meta hesapları
-            </h2>
-            <p className="mt-1 text-sm text-[#466254]">
-              Kampanya ve harcama her gece 02:00’de yenilenir. 720 günlük
-              geçmiş connect sayfasındaki curl ile bir kez çekilir.
-            </p>
-          </div>
+        <>
+          <section className="rounded-2xl border border-[#123524]/08 bg-white p-4 sm:p-5">
+            <div>
+              <h2 className="font-[family-name:var(--font-instrument-sans)] text-lg font-semibold">
+                Meta hesapları
+              </h2>
+              <p className="mt-1 text-sm text-[#466254]">
+                Sync her aktif <span className="font-mono">act_</span> hesabını
+                çeker (site filtresinden bağımsız). &quot;Tüm siteler&quot;
+                seçiliyse aşağıdakilerin hepsi toplanır; site seçerseniz yalnızca
+                o siteye map&apos;li hesap/kampanyalar görünür.
+              </p>
+            </div>
 
-          {metaAccounts.length ? (
-            <ul className="mt-4 space-y-2">
-              {metaAccounts.map((account) => {
-                const externalId = account.external_account_id.replace(
-                  /^act_/,
-                  "",
-                );
-                return (
-                  <li
-                    key={account.id}
-                    className="rounded-xl border border-[#123524]/08 bg-[#f7f9f8] px-3 py-3"
-                  >
-                    <p className="truncate text-sm font-medium text-[#123524]">
-                      {account.display_name || "Meta hesabı"}
-                    </p>
-                    <p className="font-mono text-xs text-[#466254]">
-                      act_{externalId}
-                      {account.is_active && account.has_token
-                        ? " · hazır"
-                        : " · token yok"}
-                    </p>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">
-              Meta hesabı bağlı değil.{" "}
-              <Link
-                href="/admin/marketing/connect"
-                className="font-semibold underline"
-              >
-                Hesap bağla
-              </Link>{" "}
-              veya env&apos;e <code>META_ACCESS_TOKEN</code> +{" "}
-              <code>META_AD_ACCOUNT_IDS</code> ekleyin.
-            </p>
-          )}
-        </section>
+            {metaAccounts.length ? (
+              <ul className="mt-4 space-y-2">
+                {metaAccounts.map((account) => {
+                  const externalId = account.external_account_id.replace(
+                    /^act_/,
+                    "",
+                  );
+                  const digits = externalId.replace(/\D/g, "");
+                  const sites = metaSiteMap[digits] ?? metaSiteMap[externalId] ?? [];
+                  return (
+                    <li
+                      key={account.id}
+                      className="rounded-xl border border-[#123524]/08 bg-[#f7f9f8] px-3 py-3"
+                    >
+                      <p className="truncate text-sm font-medium text-[#123524]">
+                        {account.display_name || "Meta hesabı"}
+                      </p>
+                      <p className="font-mono text-xs text-[#466254]">
+                        act_{externalId}
+                        {account.is_active && account.has_token
+                          ? " · hazır"
+                          : " · token yok"}
+                      </p>
+                      <p className="mt-1 text-xs text-[#466254]">
+                        {sites.length
+                          ? `Siteler: ${sites.join(", ")}`
+                          : "Site eşlemesi yok — connect sayfasından atayın"}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                Meta hesabı bağlı değil.{" "}
+                <Link
+                  href="/admin/marketing/connect"
+                  className="font-semibold underline"
+                >
+                  Hesap bağla
+                </Link>{" "}
+                veya env&apos;e <code>META_ACCESS_TOKEN</code> +{" "}
+                <code>META_AD_ACCOUNT_IDS</code> ekleyin.
+              </p>
+            )}
+          </section>
+
+          <Suspense
+            key={`meta-${startDate}-${endDate}-${siteFilter ?? "all"}`}
+            fallback={<MarketingMetaInsightsFallback />}
+          >
+            <MarketingMetaInsightsSection
+              startDate={startDate}
+              endDate={endDate}
+              siteFilter={siteFilter}
+              period={period}
+            />
+          </Suspense>
+        </>
       )}
 
       {channel === "google" &&
@@ -354,13 +390,15 @@ export default async function AdminMarketingPage({
         />
       </Suspense>
 
-      <MarketingSurgerySources
-        startDate={startDate}
-        endDate={endDate}
-        siteFilter={siteFilter}
-        period={period}
-        channel={channel}
-      />
+      {channel === "google" ? (
+        <MarketingSurgerySources
+          startDate={startDate}
+          endDate={endDate}
+          siteFilter={siteFilter}
+          period={period}
+          channel={channel}
+        />
+      ) : null}
 
       <Suspense
         key={`campaigns-${adPlatform}-${startDate}-${endDate}-${siteFilter ?? "all"}`}
@@ -400,7 +438,7 @@ export default async function AdminMarketingPage({
         </section>
       ) : null}
 
-      {siteFilter === MARKETING_CLICK_LOGS_SITE ? (
+      {channel === "google" && siteFilter === MARKETING_CLICK_LOGS_SITE ? (
         <MarketingLeadSourcesSection
           period={period}
           startDate={startDate}

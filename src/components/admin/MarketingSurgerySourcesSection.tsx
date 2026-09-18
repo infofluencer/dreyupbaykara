@@ -80,7 +80,7 @@ export async function MarketingSurgerySourcesSection({
     <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
       <AdminSourcePie
         title="Ameliyat — kaynak"
-        hint={`Dönemde ameliyat edilen hastalar · ${rangeLabel} · ${siteLabel}. Kaynak WhatsApp Ref, CTWA, gclid/fbclid veya UTM ile tespit edilir.`}
+        hint={`Dönemde ameliyat edilen hastalar · ${rangeLabel} · ${siteLabel}. Kaynak: lead → Ref/click log → contact first-touch mirası.`}
         totalLabel="ameliyat"
         slices={slices}
       />

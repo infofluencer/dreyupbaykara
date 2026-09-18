@@ -25,6 +25,11 @@ import {
   isMarketingAdSite,
   MARKETING_CLICK_LOGS_SITE,
 } from "@/lib/marketing/constants";
+import {
+  metaActionLabel,
+  metaDeviceLabel,
+  metaPlatformLabel,
+} from "@/lib/marketing/meta/actions";
 import { metaCampaignBelongsToSiteViaAccountMap } from "@/lib/marketing/site-matcher";
 
 function parseSummary(data: unknown): MarketingSummary | null {
@@ -822,6 +827,570 @@ export async function loadGoogleMarketingInsights(
   }
 
   return loadGoogleMarketingInsightsLegacy(startDate, endDate, siteFilter);
+}
+
+export type MetaShareRow = {
+  key: string;
+  label: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+};
+
+export type MetaMarketingInsights = {
+  totalSpend: number;
+  totalClicks: number;
+  totalImpressions: number;
+  totalConversions: number;
+  totalReach: number;
+  totalUniqueClicks: number;
+  totalInlineLinkClicks: number;
+  avgDailyReach: number | null;
+  avgFrequency: number | null;
+  avgCtr: number | null;
+  avgCpc: number | null;
+  avgCpm: number | null;
+  avgCpp: number | null;
+  uniqueCtr: number | null;
+  linkCtr: number | null;
+  costPerConversion: number | null;
+  messagingConversations: number;
+  messagingFirstReply: number;
+  costPerConversation: number | null;
+  actions: Array<{
+    key: string;
+    name: string;
+    conversions: number;
+    spend: number;
+  }>;
+  platforms: MetaShareRow[];
+  devices: MetaShareRow[];
+  daily: Array<{
+    date: string;
+    spend: number;
+    conversions: number;
+    clicks: number;
+    reach: number;
+  }>;
+};
+
+export type MetaCrmBreakdown = {
+  leads: number;
+  appointmentLeads: number;
+  surgeryDone: number;
+  funnel: {
+    yeni: number;
+    arandi: number;
+    muayene_edildi: number;
+    ameliyat_olacak: number;
+    ameliyat_edildi: number;
+    bitti: number;
+  };
+  attribution: {
+    ctwa: number;
+    fbclid: number;
+    utm: number;
+    other: number;
+  };
+};
+
+function emptyMetaInsights(): MetaMarketingInsights {
+  return withMetaDerivedRates({
+    totalSpend: 0,
+    totalClicks: 0,
+    totalImpressions: 0,
+    totalConversions: 0,
+    totalReach: 0,
+    totalUniqueClicks: 0,
+    totalInlineLinkClicks: 0,
+    actions: [],
+    platforms: [],
+    devices: [],
+    daily: [],
+    messagingConversations: 0,
+    messagingFirstReply: 0,
+  });
+}
+
+function emptyMetaCrmBreakdown(): MetaCrmBreakdown {
+  return {
+    leads: 0,
+    appointmentLeads: 0,
+    surgeryDone: 0,
+    funnel: {
+      yeni: 0,
+      arandi: 0,
+      muayene_edildi: 0,
+      ameliyat_olacak: 0,
+      ameliyat_edildi: 0,
+      bitti: 0,
+    },
+    attribution: { ctwa: 0, fbclid: 0, utm: 0, other: 0 },
+  };
+}
+
+function actionValue(
+  actions: MetaMarketingInsights["actions"],
+  key: string,
+): number {
+  return (
+    actions.find((action) => action.key === key)?.conversions ?? 0
+  );
+}
+
+function withMetaDerivedRates(
+  insights: Omit<
+    MetaMarketingInsights,
+    | "avgCtr"
+    | "avgCpc"
+    | "avgCpm"
+    | "avgCpp"
+    | "avgDailyReach"
+    | "avgFrequency"
+    | "uniqueCtr"
+    | "linkCtr"
+    | "costPerConversion"
+    | "costPerConversation"
+    | "messagingConversations"
+    | "messagingFirstReply"
+  > & {
+    messagingConversations?: number;
+    messagingFirstReply?: number;
+  },
+): MetaMarketingInsights {
+  const {
+    totalSpend,
+    totalClicks,
+    totalImpressions,
+    totalConversions,
+    totalReach,
+    totalUniqueClicks,
+    totalInlineLinkClicks,
+    daily,
+    actions,
+  } = insights;
+  const messagingConversations =
+    insights.messagingConversations ??
+    actionValue(
+      actions,
+      "onsite_conversion.messaging_conversation_started_7d",
+    );
+  const messagingFirstReply =
+    insights.messagingFirstReply ??
+    actionValue(actions, "onsite_conversion.messaging_first_reply");
+  const dayCount = daily.filter((row) => row.reach > 0 || row.spend > 0).length;
+  const avgDailyReach =
+    dayCount > 0
+      ? Math.round(
+          daily.reduce((sum, row) => sum + row.reach, 0) / Math.max(dayCount, 1),
+        )
+      : totalReach > 0
+        ? totalReach
+        : null;
+  const avgFrequency =
+    avgDailyReach && avgDailyReach > 0
+      ? Math.round((totalImpressions / avgDailyReach) * 100) / 100
+      : null;
+
+  return {
+    ...insights,
+    messagingConversations,
+    messagingFirstReply,
+    avgDailyReach,
+    avgFrequency,
+    avgCtr:
+      totalImpressions > 0
+        ? Math.round((totalClicks / totalImpressions) * 1_000_000) / 1_000_000
+        : null,
+    avgCpc:
+      totalClicks > 0
+        ? Math.round((totalSpend / totalClicks) * 100) / 100
+        : null,
+    avgCpm:
+      totalImpressions > 0
+        ? Math.round((totalSpend / totalImpressions) * 1000 * 100) / 100
+        : null,
+    avgCpp:
+      avgDailyReach && avgDailyReach > 0
+        ? Math.round((totalSpend / avgDailyReach) * 1000 * 100) / 100
+        : null,
+    uniqueCtr:
+      totalImpressions > 0 && totalUniqueClicks > 0
+        ? Math.round((totalUniqueClicks / totalImpressions) * 1_000_000) /
+          1_000_000
+        : null,
+    linkCtr:
+      totalImpressions > 0 && totalInlineLinkClicks > 0
+        ? Math.round((totalInlineLinkClicks / totalImpressions) * 1_000_000) /
+          1_000_000
+        : null,
+    costPerConversion:
+      totalConversions > 0
+        ? Math.round((totalSpend / totalConversions) * 100) / 100
+        : null,
+    costPerConversation:
+      messagingConversations > 0
+        ? Math.round((totalSpend / messagingConversations) * 100) / 100
+        : null,
+  };
+}
+
+function parseShareRows(
+  raw: unknown,
+  labelFn: (key: string) => string,
+): MetaShareRow[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    const d = item as Record<string, unknown>;
+    const key = String(d.key ?? d.name ?? "");
+    return {
+      key,
+      label: labelFn(key),
+      spend: Math.round(num(d.spend) * 100) / 100,
+      impressions: num(d.impressions),
+      clicks: num(d.clicks),
+      conversions: Math.round(num(d.conversions) * 100) / 100,
+    };
+  });
+}
+
+function parseMetaInsightsRpc(data: unknown): MetaMarketingInsights | null {
+  if (!data || typeof data !== "object") return null;
+  const row = data as Record<string, unknown>;
+  const actions = Array.isArray(row.actions)
+    ? row.actions.map((item) => {
+        const d = item as Record<string, unknown>;
+        const key = String(d.key ?? d.name ?? "");
+        return {
+          key,
+          name: metaActionLabel(key),
+          conversions: Math.round(num(d.conversions) * 100) / 100,
+          spend: Math.round(num(d.spend) * 100) / 100,
+        };
+      })
+    : [];
+  const daily = Array.isArray(row.daily)
+    ? row.daily.map((item) => {
+        const d = item as Record<string, unknown>;
+        return {
+          date: String(d.date ?? "").slice(0, 10),
+          spend: Math.round(num(d.spend) * 100) / 100,
+          conversions: Math.round(num(d.conversions) * 100) / 100,
+          clicks: num(d.clicks),
+          reach: num(d.reach),
+        };
+      })
+    : [];
+
+  return withMetaDerivedRates({
+    totalSpend: Math.round(num(row.totalSpend) * 100) / 100,
+    totalClicks: num(row.totalClicks),
+    totalImpressions: num(row.totalImpressions),
+    totalConversions: Math.round(num(row.totalConversions) * 100) / 100,
+    totalReach: num(row.totalReach),
+    totalUniqueClicks: num(row.totalUniqueClicks),
+    totalInlineLinkClicks: num(row.totalInlineLinkClicks),
+    actions,
+    platforms: parseShareRows(row.platforms, metaPlatformLabel),
+    devices: parseShareRows(row.devices, metaDeviceLabel),
+    daily,
+  });
+}
+
+async function loadFilteredMetaCampaignIds(
+  siteFilter: string | null,
+): Promise<string[]> {
+  const supabase = await createClient();
+  const [{ data: campaigns }, metaSiteMap, { data: accounts }] =
+    await Promise.all([
+      supabase
+        .from("ad_campaigns")
+        .select("id, site, account_id")
+        .eq("platform", "meta"),
+      siteFilter
+        ? loadCustomerSiteMap("meta")
+        : Promise.resolve({} as Record<string, string[]>),
+      siteFilter
+        ? supabase
+            .from("ad_accounts_safe")
+            .select("id, external_account_id, platform")
+        : Promise.resolve({
+            data: [] as {
+              id: string;
+              external_account_id: string;
+              platform: string;
+            }[],
+          }),
+    ]);
+
+  const accountExternalById = new Map(
+    (accounts ?? []).map((account) => [
+      account.id as string,
+      String(account.external_account_id ?? ""),
+    ]),
+  );
+
+  return (campaigns ?? [])
+    .filter((campaign) => {
+      if (!siteFilter) return true;
+      if (campaign.site === siteFilter) return true;
+      return metaCampaignBelongsToSiteViaAccountMap(
+        "meta",
+        campaign.site as string | null,
+        accountExternalById.get(campaign.account_id as string),
+        siteFilter,
+        metaSiteMap,
+      );
+    })
+    .map((campaign) => campaign.id as string);
+}
+
+export async function loadMetaMarketingInsights(
+  startDate: string,
+  endDate: string,
+  siteFilter: string | null,
+): Promise<MetaMarketingInsights> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_meta_marketing_insights", {
+    start_date: startDate,
+    end_date: endDate,
+    site_filter: siteFilter,
+  });
+
+  if (!error && data) {
+    const parsed = parseMetaInsightsRpc(data);
+    if (parsed) return parsed;
+  }
+
+  if (error) {
+    console.warn("[marketing] meta insights rpc:", error.message);
+  }
+
+  return loadMetaMarketingInsightsLegacy(startDate, endDate, siteFilter);
+}
+
+async function loadMetaMarketingInsightsLegacy(
+  startDate: string,
+  endDate: string,
+  siteFilter: string | null,
+): Promise<MetaMarketingInsights> {
+  const supabase = await createClient();
+  const campaignIds = await loadFilteredMetaCampaignIds(siteFilter);
+  if (!campaignIds.length) return emptyMetaInsights();
+
+  const dailySelectWithReach =
+    "date, spend, clicks, impressions, conversions, reach, unique_clicks, inline_link_clicks";
+  let dailyRows: Array<Record<string, unknown>> | null = null;
+  const extended = await supabase
+    .from("ad_daily_stats")
+    .select(dailySelectWithReach)
+    .in("campaign_id", campaignIds)
+    .gte("date", startDate)
+    .lte("date", endDate);
+  if (extended.error) {
+    const basic = await supabase
+      .from("ad_daily_stats")
+      .select("date, spend, clicks, impressions, conversions")
+      .in("campaign_id", campaignIds)
+      .gte("date", startDate)
+      .lte("date", endDate);
+    dailyRows = (basic.data ?? []) as Array<Record<string, unknown>>;
+  } else {
+    dailyRows = (extended.data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  const { data: segmentRows } = await supabase
+    .from("ad_segment_daily_stats")
+    .select("segment_type, segment_value, conversions, spend, impressions, clicks")
+    .in("campaign_id", campaignIds)
+    .gte("date", startDate)
+    .lte("date", endDate);
+
+  const dailyMap = new Map<
+    string,
+    {
+      spend: number;
+      conversions: number;
+      clicks: number;
+      impressions: number;
+      reach: number;
+      uniqueClicks: number;
+      linkClicks: number;
+    }
+  >();
+  for (const row of dailyRows ?? []) {
+    const date = String(row.date ?? "").slice(0, 10);
+    if (!date) continue;
+    const current = dailyMap.get(date) ?? {
+      spend: 0,
+      conversions: 0,
+      clicks: 0,
+      impressions: 0,
+      reach: 0,
+      uniqueClicks: 0,
+      linkClicks: 0,
+    };
+    current.spend += Number(row.spend ?? 0);
+    current.conversions += Number(row.conversions ?? 0);
+    current.clicks += Number(row.clicks ?? 0);
+    current.impressions += Number(row.impressions ?? 0);
+    current.reach += Number(row.reach ?? 0);
+    current.uniqueClicks += Number(row.unique_clicks ?? 0);
+    current.linkClicks += Number(row.inline_link_clicks ?? 0);
+    dailyMap.set(date, current);
+  }
+
+  const actionMap = new Map<string, { conversions: number; spend: number }>();
+  const platformMap = new Map<
+    string,
+    { spend: number; impressions: number; clicks: number; conversions: number }
+  >();
+  const deviceMap = new Map<
+    string,
+    { spend: number; impressions: number; clicks: number; conversions: number }
+  >();
+  for (const row of segmentRows ?? []) {
+    const key = String(row.segment_value ?? "");
+    if (!key) continue;
+    if (row.segment_type === "conversion_action") {
+      const current = actionMap.get(key) ?? { conversions: 0, spend: 0 };
+      current.conversions += Number(row.conversions ?? 0);
+      current.spend += Number(row.spend ?? 0);
+      actionMap.set(key, current);
+    }
+    if (row.segment_type === "publisher_platform") {
+      const current = platformMap.get(key) ?? {
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        conversions: 0,
+      };
+      current.spend += Number(row.spend ?? 0);
+      current.impressions += Number(row.impressions ?? 0);
+      current.clicks += Number(row.clicks ?? 0);
+      current.conversions += Number(row.conversions ?? 0);
+      platformMap.set(key, current);
+    }
+    if (row.segment_type === "device") {
+      const current = deviceMap.get(key) ?? {
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        conversions: 0,
+      };
+      current.spend += Number(row.spend ?? 0);
+      current.impressions += Number(row.impressions ?? 0);
+      current.clicks += Number(row.clicks ?? 0);
+      current.conversions += Number(row.conversions ?? 0);
+      deviceMap.set(key, current);
+    }
+  }
+
+  const totals = [...dailyMap.values()].reduce(
+    (acc, row) => {
+      acc.spend += row.spend;
+      acc.clicks += row.clicks;
+      acc.impressions += row.impressions;
+      acc.conversions += row.conversions;
+      acc.reach += row.reach;
+      acc.uniqueClicks += row.uniqueClicks;
+      acc.linkClicks += row.linkClicks;
+      return acc;
+    },
+    {
+      spend: 0,
+      clicks: 0,
+      impressions: 0,
+      conversions: 0,
+      reach: 0,
+      uniqueClicks: 0,
+      linkClicks: 0,
+    },
+  );
+
+  return withMetaDerivedRates({
+    totalSpend: Math.round(totals.spend * 100) / 100,
+    totalClicks: totals.clicks,
+    totalImpressions: totals.impressions,
+    totalConversions: Math.round(totals.conversions * 100) / 100,
+    totalReach: totals.reach,
+    totalUniqueClicks: totals.uniqueClicks,
+    totalInlineLinkClicks: totals.linkClicks,
+    actions: [...actionMap.entries()]
+      .map(([key, agg]) => ({
+        key,
+        name: metaActionLabel(key),
+        conversions: Math.round(agg.conversions * 100) / 100,
+        spend: Math.round(agg.spend * 100) / 100,
+      }))
+      .sort((a, b) => b.conversions - a.conversions),
+    platforms: [...platformMap.entries()]
+      .map(([key, agg]) => ({
+        key,
+        label: metaPlatformLabel(key),
+        ...agg,
+        spend: Math.round(agg.spend * 100) / 100,
+      }))
+      .sort((a, b) => b.spend - a.spend),
+    devices: [...deviceMap.entries()]
+      .map(([key, agg]) => ({
+        key,
+        label: metaDeviceLabel(key),
+        ...agg,
+        spend: Math.round(agg.spend * 100) / 100,
+      }))
+      .sort((a, b) => b.spend - a.spend),
+    daily: [...dailyMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, agg]) => ({
+        date,
+        spend: Math.round(agg.spend * 100) / 100,
+        conversions: Math.round(agg.conversions * 100) / 100,
+        clicks: agg.clicks,
+        reach: agg.reach,
+      })),
+  });
+}
+
+export async function loadMetaCrmBreakdown(
+  startDate: string,
+  endDate: string,
+  siteFilter: string | null,
+): Promise<MetaCrmBreakdown> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_meta_crm_breakdown", {
+    start_date: startDate,
+    end_date: endDate,
+    site_filter: siteFilter,
+  });
+  if (error) {
+    console.warn("[marketing] meta crm breakdown:", error.message);
+    return emptyMetaCrmBreakdown();
+  }
+  if (!data || typeof data !== "object") return emptyMetaCrmBreakdown();
+  const row = data as Record<string, unknown>;
+  const funnel = (row.funnel ?? {}) as Record<string, unknown>;
+  const attribution = (row.attribution ?? {}) as Record<string, unknown>;
+  return {
+    leads: num(row.leads),
+    appointmentLeads: num(row.appointmentLeads),
+    surgeryDone: num(row.surgeryDone),
+    funnel: {
+      yeni: num(funnel.yeni),
+      arandi: num(funnel.arandi),
+      muayene_edildi: num(funnel.muayene_edildi),
+      ameliyat_olacak: num(funnel.ameliyat_olacak),
+      ameliyat_edildi: num(funnel.ameliyat_edildi),
+      bitti: num(funnel.bitti),
+    },
+    attribution: {
+      ctwa: num(attribution.ctwa),
+      fbclid: num(attribution.fbclid),
+      utm: num(attribution.utm),
+      other: num(attribution.other),
+    },
+  };
 }
 
 async function loadGoogleMarketingInsightsLegacy(

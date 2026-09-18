@@ -3,7 +3,10 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { googleAdsCustomerIds, marketingCronSyncDays, marketingSyncDays } from "@/lib/marketing/config";
 import { fetchGoogleDailyStats } from "@/lib/marketing/google-ads/client";
-import { fetchMetaDailyStats } from "@/lib/marketing/meta/client";
+import {
+  fetchMetaBreakdownStats,
+  fetchMetaDailyStats,
+} from "@/lib/marketing/meta/client";
 import type { MarketingPlatform } from "@/lib/marketing/types";
 import {
   bootstrapAdAccountsFromEnv,
@@ -204,16 +207,48 @@ async function syncMetaDailyStatsAllAccounts(
   for (const account of accounts) {
     try {
       const accessToken = await ensureValidAccessToken(supabase, account);
-      const remoteStats = await fetchMetaDailyStats(
-        accessToken,
-        account.external_account_id,
-        startDate,
-        endDate,
-      );
+      const [remoteStats, platformStats, deviceStats] = await Promise.all([
+        fetchMetaDailyStats(
+          accessToken,
+          account.external_account_id,
+          startDate,
+          endDate,
+        ),
+        fetchMetaBreakdownStats(
+          accessToken,
+          account.external_account_id,
+          startDate,
+          endDate,
+          "publisher_platform",
+        ).catch((err) => {
+          console.warn(
+            "[marketing] Meta publisher_platform:",
+            err instanceof Error ? err.message : err,
+          );
+          return [];
+        }),
+        fetchMetaBreakdownStats(
+          accessToken,
+          account.external_account_id,
+          startDate,
+          endDate,
+          "impression_device",
+        ).catch((err) => {
+          console.warn(
+            "[marketing] Meta impression_device:",
+            err instanceof Error ? err.message : err,
+          );
+          return [];
+        }),
+      ]);
       if (!remoteStats.length) continue;
 
       const externalIds = [
-        ...new Set(remoteStats.map((s) => s.externalCampaignId)),
+        ...new Set([
+          ...remoteStats.map((s) => s.externalCampaignId),
+          ...platformStats.map((s) => s.externalCampaignId),
+          ...deviceStats.map((s) => s.externalCampaignId),
+        ]),
       ];
       const { data: campaigns, error: campaignError } = await supabase
         .from("ad_campaigns")
@@ -235,14 +270,34 @@ async function syncMetaDailyStatsAllAccounts(
         .map((stat) => {
           const campaignId = campaignIdByExternal.get(stat.externalCampaignId);
           if (!campaignId) return null;
+          const clicks = Number(stat.clicks);
+          const impressions = Number(stat.impressions);
+          const spend = Number(stat.spend);
+          const conversions = Number(stat.conversions);
           return {
             campaign_id: campaignId,
             date: stat.date,
-            spend: stat.spend,
-            impressions: stat.impressions,
-            clicks: stat.clicks,
-            conversions: stat.conversions,
+            spend,
+            impressions,
+            clicks,
+            conversions,
             currency: stat.currency,
+            ctr:
+              impressions > 0
+                ? Math.round((clicks / impressions) * 1_000_000) / 1_000_000
+                : (stat.ctr ?? null),
+            average_cpc:
+              clicks > 0
+                ? Math.round((spend / clicks) * 100) / 100
+                : (stat.averageCpc ?? null),
+            cost_per_conversion:
+              conversions > 0
+                ? Math.round((spend / conversions) * 100) / 100
+                : (stat.costPerConversion ?? null),
+            reach: Number(stat.reach ?? 0),
+            frequency: stat.frequency ?? null,
+            unique_clicks: Number(stat.uniqueClicks ?? 0),
+            inline_link_clicks: Number(stat.inlineLinkClicks ?? 0),
             updated_at: new Date().toISOString(),
           };
         })
@@ -253,14 +308,92 @@ async function syncMetaDailyStatsAllAccounts(
       const deduped = mergeRowsByKey(
         rows,
         (row) => `${row.campaign_id}|${row.date}`,
-        ["spend", "impressions", "clicks", "conversions"],
-      );
+        ["spend", "impressions", "clicks", "conversions", "reach", "unique_clicks", "inline_link_clicks"],
+      ).map((row) => {
+        const clicks = Number(row.clicks);
+        const impressions = Number(row.impressions);
+        const spend = Number(row.spend);
+        const conversions = Number(row.conversions);
+        const reach = Number(row.reach ?? 0);
+        return {
+          ...row,
+          ctr:
+            impressions > 0
+              ? Math.round((clicks / impressions) * 1_000_000) / 1_000_000
+              : row.ctr,
+          average_cpc:
+            clicks > 0 ? Math.round((spend / clicks) * 100) / 100 : row.average_cpc,
+          cost_per_conversion:
+            conversions > 0
+              ? Math.round((spend / conversions) * 100) / 100
+              : row.cost_per_conversion,
+          frequency:
+            reach > 0
+              ? Math.round((impressions / reach) * 10_000) / 10_000
+              : row.frequency,
+        };
+      });
 
       for (const batch of chunkRows(deduped)) {
         const { error } = await supabase.from("ad_daily_stats").upsert(batch, {
           onConflict: "campaign_id,date",
         });
         if (error) throw new Error(error.message);
+      }
+
+      const actionRows = remoteStats
+        .flatMap((stat) => {
+          const campaignId = campaignIdByExternal.get(stat.externalCampaignId);
+          if (!campaignId) return [];
+          return (stat.actions ?? []).map((action) => ({
+            campaign_id: campaignId,
+            date: stat.date,
+            segment_type: "conversion_action" as const,
+            segment_value: action.actionType,
+            spend: action.cost ?? 0,
+            impressions: 0,
+            clicks: 0,
+            conversions: action.value,
+            updated_at: new Date().toISOString(),
+          }));
+        });
+
+      const segmentRows = [
+        ...actionRows,
+        ...[...platformStats, ...deviceStats].flatMap((stat) => {
+          const campaignId = campaignIdByExternal.get(stat.externalCampaignId);
+          if (!campaignId) return [];
+          return [
+            {
+              campaign_id: campaignId,
+              date: stat.date,
+              segment_type: stat.segmentType,
+              segment_value: stat.segmentValue,
+              spend: stat.spend,
+              impressions: stat.impressions,
+              clicks: stat.clicks,
+              conversions: stat.conversions,
+              updated_at: new Date().toISOString(),
+            },
+          ];
+        }),
+      ];
+
+      if (segmentRows.length) {
+        const dedupedSegments = mergeRowsByKey(
+          segmentRows,
+          (row) =>
+            `${row.campaign_id}|${row.date}|${row.segment_type}|${row.segment_value}`,
+          ["spend", "impressions", "clicks", "conversions"],
+        );
+        for (const batch of chunkRows(dedupedSegments)) {
+          const { error } = await supabase
+            .from("ad_segment_daily_stats")
+            .upsert(batch, {
+              onConflict: "campaign_id,date,segment_type,segment_value",
+            });
+          if (error) throw new Error(error.message);
+        }
       }
 
       totalRows += deduped.length;

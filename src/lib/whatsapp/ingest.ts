@@ -12,11 +12,18 @@ export function extractLeadRef(body: string | null | undefined): string | null {
   return body?.match(REF_RE)?.[1]?.toUpperCase() ?? null;
 }
 
+type MetaAdStamp = {
+  ctwaClid: string | null;
+  sourceUrl: string | null;
+  headline: string | null;
+  fromAd?: boolean;
+};
+
 async function resolveLeadFromRef(
   supabase: SupabaseClient,
   leadRef: string,
   contactId: string,
-  ctwaClid: string | null,
+  ad: MetaAdStamp,
 ) {
   const { data: source } = await supabase
     .from("lead_sources")
@@ -25,7 +32,7 @@ async function resolveLeadFromRef(
     .maybeSingle();
 
   if (source?.matched_lead_id) {
-    await attachCtwaToLead(supabase, source.matched_lead_id, ctwaClid);
+    await stampMetaAdOnLead(supabase, source.matched_lead_id, ad);
     return source.matched_lead_id;
   }
 
@@ -36,7 +43,7 @@ async function resolveLeadFromRef(
     .maybeSingle();
 
   if (existingByRef?.id) {
-    await attachCtwaToLead(supabase, existingByRef.id, ctwaClid);
+    await stampMetaAdOnLead(supabase, existingByRef.id, ad);
     return existingByRef.id;
   }
 
@@ -57,7 +64,7 @@ async function resolveLeadFromRef(
         wbraid: source.wbraid,
         msclkid: source.msclkid,
         ttclid: source.ttclid,
-        ctwa_clid: ctwaClid,
+        ctwa_clid: ad.ctwaClid,
         lead_ref: leadRef,
       })
       .select("id")
@@ -71,6 +78,7 @@ async function resolveLeadFromRef(
           matched_at: new Date().toISOString(),
         })
         .eq("id", source.id);
+      await stampMetaAdOnLead(supabase, lead.id, ad);
     }
     return lead?.id ?? null;
   }
@@ -88,33 +96,83 @@ function siteFromReferralUrl(url: string | null | undefined): string {
   return MARKETING_CLICK_LOGS_SITE;
 }
 
-async function attachCtwaToLead(
+/**
+ * Mevcut blank lead'e Meta reklam izini bas.
+ * ctwa_clid olmasa bile fromAd / referral varsa UTM + channel yazar
+ * (aksi halde ameliyat pastasında Organik kalırdı).
+ */
+async function stampMetaAdOnLead(
   supabase: SupabaseClient,
   leadId: string,
-  ctwaClid: string | null,
+  options: MetaAdStamp,
 ) {
-  if (!ctwaClid?.trim()) return;
+  const hasMetaSignal = Boolean(
+    options.ctwaClid?.trim() ||
+      options.sourceUrl?.trim() ||
+      options.headline?.trim() ||
+      options.fromAd,
+  );
+  if (!hasMetaSignal) return;
+
   const { data: lead } = await supabase
     .from("leads")
-    .select("ctwa_clid")
+    .select(
+      "ctwa_clid, channel, fbclid, utm_source, utm_medium, utm_campaign, campaign, site",
+    )
     .eq("id", leadId)
     .maybeSingle();
-  if (!lead || lead.ctwa_clid) return;
-  await supabase
-    .from("leads")
-    .update({ ctwa_clid: ctwaClid.trim() })
-    .eq("id", leadId);
+  if (!lead) return;
+
+  const fromUrl = parseTrackingParamsFromUrl(options.sourceUrl);
+  const patch: Record<string, string> = {};
+
+  if (options.ctwaClid?.trim() && !lead.ctwa_clid) {
+    patch.ctwa_clid = options.ctwaClid.trim();
+  }
+  if (fromUrl.fbclid && !lead.fbclid) {
+    patch.fbclid = fromUrl.fbclid;
+  }
+  if (!lead.utm_source) {
+    patch.utm_source = fromUrl.utm_source ?? "facebook";
+  }
+  if (!lead.utm_medium) {
+    patch.utm_medium = fromUrl.utm_medium ?? "paid";
+  }
+  if (!lead.utm_campaign && fromUrl.utm_campaign) {
+    patch.utm_campaign = fromUrl.utm_campaign;
+  }
+  if (!lead.campaign) {
+    const campaign =
+      fromUrl.campaign ?? fromUrl.utm_campaign ?? options.headline;
+    if (campaign) patch.campaign = campaign;
+  }
+
+  const channel = (lead.channel || "").trim().toLowerCase();
+  const stampableChannel = new Set([
+    "",
+    "whatsapp",
+    "website",
+    "panel",
+    "landing",
+    "page",
+  ]);
+  if (stampableChannel.has(channel)) {
+    patch.channel = "meta_ctwa";
+  }
+
+  if ((!lead.site || lead.site === "manual") && options.sourceUrl) {
+    patch.site = siteFromReferralUrl(options.sourceUrl);
+  }
+
+  if (!Object.keys(patch).length) return;
+  await supabase.from("leads").update(patch).eq("id", leadId);
 }
 
 /** Click-to-WhatsApp: Ref yoksa bile CRM lead aç — yoksa Meta kartı boş kalır. */
 async function resolveLeadFromCtwa(
   supabase: SupabaseClient,
   contactId: string,
-  options: {
-    ctwaClid: string | null;
-    sourceUrl: string | null;
-    headline: string | null;
-  },
+  options: MetaAdStamp,
 ): Promise<string | null> {
   const { data: conversation } = await supabase
     .from("conversations")
@@ -123,7 +181,7 @@ async function resolveLeadFromCtwa(
     .maybeSingle();
 
   if (conversation?.lead_id) {
-    await attachCtwaToLead(supabase, conversation.lead_id, options.ctwaClid);
+    await stampMetaAdOnLead(supabase, conversation.lead_id, options);
     return conversation.lead_id;
   }
 
@@ -131,12 +189,12 @@ async function resolveLeadFromCtwa(
     .from("leads")
     .select("id")
     .eq("contact_id", contactId)
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
   if (existingLead?.id) {
-    await attachCtwaToLead(supabase, existingLead.id, options.ctwaClid);
+    await stampMetaAdOnLead(supabase, existingLead.id, options);
     return existingLead.id;
   }
 
@@ -284,21 +342,24 @@ export async function ingestInboundWhatsAppMessage(
   const leadRef = extractLeadRef(options.body);
   let leadId: string | null = null;
 
+  const adMeta: MetaAdStamp = {
+    ctwaClid: options.ctwaClid ?? null,
+    sourceUrl: options.sourceUrl ?? null,
+    headline: options.headline ?? null,
+    fromAd: options.fromAd,
+  };
+
   if (leadRef) {
     leadId = await resolveLeadFromRef(
       supabase,
       leadRef,
       contact.id,
-      options.ctwaClid ?? null,
+      adMeta,
     );
   }
 
   if (!leadId && (options.ctwaClid || options.fromAd)) {
-    leadId = await resolveLeadFromCtwa(supabase, contact.id, {
-      ctwaClid: options.ctwaClid ?? null,
-      sourceUrl: options.sourceUrl ?? null,
-      headline: options.headline ?? null,
-    });
+    leadId = await resolveLeadFromCtwa(supabase, contact.id, adMeta);
   }
 
   const conversationId = await findOrCreateConversation(

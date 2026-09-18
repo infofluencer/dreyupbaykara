@@ -1,7 +1,15 @@
 import "server-only";
 
 import { metaAdsConfig } from "@/lib/marketing/config";
-import type { RemoteCampaign, RemoteDailyStat } from "@/lib/marketing/types";
+import {
+  isMetaPrimaryAction,
+  isMetaTrackedAction,
+} from "@/lib/marketing/meta/actions";
+import type {
+  RemoteCampaign,
+  RemoteDailyStat,
+  RemoteSegmentStat,
+} from "@/lib/marketing/types";
 
 const GRAPH_API = "https://graph.facebook.com/v21.0";
 
@@ -104,65 +112,213 @@ export async function fetchMetaCampaigns(
   return campaigns;
 }
 
+function money(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function ratio(numerator: number, denominator: number): number | null {
+  if (denominator <= 0) return null;
+  return Math.round((numerator / denominator) * 1_000_000) / 1_000_000;
+}
+
+type ActionRow = { action_type?: string; value?: string };
+
+type InsightsRow = {
+  campaign_id?: string;
+  date_start?: string;
+  spend?: string;
+  impressions?: string;
+  clicks?: string;
+  reach?: string;
+  frequency?: string;
+  unique_clicks?: string;
+  inline_link_clicks?: string;
+  actions?: ActionRow[];
+  cost_per_action_type?: ActionRow[];
+  publisher_platform?: string;
+  impression_device?: string;
+};
+
+const DAILY_INSIGHT_FIELDS =
+  "campaign_id,campaign_name,spend,impressions,clicks,reach,frequency,unique_clicks,inline_link_clicks,actions,cost_per_action_type";
+
+const BREAKDOWN_INSIGHT_FIELDS =
+  "campaign_id,spend,impressions,clicks,reach,actions,cost_per_action_type";
+
+function parseTrackedActions(row: InsightsRow) {
+  const costByType = new Map<string, number>();
+  for (const item of row.cost_per_action_type ?? []) {
+    const type = item.action_type ?? "";
+    if (!type) continue;
+    costByType.set(type, Number(item.value ?? 0));
+  }
+
+  return (row.actions ?? [])
+    .map((action) => {
+      const actionType = action.action_type ?? "";
+      if (!isMetaTrackedAction(actionType)) return null;
+      const value = Number(action.value ?? 0);
+      if (!Number.isFinite(value) || value <= 0) return null;
+      const unitCost = costByType.get(actionType);
+      return {
+        actionType,
+        value,
+        cost:
+          unitCost != null && Number.isFinite(unitCost)
+            ? money(unitCost * value)
+            : null,
+      };
+    })
+    .filter((action): action is NonNullable<typeof action> => action !== null);
+}
+
+function primaryConversions(
+  actions: Array<{ actionType: string; value: number }>,
+): number {
+  return actions
+    .filter((action) => isMetaPrimaryAction(action.actionType))
+    .reduce((sum, action) => sum + action.value, 0);
+}
+
+async function fetchInsightsPages(
+  accessToken: string,
+  accountExternalId: string,
+  startDate: string,
+  endDate: string,
+  fields: string,
+  extra: Record<string, string> = {},
+): Promise<InsightsRow[]> {
+  const rows: InsightsRow[] = [];
+  const params = new URLSearchParams({
+    level: "campaign",
+    fields,
+    time_increment: "1",
+    time_range: JSON.stringify({ since: startDate, until: endDate }),
+    limit: "500",
+    ...extra,
+  });
+  let nextUrl: string | null =
+    `${actId(accountExternalId)}/insights?${params.toString()}`;
+
+  while (nextUrl) {
+    const json: PagedResponse<InsightsRow> = await fetchGraphPage<InsightsRow>(
+      nextUrl,
+      accessToken,
+    );
+    rows.push(...(json.data ?? []));
+    nextUrl = json.paging?.next ?? null;
+  }
+
+  return rows;
+}
+
 export async function fetchMetaDailyStats(
   accessToken: string,
   accountExternalId: string,
   startDate: string,
   endDate: string,
 ): Promise<RemoteDailyStat[]> {
-  const stats: RemoteDailyStat[] = [];
-  type Row = {
-    campaign_id?: string;
-    date_start?: string;
-    spend?: string;
-    impressions?: string;
-    clicks?: string;
-    actions?: Array<{ action_type?: string; value?: string }>;
-  };
-  let nextUrl: string | null =
-    `${actId(accountExternalId)}/insights?` +
-    new URLSearchParams({
-      level: "campaign",
-      fields: "campaign_id,campaign_name,spend,impressions,clicks,actions",
-      time_increment: "1",
-      time_range: JSON.stringify({ since: startDate, until: endDate }),
-      limit: "500",
-    }).toString();
-
-  while (nextUrl) {
-    const currentUrl = nextUrl;
-    const json: PagedResponse<Row> = await fetchGraphPage<Row>(
-      currentUrl,
+  let rows: InsightsRow[];
+  try {
+    rows = await fetchInsightsPages(
       accessToken,
+      accountExternalId,
+      startDate,
+      endDate,
+      DAILY_INSIGHT_FIELDS,
     );
+  } catch (err) {
+    console.warn(
+      "[marketing] Meta extended insights failed, falling back:",
+      err instanceof Error ? err.message : err,
+    );
+    rows = await fetchInsightsPages(
+      accessToken,
+      accountExternalId,
+      startDate,
+      endDate,
+      "campaign_id,campaign_name,spend,impressions,clicks,actions,cost_per_action_type",
+    );
+  }
 
-    for (const row of json.data ?? []) {
-      if (!row.campaign_id || !row.date_start) continue;
+  const stats: RemoteDailyStat[] = [];
+  for (const row of rows) {
+    if (!row.campaign_id || !row.date_start) continue;
 
-      const leadActions = (row.actions ?? []).filter((action) =>
-        [
-          "lead",
-          "onsite_conversion.lead_grouped",
-          "offsite_conversion.fb_pixel_lead",
-        ].includes(action.action_type ?? ""),
-      );
-      const conversions = leadActions.reduce(
-        (sum, action) => sum + Number(action.value ?? 0),
-        0,
-      );
+    const trackedActions = parseTrackedActions(row);
+    const conversions = primaryConversions(trackedActions);
+    const spend = money(Number(row.spend ?? 0));
+    const impressions = Number(row.impressions ?? 0);
+    const clicks = Number(row.clicks ?? 0);
+    const reach = Number(row.reach ?? 0);
+    const uniqueClicks = Number(row.unique_clicks ?? 0);
+    const inlineLinkClicks = Number(row.inline_link_clicks ?? 0);
 
-      stats.push({
-        externalCampaignId: row.campaign_id,
-        date: row.date_start,
-        spend: Math.round(Number(row.spend ?? 0) * 100) / 100,
-        impressions: Number(row.impressions ?? 0),
-        clicks: Number(row.clicks ?? 0),
-        conversions,
-        currency: "TRY",
-      });
-    }
+    stats.push({
+      externalCampaignId: row.campaign_id,
+      date: row.date_start,
+      spend,
+      impressions,
+      clicks,
+      conversions,
+      currency: "TRY",
+      ctr: ratio(clicks, impressions),
+      averageCpc: clicks > 0 ? money(spend / clicks) : null,
+      costPerConversion: conversions > 0 ? money(spend / conversions) : null,
+      reach: Number.isFinite(reach) ? reach : 0,
+      frequency:
+        Number(row.frequency ?? 0) > 0
+          ? Math.round(Number(row.frequency) * 10_000) / 10_000
+          : reach > 0
+            ? Math.round((impressions / reach) * 10_000) / 10_000
+            : null,
+      uniqueClicks: Number.isFinite(uniqueClicks) ? uniqueClicks : 0,
+      inlineLinkClicks: Number.isFinite(inlineLinkClicks) ? inlineLinkClicks : 0,
+      actions: trackedActions,
+    });
+  }
 
-    nextUrl = json.paging?.next ?? null;
+  return stats;
+}
+
+export async function fetchMetaBreakdownStats(
+  accessToken: string,
+  accountExternalId: string,
+  startDate: string,
+  endDate: string,
+  breakdown: "publisher_platform" | "impression_device",
+): Promise<RemoteSegmentStat[]> {
+  const segmentType =
+    breakdown === "publisher_platform" ? "publisher_platform" : "device";
+  const stats: RemoteSegmentStat[] = [];
+  const rows = await fetchInsightsPages(
+    accessToken,
+    accountExternalId,
+    startDate,
+    endDate,
+    BREAKDOWN_INSIGHT_FIELDS,
+    { breakdowns: breakdown },
+  );
+
+  for (const row of rows) {
+    if (!row.campaign_id || !row.date_start) continue;
+    const segmentValue =
+      breakdown === "publisher_platform"
+        ? row.publisher_platform
+        : row.impression_device;
+    if (!segmentValue) continue;
+
+    const conversions = primaryConversions(parseTrackedActions(row));
+    stats.push({
+      externalCampaignId: row.campaign_id,
+      date: row.date_start,
+      segmentType,
+      segmentValue,
+      spend: money(Number(row.spend ?? 0)),
+      impressions: Number(row.impressions ?? 0),
+      clicks: Number(row.clicks ?? 0),
+      conversions,
+    });
   }
 
   return stats;

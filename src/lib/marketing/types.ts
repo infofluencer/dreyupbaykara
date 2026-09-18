@@ -43,6 +43,12 @@ export type RemoteCampaign = {
   status: string | null;
 };
 
+export type RemoteActionBreakdown = {
+  actionType: string;
+  value: number;
+  cost: number | null;
+};
+
 export type RemoteDailyStat = {
   externalCampaignId: string;
   date: string;
@@ -57,12 +63,18 @@ export type RemoteDailyStat = {
   searchImpressionShare?: number | null;
   searchBudgetLostImpressionShare?: number | null;
   searchRankLostImpressionShare?: number | null;
+  /** Meta Insights action kırılımı (mesaj / lead / landing). */
+  actions?: RemoteActionBreakdown[];
+  reach?: number | null;
+  frequency?: number | null;
+  uniqueClicks?: number | null;
+  inlineLinkClicks?: number | null;
 };
 
 export type RemoteSegmentStat = {
   externalCampaignId: string;
   date: string;
-  segmentType: "device" | "conversion_action" | "geo";
+  segmentType: "device" | "conversion_action" | "geo" | "publisher_platform";
   segmentValue: string;
   spend: number;
   impressions: number;
@@ -143,12 +155,37 @@ export type MarketingSummary = {
   cpl: number | null;
   appointment_rate: number | null;
   appointment_leads: number;
+  google_appointment_leads?: number;
+  meta_appointment_leads?: number;
+  meta_surgery_done?: number;
+  meta_funnel?: {
+    yeni: number;
+    arandi: number;
+    muayene_edildi: number;
+    ameliyat_olacak: number;
+    ameliyat_edildi: number;
+    bitti: number;
+  };
+  meta_attribution?: {
+    ctwa: number;
+    fbclid: number;
+    utm: number;
+    other: number;
+  };
   currency: string;
   platforms: {
     google_ads: { spend: number; leads: number; cpl: number | null };
     meta: { spend: number; leads: number; cpl: number | null };
   };
-  daily: Array<{ date: string; spend: number; leads: number }>;
+  daily: Array<{
+    date: string;
+    spend: number;
+    leads: number;
+    google_spend?: number;
+    meta_spend?: number;
+    google_leads?: number;
+    meta_leads?: number;
+  }>;
 };
 
 export type CampaignPerformanceRow = {

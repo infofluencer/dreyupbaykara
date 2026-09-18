@@ -6,13 +6,23 @@ import {
   PLATFORM_COLOR,
   type AdPlatform,
 } from "@/lib/crm/source-kind";
-import type { SurgerySourcePatient } from "@/lib/marketing/surgery-sources";
+import type {
+  SurgeryAttrOrigin,
+  SurgerySourcePatient,
+} from "@/lib/marketing/surgery-sources";
 
 const PLATFORM_LABEL: Record<AdPlatform, string> = {
   google_ads: "Google",
   meta: "Meta",
   organic: "Organik",
   other: "Bilinmiyor",
+};
+
+const ORIGIN_LABEL: Record<SurgeryAttrOrigin, string> = {
+  lead: "lead",
+  lead_sources: "Ref / click log",
+  sibling: "miras (kardeş)",
+  none: "sinyal yok",
 };
 
 const PLATFORM_ORDER: AdPlatform[] = [
@@ -28,6 +38,17 @@ function shortDateTr(value: string) {
     day: "2-digit",
     month: "2-digit",
   }).format(new Date(value));
+}
+
+function attrHint(row: SurgerySourcePatient) {
+  if (row.attrOrigin === "none") return ORIGIN_LABEL.none;
+  if (row.attrOrigin === "sibling") {
+    return `${ORIGIN_LABEL.sibling} · ${row.attrSignal}`;
+  }
+  if (row.attrOrigin === "lead_sources") {
+    return `${ORIGIN_LABEL.lead_sources} · ${row.attrSignal}`;
+  }
+  return row.attrSignal;
 }
 
 export function AdminSurgerySourcePanel({
@@ -103,7 +124,6 @@ export function AdminSurgerySourcePanel({
       </div>
 
       <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)] lg:items-start lg:gap-6">
-        {/* Sol: pasta */}
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center lg:flex-col lg:items-stretch">
           <div className="relative shrink-0 self-center">
             <svg
@@ -218,7 +238,6 @@ export function AdminSurgerySourcePanel({
           </ul>
         </div>
 
-        {/* Sağ: hasta listesi */}
         <div className="min-w-0 rounded-xl border border-[#123524]/08 bg-[#f7f9f8]">
           <div className="flex items-center justify-between gap-2 border-b border-[#123524]/08 px-3 py-2.5 sm:px-4">
             <p className="text-sm font-semibold text-[#123524]">
@@ -244,11 +263,13 @@ export function AdminSurgerySourcePanel({
                 const hrefPatient = row.contactId
                   ? `/admin/patients/${row.contactId}`
                   : `/admin/messages?lead=${row.leadId}`;
+                const hintText = attrHint(row);
                 return (
                   <li key={row.leadId}>
                     <Link
                       href={hrefPatient}
                       className="flex min-h-12 items-center gap-3 px-3 py-2.5 transition hover:bg-white active:bg-white sm:px-4"
+                      title={hintText}
                     >
                       <span
                         className="h-2 w-2 shrink-0 rounded-full"
@@ -261,11 +282,10 @@ export function AdminSurgerySourcePanel({
                         <span className="block truncate font-semibold text-[#123524]">
                           {row.name || row.phone || "İsimsiz"}
                         </span>
-                        {row.name && row.phone ? (
-                          <span className="block truncate text-xs text-[#466254]">
-                            {row.phone}
-                          </span>
-                        ) : null}
+                        <span className="block truncate text-xs text-[#466254]">
+                          {row.name && row.phone ? `${row.phone} · ` : null}
+                          {hintText}
+                        </span>
                       </span>
                       <span className="hidden shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-[#123524] sm:inline-flex">
                         {PLATFORM_LABEL[row.platform]}

@@ -40,15 +40,47 @@ function hasGoogleClickId(row: SourceRow): boolean {
   );
 }
 
+/** Platform + UI’da gösterilecek kısa sinyal (neden bu kaynak?). */
+export type PlatformEvidence = {
+  platform: AdPlatform;
+  /** Örn. "fbclid", "ctwa_clid", "utm_source=facebook", "sinyal yok" */
+  signal: string;
+};
+
 export function classifyAdPlatform(row: SourceRow): AdPlatform {
-  if (hasGoogleClickId(row)) return "google_ads";
-  if (row.fbclid?.trim() || row.ctwa_clid?.trim()) return "meta";
-  if ((row.channel || "").trim().toLowerCase() === "meta_ctwa") return "meta";
+  return classifyAdPlatformWithEvidence(row).platform;
+}
+
+export function classifyAdPlatformWithEvidence(row: SourceRow): PlatformEvidence {
+  if (hasGoogleClickId(row)) {
+    const id = row.gclid?.trim()
+      ? "gclid"
+      : row.gbraid?.trim()
+        ? "gbraid"
+        : "wbraid";
+    return { platform: "google_ads", signal: id };
+  }
+  if (row.ctwa_clid?.trim()) {
+    return { platform: "meta", signal: "ctwa_clid" };
+  }
+  if (row.fbclid?.trim()) {
+    return { platform: "meta", signal: "fbclid" };
+  }
+  if ((row.channel || "").trim().toLowerCase() === "meta_ctwa") {
+    return { platform: "meta", signal: "channel=meta_ctwa" };
+  }
 
   const source = (row.utm_source || "").trim().toLowerCase();
   const medium = (row.utm_medium || "").trim().toLowerCase();
-  if (GOOGLE_SOURCES.has(source)) return "google_ads";
-  if (META_SOURCES.has(source) || META_SOURCES.has(medium)) return "meta";
+  if (GOOGLE_SOURCES.has(source)) {
+    return { platform: "google_ads", signal: `utm_source=${source}` };
+  }
+  if (META_SOURCES.has(source)) {
+    return { platform: "meta", signal: `utm_source=${source}` };
+  }
+  if (META_SOURCES.has(medium)) {
+    return { platform: "meta", signal: `utm_medium=${medium}` };
+  }
   if (
     source ||
     row.utm_medium?.trim() ||
@@ -57,9 +89,20 @@ export function classifyAdPlatform(row: SourceRow): AdPlatform {
     row.msclkid?.trim() ||
     row.ttclid?.trim()
   ) {
-    return "other";
+    const signal = row.msclkid?.trim()
+      ? "msclkid"
+      : row.ttclid?.trim()
+        ? "ttclid"
+        : source
+          ? `utm_source=${source}`
+          : row.utm_medium?.trim()
+            ? `utm_medium=${medium}`
+            : row.utm_campaign?.trim()
+              ? "utm_campaign"
+              : "campaign";
+    return { platform: "other", signal };
   }
-  return "organic";
+  return { platform: "organic", signal: "sinyal yok" };
 }
 
 export function classifySourceEvent(channel?: string | null): SourceEvent {

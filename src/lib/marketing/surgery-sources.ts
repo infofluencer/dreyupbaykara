@@ -5,11 +5,22 @@ import {
   type InheritAttributionRow,
 } from "@/lib/crm/inherit-attribution";
 import {
-  classifyAdPlatform,
+  classifyAdPlatformWithEvidence,
   type AdPlatform,
   type SourceRow,
 } from "@/lib/crm/source-kind";
+import {
+  resolveLeadAttribution,
+  type LeadSourceAttribution,
+} from "@/lib/marketing/attribution";
 import { createClient } from "@/lib/supabase/server";
+
+/** Attribution nereden geldi (audit). */
+export type SurgeryAttrOrigin =
+  | "lead"
+  | "lead_sources"
+  | "sibling"
+  | "none";
 
 export type SurgerySourcePatient = {
   leadId: string;
@@ -19,6 +30,10 @@ export type SurgerySourcePatient = {
   platform: AdPlatform;
   /** ameliyat_edildi'ye geçiş anı */
   surgeryAt: string;
+  /** lead | lead_sources | sibling | none */
+  attrOrigin: SurgeryAttrOrigin;
+  /** Örn. fbclid, ctwa_clid, sinyal yok */
+  attrSignal: string;
 };
 
 export type SurgerySourceStats = {
@@ -35,24 +50,163 @@ const emptyPlatforms = (): Record<AdPlatform, number> => ({
 });
 
 const LEAD_SOURCE_SELECT =
-  "id, contact_id, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, gbraid, wbraid, fbclid, ctwa_clid, msclkid, ttclid, contacts(id, name, phone)";
+  "id, contact_id, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, gbraid, wbraid, fbclid, ctwa_clid, msclkid, ttclid, lead_ref, contacts(id, name, phone)";
 
 const SIBLING_ATTR_SELECT =
-  "id, contact_id, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, gbraid, wbraid, fbclid, ctwa_clid, msclkid, ttclid, created_at";
+  "id, contact_id, site, channel, campaign, utm_source, utm_medium, utm_campaign, gclid, gbraid, wbraid, fbclid, ctwa_clid, msclkid, ttclid, lead_ref, created_at";
+
+const LEAD_SOURCES_ATTR_SELECT =
+  "id, lead_ref, matched_lead_id, site, utm_source, utm_medium, utm_campaign, campaign, gclid, gbraid, wbraid, fbclid, landing_url, created_at";
 
 type LeadRow = SourceRow & {
   id: string;
   contact_id?: string | null;
+  lead_ref?: string | null;
+  site?: string | null;
   contacts?:
     | { id?: string; name?: string | null; phone?: string | null }
     | Array<{ id?: string; name?: string | null; phone?: string | null }>
     | null;
 };
 
+type LeadSourceRow = LeadSourceAttribution & {
+  id: string;
+  matched_lead_id?: string | null;
+  created_at?: string;
+};
+
 function firstContact(lead: LeadRow) {
   const raw = lead.contacts;
   if (!raw) return null;
   return Array.isArray(raw) ? (raw[0] ?? null) : raw;
+}
+
+function clip(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+function toSourceRow(
+  lead: SourceRow & {
+    site?: string | null;
+    lead_ref?: string | null;
+  },
+  source?: LeadSourceAttribution | null,
+): SourceRow & { site?: string | null } {
+  if (!source) return lead;
+  const resolved = resolveLeadAttribution(
+    {
+      site: lead.site,
+      utm_source: lead.utm_source,
+      utm_campaign: lead.utm_campaign,
+      campaign: lead.campaign,
+      gclid: lead.gclid,
+      gbraid: lead.gbraid,
+      wbraid: lead.wbraid,
+      fbclid: lead.fbclid,
+      ctwa_clid: lead.ctwa_clid,
+      lead_ref: lead.lead_ref,
+    },
+    source,
+  );
+  return {
+    site: resolved.resolvedSite ?? resolved.site ?? lead.site,
+    channel: lead.channel,
+    campaign: resolved.campaign ?? lead.campaign,
+    utm_source: resolved.utm_source ?? lead.utm_source,
+    utm_medium: clip(source.utm_medium) ?? lead.utm_medium,
+    utm_campaign: resolved.utm_campaign ?? lead.utm_campaign,
+    gclid: resolved.gclid ?? lead.gclid,
+    gbraid: resolved.gbraid ?? lead.gbraid,
+    wbraid: resolved.wbraid ?? lead.wbraid,
+    fbclid: resolved.fbclid ?? lead.fbclid,
+    ctwa_clid: resolved.ctwa_clid ?? lead.ctwa_clid,
+    msclkid: lead.msclkid,
+    ttclid: lead.ttclid,
+  };
+}
+
+function rowHasStrongerSignal(before: SourceRow, after: SourceRow): boolean {
+  const b = classifyAdPlatformWithEvidence(before);
+  const a = classifyAdPlatformWithEvidence(after);
+  if (b.platform === "organic" && a.platform !== "organic") return true;
+  if (b.signal === "sinyal yok" && a.signal !== "sinyal yok") return true;
+  return false;
+}
+
+/**
+ * lead_sources: lead_ref veya matched_lead_id ile batch yükle.
+ */
+async function loadLeadSourcesForLeads(
+  leads: { id: string; lead_ref?: string | null }[],
+): Promise<{
+  byRef: Map<string, LeadSourceRow>;
+  byMatchedLead: Map<string, LeadSourceRow>;
+}> {
+  const byRef = new Map<string, LeadSourceRow>();
+  const byMatchedLead = new Map<string, LeadSourceRow>();
+  if (!leads.length) return { byRef, byMatchedLead };
+
+  const supabase = await createClient();
+  const refs = [
+    ...new Set(
+      leads.map((l) => clip(l.lead_ref)).filter((r): r is string => Boolean(r)),
+    ),
+  ];
+  const leadIds = leads.map((l) => l.id);
+
+  const chunkSize = 100;
+
+  for (let i = 0; i < refs.length; i += chunkSize) {
+    const chunk = refs.slice(i, i + chunkSize);
+    const { data, error } = await supabase
+      .from("lead_sources")
+      .select(LEAD_SOURCES_ATTR_SELECT)
+      .in("lead_ref", chunk);
+    if (error) {
+      console.error("[marketing] surgery lead_sources by ref:", error.message);
+      continue;
+    }
+    for (const row of (data as LeadSourceRow[]) ?? []) {
+      const ref = clip(row.lead_ref);
+      if (ref && !byRef.has(ref)) byRef.set(ref, row);
+    }
+  }
+
+  for (let i = 0; i < leadIds.length; i += chunkSize) {
+    const chunk = leadIds.slice(i, i + chunkSize);
+    const { data, error } = await supabase
+      .from("lead_sources")
+      .select(LEAD_SOURCES_ATTR_SELECT)
+      .in("matched_lead_id", chunk)
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error(
+        "[marketing] surgery lead_sources by match:",
+        error.message,
+      );
+      continue;
+    }
+    for (const row of (data as LeadSourceRow[]) ?? []) {
+      const matched = clip(row.matched_lead_id);
+      if (matched && !byMatchedLead.has(matched)) {
+        byMatchedLead.set(matched, row);
+      }
+    }
+  }
+
+  return { byRef, byMatchedLead };
+}
+
+function pickSourceForLead(
+  lead: { id: string; lead_ref?: string | null },
+  byRef: Map<string, LeadSourceRow>,
+  byMatchedLead: Map<string, LeadSourceRow>,
+): LeadSourceRow | null {
+  const ref = clip(lead.lead_ref);
+  if (ref && byRef.has(ref)) return byRef.get(ref) ?? null;
+  return byMatchedLead.get(lead.id) ?? null;
 }
 
 /**
@@ -67,6 +221,10 @@ async function firstTouchByContact(
 
   const supabase = await createClient();
   const chunkSize = 100;
+  const siblings: (InheritAttributionRow & {
+    contact_id?: string | null;
+  })[] = [];
+
   for (let i = 0; i < contactIds.length; i += chunkSize) {
     const chunk = contactIds.slice(i, i + chunkSize);
     const { data, error } = await supabase
@@ -81,9 +239,21 @@ async function firstTouchByContact(
     for (const row of (data as (InheritAttributionRow & {
       contact_id?: string | null;
     })[]) ?? []) {
-      const contactId = row.contact_id;
-      if (!contactId || map.has(contactId)) continue;
-      if (isAttributedLead(row)) map.set(contactId, row);
+      siblings.push(row);
+    }
+  }
+
+  const { byRef, byMatchedLead } = await loadLeadSourcesForLeads(
+    siblings.map((s) => ({ id: s.id, lead_ref: s.lead_ref })),
+  );
+
+  for (const row of siblings) {
+    const contactId = row.contact_id;
+    if (!contactId || map.has(contactId)) continue;
+    const source = pickSourceForLead(row, byRef, byMatchedLead);
+    const enriched = toSourceRow(row, source) as InheritAttributionRow;
+    if (isAttributedLead(enriched)) {
+      map.set(contactId, { ...row, ...enriched });
     }
   }
   return map;
@@ -91,7 +261,7 @@ async function firstTouchByContact(
 
 /**
  * Seçili dönemde ameliyat_edildi'ye geçen lead'lerin reklam kaynağı + hasta listesi.
- * Kaynak WhatsApp Ref / CTWA / gclid / fbclid / UTM ile sınıflandırılır.
+ * Kaynak: leads → lead_sources (+ landing_url) → contact first-touch sibling.
  */
 export async function loadSurgerySourceStats(
   startDate: string,
@@ -155,9 +325,16 @@ export async function loadSurgerySourceStats(
     }
   }
 
-  const needsSibling = leads.filter(
-    (lead) => classifyAdPlatform(lead) === "organic" && lead.contact_id,
-  );
+  const { byRef, byMatchedLead } = await loadLeadSourcesForLeads(leads);
+
+  const needsSibling = leads.filter((lead) => {
+    const source = pickSourceForLead(lead, byRef, byMatchedLead);
+    const enriched = toSourceRow(lead, source);
+    return (
+      classifyAdPlatformWithEvidence(enriched).platform === "organic" &&
+      lead.contact_id
+    );
+  });
   const siblingByContact = await firstTouchByContact([
     ...new Set(
       needsSibling
@@ -169,11 +346,30 @@ export async function loadSurgerySourceStats(
   const patients: SurgerySourcePatient[] = [];
 
   for (const lead of leads) {
-    let platform = classifyAdPlatform(lead);
-    if (platform === "organic" && lead.contact_id) {
+    const rawEvidence = classifyAdPlatformWithEvidence(lead);
+    const source = pickSourceForLead(lead, byRef, byMatchedLead);
+    const enriched = toSourceRow(lead, source);
+    let evidence = classifyAdPlatformWithEvidence(enriched);
+    let attrOrigin: SurgeryAttrOrigin = "none";
+
+    if (evidence.platform !== "organic") {
+      attrOrigin =
+        rawEvidence.platform !== "organic"
+          ? "lead"
+          : rowHasStrongerSignal(lead, enriched)
+            ? "lead_sources"
+            : "lead";
+    } else if (lead.contact_id) {
       const sibling = siblingByContact.get(lead.contact_id);
-      if (sibling) platform = classifyAdPlatform(sibling);
+      if (sibling) {
+        evidence = classifyAdPlatformWithEvidence(sibling);
+        if (evidence.platform !== "organic") {
+          attrOrigin = "sibling";
+        }
+      }
     }
+
+    const platform = evidence.platform;
     platforms[platform] += 1;
     const contact = firstContact(lead);
     patients.push({
@@ -183,6 +379,8 @@ export async function loadSurgerySourceStats(
       phone: contact?.phone?.trim() || null,
       platform,
       surgeryAt: surgeryAtByLead.get(lead.id) ?? "",
+      attrOrigin,
+      attrSignal: evidence.signal,
     });
   }
 

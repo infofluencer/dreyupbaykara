@@ -7,30 +7,7 @@ import {
   type MarketingPeriod,
 } from "@/lib/marketing/date-range";
 import { formatPct, formatTry } from "@/lib/marketing/format";
-
-function MetricCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-[#123524]/06 bg-[#f7f9f8] px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#466254]">
-        {label}
-      </p>
-      <p className="mt-1 font-[family-name:var(--font-instrument-sans)] text-2xl font-semibold tabular-nums text-[#123524]">
-        {value}
-      </p>
-      {hint ? (
-        <p className="mt-1 text-[11px] text-[#466254]/80">{hint}</p>
-      ) : null}
-    </div>
-  );
-}
+import { KpiCard } from "@/components/admin/KpiCard";
 
 function DeviceBreakdown({
   rows,
@@ -199,12 +176,17 @@ export function MarketingGoogleInsightsPanel({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
+        <KpiCard
           label="Harcama"
           value={formatTry(insights.totalSpend)}
           hint={`${insights.totalClicks.toLocaleString("tr-TR")} tıklama`}
+          help={{
+            meaning:
+              "Seçili tarih ve sitedeki Google Ads müşteri hesaplarının toplam harcaması.",
+            formula: "Σ metrics.cost (kampanya × gün)",
+          }}
         />
-        <MetricCard
+        <KpiCard
           label="Google dönüşüm"
           value={insights.totalConversions.toLocaleString("tr-TR")}
           hint={
@@ -212,8 +194,13 @@ export function MarketingGoogleInsightsPanel({
               ? `CPA ${formatTry(insights.googleCostPerConversion)}`
               : "Kampanya bazlı toplam"
           }
+          help={{
+            meaning:
+              "Google Ads conversion tag toplamı (form, arama vb.). CRM lead değildir.",
+            formula: "Σ metrics.conversions · CPA = harcama ÷ dönüşüm",
+          }}
         />
-        <MetricCard
+        <KpiCard
           label="Ort. CPC"
           value={insights.avgCpc != null ? formatTry(insights.avgCpc) : "—"}
           hint={
@@ -221,8 +208,12 @@ export function MarketingGoogleInsightsPanel({
               ? `CTR ${formatPct(insights.avgCtr)}`
               : "Tıklama başına maliyet"
           }
+          help={{
+            meaning: "Bir tıklamanın ortalama maliyeti.",
+            formula: "harcama ÷ tıklama · CTR = tıklama ÷ gösterim",
+          }}
         />
-        <MetricCard
+        <KpiCard
           label="Gösterim payı"
           value={
             insights.avgImpressionShare != null
@@ -243,6 +234,12 @@ export function MarketingGoogleInsightsPanel({
                   .join(" · ")
               : "Search kampanyaları"
           }
+          help={{
+            meaning:
+              "Arama ağında reklamın hak ettiği gösterimlerin ne kadarı alındı. Yalnızca Search.",
+            formula:
+              "ortalama search_impression_share · kayıp = bütçe + sıra",
+          }}
         />
       </div>
 

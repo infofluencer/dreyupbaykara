@@ -33,6 +33,7 @@ type MessageRow = {
 
 const TOAST_VISIBLE = 3;
 const BURST_WINDOW_MS = 2500;
+const RECONCILE_MS = 1500;
 
 function previewText(body: string | null): string {
   const text = (body ?? "").replace(/\s+/g, " ").trim();
@@ -45,18 +46,46 @@ function senderLabel(row: ConversationRow | undefined) {
   return row.contact_name?.trim() || row.wa_phone || "WhatsApp";
 }
 
+function isUnread(row: { unread_count?: number | null } | null | undefined) {
+  return (row?.unread_count ?? 0) > 0;
+}
+
+function isTransientFetchError(error: unknown): boolean {
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: string }).message)
+      : String(error ?? "");
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("failed to fetch") ||
+    lower.includes("networkerror") ||
+    lower.includes("abort") ||
+    lower.includes("load failed")
+  );
+}
+
 async function countUnreadConversations(
   supabase: ReturnType<typeof createClient>,
-): Promise<number> {
-  const { count, error } = await supabase
-    .from("conversations")
-    .select("id", { count: "exact", head: true })
-    .gt("unread_count", 0);
-  if (error) {
-    console.error("[wa-notify] unread count:", error.message);
-    return 0;
+): Promise<number | null> {
+  try {
+    const { count, error } = await supabase
+      .from("conversations")
+      .select("id", { count: "exact" })
+      .gt("unread_count", 0)
+      .limit(1);
+    if (error) {
+      if (!isTransientFetchError(error)) {
+        console.error("[wa-notify] unread count:", error.message);
+      }
+      return null;
+    }
+    return count ?? 0;
+  } catch (error) {
+    if (!isTransientFetchError(error)) {
+      console.error("[wa-notify] unread count:", error);
+    }
+    return null;
   }
-  return count ?? 0;
 }
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -126,6 +155,23 @@ export function AdminWhatsAppNotifications() {
     bindNotificationAudioUnlock();
     const supabase = createClient();
     let cancelled = false;
+    let reconcileTimer: ReturnType<typeof setTimeout> | null = null;
+    const unreadRef = { current: 0 };
+
+    const applyUnread = (count: number) => {
+      unreadRef.current = count;
+      setUnread(count);
+    };
+
+    const scheduleReconcile = () => {
+      if (reconcileTimer) clearTimeout(reconcileTimer);
+      reconcileTimer = setTimeout(() => {
+        void countUnreadConversations(supabase).then((count) => {
+          if (cancelled || count == null) return;
+          applyUnread(count);
+        });
+      }, RECONCILE_MS);
+    };
 
     void (async () => {
       const [{ data: seed }, unread] = await Promise.all([
@@ -141,14 +187,8 @@ export function AdminWhatsAppNotifications() {
       for (const row of seed ?? []) {
         namesRef.current.set(row.id, row as ConversationRow);
       }
-      setUnread(unread);
+      if (unread != null) applyUnread(unread);
     })();
-
-    const refreshUnread = () => {
-      void countUnreadConversations(supabase).then((count) => {
-        if (!cancelled) setUnread(count);
-      });
-    };
 
     const pushToast = (title: string, description: string, href: string) =>
       toast.custom(
@@ -217,15 +257,30 @@ export function AdminWhatsAppNotifications() {
         { event: "*", schema: "public", table: "conversations" },
         (payload) => {
           if (payload.eventType === "DELETE") {
-            const oldRow = payload.old as { id?: string } | null;
+            const oldRow = payload.old as ConversationRow | null;
             if (oldRow?.id) namesRef.current.delete(oldRow.id);
-            refreshUnread();
+            if (isUnread(oldRow)) {
+              applyUnread(Math.max(0, unreadRef.current - 1));
+            }
+            scheduleReconcile();
             return;
           }
           const row = payload.new as ConversationRow | null;
           if (!row?.id) return;
+          const wasUnread = isUnread(
+            payload.eventType === "INSERT"
+              ? null
+              : (namesRef.current.get(row.id) ??
+                (payload.old as ConversationRow | null)),
+          );
+          const nowUnread = isUnread(row);
           namesRef.current.set(row.id, row);
-          refreshUnread();
+          if (wasUnread !== nowUnread) {
+            applyUnread(
+              Math.max(0, unreadRef.current + (nowUnread ? 1 : -1)),
+            );
+          }
+          scheduleReconcile();
         },
       )
       .subscribe();
@@ -239,7 +294,7 @@ export function AdminWhatsAppNotifications() {
           const row = payload.new as MessageRow | null;
           if (!row?.id || row.direction !== "inbound") return;
           showInboundToast(row);
-          refreshUnread();
+          scheduleReconcile();
           dispatchWaInboxRefresh({
             conversationId: row.conversation_id,
             message: {
@@ -260,6 +315,7 @@ export function AdminWhatsAppNotifications() {
 
     return () => {
       cancelled = true;
+      if (reconcileTimer) clearTimeout(reconcileTimer);
       const burst = burstRef.current;
       if (burst.timer) clearTimeout(burst.timer);
       void supabase.removeChannel(conversationsChannel);

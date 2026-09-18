@@ -195,7 +195,7 @@ export async function AdminHomeInsights({
 
         <AdminSurgerySourcePanel
           title="Ameliyat — kaynak"
-          hint={`${rangeLabel} · ${siteLabel} · pasta dilimine tıklayınca liste filtrelenir. Kaynak WhatsApp Ref / CTWA / click ID ile tespit edilir.`}
+          hint={`${rangeLabel} · ${siteLabel} · pasta dilimine tıklayınca liste filtrelenir. Kaynak: lead alanları → Ref/click log → contact mirası. Satırda sinyal görünür.`}
           total={surgery.total}
           platforms={surgery.platforms}
           patients={surgery.patients}

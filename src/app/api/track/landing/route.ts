@@ -13,6 +13,39 @@ export const runtime = "nodejs";
 
 const MAX_LEN = 500;
 
+/** WordPress reklam sitelerinden cross-origin landing beacon. */
+const ALLOWED_ORIGINS = new Set([
+  "https://endospineistanbul.com",
+  "https://www.endospineistanbul.com",
+  "https://fitikameliyati.com",
+  "https://www.fitikameliyati.com",
+  "https://endoskopikbelameliyati.com",
+  "https://www.endoskopikbelameliyati.com",
+]);
+
+function corsHeaders(request: NextRequest): HeadersInit {
+  const origin = request.headers.get("origin");
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+}
+
+function jsonWithCors(
+  request: NextRequest,
+  body: unknown,
+  init?: { status?: number },
+) {
+  return NextResponse.json(body, {
+    status: init?.status,
+    headers: corsHeaders(request),
+  });
+}
+
 function clip(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -20,12 +53,19 @@ function clip(value: unknown): string | null {
   return trimmed.slice(0, MAX_LEN);
 }
 
+export function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders(request),
+  });
+}
+
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false }, { status: 400 });
+    return jsonWithCors(request, { ok: false }, { status: 400 });
   }
 
   const tracking: TrackingParams & { landing_url: string | null } = {
@@ -51,12 +91,12 @@ export async function POST(request: NextRequest) {
   const merged = mergeTrackingParams(tracking, fromLandingUrl);
 
   if (!hasPaidTrackingParams(merged)) {
-    return NextResponse.json({ ok: true, skipped: true });
+    return jsonWithCors(request, { ok: true, skipped: true });
   }
 
   const supabase = createServiceClient();
   if (!supabase) {
-    return NextResponse.json({ ok: false }, { status: 503 });
+    return jsonWithCors(request, { ok: false }, { status: 503 });
   }
 
   const { error } = await supabase.from("lead_sources").insert({
@@ -82,8 +122,8 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error("[landing] insert failed:", error.message);
-    return NextResponse.json({ ok: false }, { status: 500 });
+    return jsonWithCors(request, { ok: false }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return jsonWithCors(request, { ok: true });
 }

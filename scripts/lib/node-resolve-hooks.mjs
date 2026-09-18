@@ -9,7 +9,9 @@ import path from "node:path";
 import { existsSync } from "node:fs";
 
 const SRC = path.resolve(import.meta.dirname, "../../src");
-const EMPTY = "data:text/javascript,export{}";
+const EMPTY = pathToFileURL(
+  path.resolve(import.meta.dirname, "empty-module.mjs"),
+).href;
 const EXTENSIONS = ["", ".ts", ".tsx", ".mjs", ".js", "/index.ts", "/index.js"];
 
 export function resolve(specifier, context, nextResolve) {

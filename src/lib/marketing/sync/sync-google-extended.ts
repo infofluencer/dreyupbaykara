@@ -19,6 +19,7 @@ import {
   MarketingTokenError,
 } from "@/lib/marketing/tokens";
 import { chunkRows, mergeRowsByKey } from "@/lib/marketing/sync/upsert-rows";
+import type { RemoteSegmentStat } from "@/lib/marketing/types";
 
 export type GoogleExtendedSyncResult = {
   deviceRows: number;
@@ -56,7 +57,7 @@ async function upsertSegmentRows(
   rows: Array<{
     externalCampaignId: string;
     date: string;
-    segmentType: "device" | "conversion_action" | "geo";
+    segmentType: RemoteSegmentStat["segmentType"];
     segmentValue: string;
     spend: number;
     impressions: number;

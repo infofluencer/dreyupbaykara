@@ -25,10 +25,13 @@ export function WhatsAppUnreadProvider({
   children: ReactNode;
   initialUnread?: number;
 }) {
-  const [unreadConversations, setUnreadConversations] = useState(initialUnread);
+  const [unreadConversations, setUnreadState] = useState(initialUnread);
+  const setUnreadConversations = useCallback((count: number) => {
+    setUnreadState(Math.max(0, count));
+  }, []);
   const value = useMemo(
     () => ({ unreadConversations, setUnreadConversations }),
-    [unreadConversations],
+    [unreadConversations, setUnreadConversations],
   );
   return (
     <WhatsAppUnreadContext.Provider value={value}>
@@ -37,17 +40,15 @@ export function WhatsAppUnreadProvider({
   );
 }
 
+const FALLBACK: WhatsAppUnreadContextValue = {
+  unreadConversations: 0,
+  setUnreadConversations: () => {},
+};
+
 export function useWhatsAppUnread() {
-  const ctx = useContext(WhatsAppUnreadContext);
-  return ctx ?? { unreadConversations: 0, setUnreadConversations: () => {} };
+  return useContext(WhatsAppUnreadContext) ?? FALLBACK;
 }
 
 export function useSetWhatsAppUnread() {
-  const { setUnreadConversations } = useWhatsAppUnread();
-  return useCallback(
-    (count: number) => {
-      setUnreadConversations(Math.max(0, count));
-    },
-    [setUnreadConversations],
-  );
+  return useWhatsAppUnread().setUnreadConversations;
 }

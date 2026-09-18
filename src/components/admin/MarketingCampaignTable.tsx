@@ -22,7 +22,13 @@ function MetricCell({
   return <span>{value}</span>;
 }
 
-function CampaignRow({ row }: { row: CampaignPerformanceRow }) {
+function CampaignRow({
+  row,
+  isMeta,
+}: {
+  row: CampaignPerformanceRow;
+  isMeta: boolean;
+}) {
   const isActive = row.spend > 0 || row.clicks > 0;
 
   return (
@@ -37,7 +43,9 @@ function CampaignRow({ row }: { row: CampaignPerformanceRow }) {
       <td className="px-3 py-2.5 text-[#466254]">
         {row.site || <span className="text-amber-700">eşleşmedi</span>}
       </td>
-      <td className="px-3 py-2.5">{PLATFORM_LABEL[row.platform]}</td>
+      {isMeta ? null : (
+        <td className="px-3 py-2.5">{PLATFORM_LABEL[row.platform]}</td>
+      )}
       <td className="px-3 py-2.5 tabular-nums">{formatTry(row.spend)}</td>
       <td className="px-3 py-2.5 tabular-nums">
         {row.clicks.toLocaleString("tr-TR")}
@@ -49,7 +57,11 @@ function CampaignRow({ row }: { row: CampaignPerformanceRow }) {
               ? row.googleConversions.toLocaleString("tr-TR")
               : "—"
           }
-          emptyHint="Google Ads dönüşüm tag'i — API'den"
+          emptyHint={
+            isMeta
+              ? "Meta Ads sonuç — WhatsApp sohbet / lead, API'den"
+              : "Google Ads dönüşüm tag'i — API'den"
+          }
         />
       </td>
       <td className="px-3 py-2.5 tabular-nums text-[#0b6b45]">
@@ -68,9 +80,12 @@ function CampaignRow({ row }: { row: CampaignPerformanceRow }) {
 
 export function MarketingCampaignTable({
   performance,
+  channel = "google",
 }: {
   performance: CampaignPerformanceResult;
+  channel?: "google" | "meta";
 }) {
+  const isMeta = channel === "meta";
   const { rows, attribution } = performance;
   const activeRows = rows.filter((row) => row.spend > 0 || row.clicks > 0);
   const inactiveRows = rows.filter((row) => row.spend === 0 && row.clicks === 0);
@@ -86,11 +101,15 @@ export function MarketingCampaignTable({
   return (
     <div className="mt-4 space-y-4">
       <div className="rounded-xl bg-[#f7f9f8] px-4 py-3 text-sm text-[#466254]">
-        <p className="font-semibold text-[#123524]">Lead sütunu neden boş?</p>
+        <p className="font-semibold text-[#123524]">Sütunlar ne anlama geliyor?</p>
         <ul className="mt-2 list-inside list-disc space-y-1 text-[13px]">
           <li>
-            <strong className="text-[#1a56db]">Google dönüşüm</strong> — reklam
-            panelindeki conversion (form, arama vb.), API&apos;den gelir.
+            <strong className="text-[#1a56db]">
+              {isMeta ? "Meta sonuç" : "Google dönüşüm"}
+            </strong>{" "}
+            {isMeta
+              ? "— Ads Manager sonucu (WhatsApp sohbet / lead formu), API'den gelir."
+              : "— reklam panelindeki conversion (form, arama vb.), API'den gelir."}
           </li>
           <li>
             <strong className="text-[#0b6b45]">CRM lead</strong> — form/WhatsApp
@@ -99,16 +118,16 @@ export function MarketingCampaignTable({
             adına eşleşir (lead kaydı ana sitede olsa bile).
           </li>
         </ul>
-        {attribution.crmGoogleUnmatched > 0 ? (
+        {!isMeta && attribution.crmGoogleUnmatched > 0 ? (
           <p className="mt-2 text-[13px] text-amber-900">
             {attribution.crmGoogleUnmatched} CRM kaydı Google tıklaması var ama
             kampanya adı eşleşmedi (farklı site veya utm boş).
           </p>
         ) : null}
         <p className="mt-2 text-xs text-[#466254]/80">
-          Özet kartındaki toplam lead: platform bazlı CRM sayımı (gclid / fbclid /
-          Click-to-WhatsApp). Kampanya satırındaki CRM lead: utm eşleşmesi —
-          farklı metrikler.
+          Özet kartındaki toplam lead: platform bazlı CRM sayımı
+          {isMeta ? " (fbclid / Click-to-WhatsApp)." : " (gclid / fbclid / Click-to-WhatsApp)."}{" "}
+          Kampanya satırındaki CRM lead: utm eşleşmesi — farklı metrikler.
         </p>
       </div>
 
@@ -118,18 +137,20 @@ export function MarketingCampaignTable({
             <tr>
               <th className="px-3 py-2">Kampanya</th>
               <th className="px-3 py-2">Site</th>
-              <th className="px-3 py-2">Platform</th>
+              {isMeta ? null : <th className="px-3 py-2">Platform</th>}
               <th className="px-3 py-2">Harcama</th>
               <th className="px-3 py-2">Tıklama</th>
-              <th className="px-3 py-2 text-[#1a56db]">Google dön.</th>
+              <th className="px-3 py-2 text-[#1a56db]">
+                {isMeta ? "Meta sonuç" : "Google dön."}
+              </th>
               <th className="px-3 py-2 text-[#0b6b45]">CRM lead</th>
-              <th className="px-3 py-2">Google CPA</th>
+              <th className="px-3 py-2">{isMeta ? "Meta CPA" : "Google CPA"}</th>
               <th className="px-3 py-2">CRM CPL</th>
             </tr>
           </thead>
           <tbody>
             {activeRows.map((row) => (
-              <CampaignRow key={row.id} row={row} />
+              <CampaignRow key={row.id} row={row} isMeta={isMeta} />
             ))}
           </tbody>
         </table>
@@ -144,7 +165,7 @@ export function MarketingCampaignTable({
             <table className="w-full min-w-[56rem] text-left text-sm">
               <tbody>
                 {inactiveRows.map((row) => (
-                  <CampaignRow key={row.id} row={row} />
+                  <CampaignRow key={row.id} row={row} isMeta={isMeta} />
                 ))}
               </tbody>
             </table>

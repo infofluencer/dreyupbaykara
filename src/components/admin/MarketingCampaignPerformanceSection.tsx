@@ -58,7 +58,10 @@ export async function MarketingCampaignPerformanceSection({
             ? " 90+ günde kampanya CRM sütunu atlanır (hız için); özet kartındaki CRM lead geçerli."
             : null}
         </p>
-        <MarketingCampaignTable performance={campaignPerformance} />
+        <MarketingCampaignTable
+          performance={campaignPerformance}
+          channel={adPlatform === "meta" ? "meta" : "google"}
+        />
       </section>
 
       {googleLeads ? (
