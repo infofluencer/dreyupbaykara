@@ -4,19 +4,14 @@ import {
   createContext,
   useCallback,
   useContext,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
 
-type WhatsAppUnreadContextValue = {
-  unreadConversations: number;
-  setUnreadConversations: (count: number) => void;
-};
+type SetUnread = (count: number) => void;
 
-const WhatsAppUnreadContext = createContext<WhatsAppUnreadContextValue | null>(
-  null,
-);
+const WhatsAppUnreadCountContext = createContext(0);
+const WhatsAppUnreadSetContext = createContext<SetUnread>(() => {});
 
 export function WhatsAppUnreadProvider({
   children,
@@ -26,29 +21,28 @@ export function WhatsAppUnreadProvider({
   initialUnread?: number;
 }) {
   const [unreadConversations, setUnreadState] = useState(initialUnread);
-  const setUnreadConversations = useCallback((count: number) => {
-    setUnreadState(Math.max(0, count));
+  const setUnreadConversations = useCallback<SetUnread>((count) => {
+    const next = Math.max(0, count);
+    setUnreadState((prev) => (prev === next ? prev : next));
   }, []);
-  const value = useMemo(
-    () => ({ unreadConversations, setUnreadConversations }),
-    [unreadConversations, setUnreadConversations],
-  );
+
   return (
-    <WhatsAppUnreadContext.Provider value={value}>
-      {children}
-    </WhatsAppUnreadContext.Provider>
+    <WhatsAppUnreadSetContext.Provider value={setUnreadConversations}>
+      <WhatsAppUnreadCountContext.Provider value={unreadConversations}>
+        {children}
+      </WhatsAppUnreadCountContext.Provider>
+    </WhatsAppUnreadSetContext.Provider>
   );
 }
-
-const FALLBACK: WhatsAppUnreadContextValue = {
-  unreadConversations: 0,
-  setUnreadConversations: () => {},
-};
 
 export function useWhatsAppUnread() {
-  return useContext(WhatsAppUnreadContext) ?? FALLBACK;
+  return {
+    unreadConversations: useContext(WhatsAppUnreadCountContext),
+    setUnreadConversations: useContext(WhatsAppUnreadSetContext),
+  };
 }
 
+/** Setter-only hook — does not re-render when the unread count changes. */
 export function useSetWhatsAppUnread() {
-  return useWhatsAppUnread().setUnreadConversations;
+  return useContext(WhatsAppUnreadSetContext);
 }

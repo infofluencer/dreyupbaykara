@@ -33,7 +33,7 @@ type MessageRow = {
 
 const TOAST_VISIBLE = 3;
 const BURST_WINDOW_MS = 2500;
-const RECONCILE_MS = 1500;
+const RECONCILE_MS = 2500;
 
 function previewText(body: string | null): string {
   const text = (body ?? "").replace(/\s+/g, " ").trim();
@@ -159,6 +159,7 @@ export function AdminWhatsAppNotifications() {
     const unreadRef = { current: 0 };
 
     const applyUnread = (count: number) => {
+      if (unreadRef.current === count) return;
       unreadRef.current = count;
       setUnread(count);
     };

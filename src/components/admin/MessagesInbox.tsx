@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import {
+  memo,
   useCallback,
+  useDeferredValue,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -21,12 +23,10 @@ import {
   FileText,
   Loader2,
   MessageCircle,
-  Paperclip,
   Search,
-  Send,
-  X,
 } from "lucide-react";
 import { LeadStatusBadge } from "@/components/admin/LeadStatusBadge";
+import { MessageComposer } from "@/components/admin/MessageComposer";
 import {
   LEAD_STATUS_FILTERS,
   pickDisplayLead,
@@ -62,7 +62,6 @@ import {
   WA_INBOX_REFRESH_EVENT,
   type WaInboxRefreshDetail,
 } from "@/lib/whatsapp/inbox-events";
-import { CANNED_MESSAGES } from "@/lib/whatsapp/canned-messages";
 import {
   matchesNameOrPhone,
   nationalPhoneDigits,
@@ -301,7 +300,6 @@ export function MessagesInbox({
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [sendingMedia, setSendingMedia] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -310,21 +308,23 @@ export function MessagesInbox({
   const threadRef = useRef<HTMLDivElement>(null);
   /** "Daha eski mesajlar" sonrası otomatik en-alta kaydırmayı bir tur atla. */
   const skipAutoScrollRef = useRef(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedIdRef = useRef(selectedId);
-  selectedIdRef.current = selectedId;
   const timeRangeRef = useRef(timeRange);
-  timeRangeRef.current = timeRange;
   const conversationsRef = useRef(conversations);
-  conversationsRef.current = conversations;
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
   /** Last conversation id whose server `initialMessages` were applied — skip soft-nav echoes. */
   const appliedServerMessagesForRef = useRef<string | null>(null);
   const skipNextUrlSyncRef = useRef(false);
+  /** Keep search input snappy; filter the list with a deferred query. */
+  const deferredQuery = useDeferredValue(query);
+
+  useLayoutEffect(() => {
+    selectedIdRef.current = selectedId;
+    timeRangeRef.current = timeRange;
+    conversationsRef.current = conversations;
+  }, [selectedId, timeRange, conversations]);
 
   const filtered = useMemo(() => {
-    const q = query.trim();
+    const q = deferredQuery.trim();
     const allowedStatuses = statusesForFilter(leadStatusFilter);
     return conversations.filter((row) => {
       if (filter === "open" && row.status !== "open") return false;
@@ -343,7 +343,7 @@ export function MessagesInbox({
       if (!q) return true;
       return matchesNameOrPhone(row.contact_name, row.wa_phone, q);
     });
-  }, [conversations, filter, leadStatusFilter, query]);
+  }, [conversations, filter, leadStatusFilter, deferredQuery]);
 
   const selected =
     conversations.find((row) => row.id === selectedId) ??
@@ -376,7 +376,6 @@ export function MessagesInbox({
     if (cutoff) request = request.gte("last_message_at", cutoff);
     const { data, error } = await request.limit(limit);
     if (error) throw error;
-    console.log("[inbox] refetched conversations:", data?.length, selectedRange);
 
     const prev = conversationsRef.current;
     const byContact = new Map(
@@ -434,7 +433,9 @@ export function MessagesInbox({
     setConversations(next);
   }, []);
   const fetchConversationsRef = useRef(fetchConversations);
-  fetchConversationsRef.current = fetchConversations;
+  useLayoutEffect(() => {
+    fetchConversationsRef.current = fetchConversations;
+  }, [fetchConversations]);
 
   /**
    * Realtime her mesajda tetikleniyor; yoğun saatte saniyede birkaç kez
@@ -534,7 +535,6 @@ export function MessagesInbox({
       setLoadError(null);
       setPendingFile(null);
       setMediaError(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
       appliedServerMessagesForRef.current = id;
       setConversations((rows) =>
         rows.map((row) =>
@@ -713,7 +713,6 @@ export function MessagesInbox({
         "postgres_changes",
         { event: "*", schema: "public", table: "conversations" },
         (payload) => {
-          console.log("[inbox] conversations event", payload.eventType);
           if (payload.eventType !== "DELETE" && payload.new) {
             const row = payload.new as Record<string, unknown>;
             if (row.id) {
@@ -726,6 +725,17 @@ export function MessagesInbox({
                   return prev;
                 }
                 const mapped = mapConversation(row, previous);
+                if (
+                  mapped.last_message_at === previous.last_message_at &&
+                  mapped.last_message_preview === previous.last_message_preview &&
+                  mapped.last_message_direction ===
+                    previous.last_message_direction &&
+                  mapped.unread_count === previous.unread_count &&
+                  mapped.contact_name === previous.contact_name &&
+                  mapped.status === previous.status
+                ) {
+                  return prev;
+                }
                 const next = prev.map((item) =>
                   item.id === id ? mapped : item,
                 );
@@ -741,12 +751,13 @@ export function MessagesInbox({
               });
             }
           }
-          scheduleConversationsRefresh();
+          // Joins (pipeline lead) need a full refetch — debounce, skip DELETE noise.
+          if (payload.eventType !== "DELETE") {
+            scheduleConversationsRefresh();
+          }
         },
       )
-      .subscribe((status, err) => {
-        console.log("[inbox] conversations channel:", status, err ?? "");
-      });
+      .subscribe();
 
     // Filterless messages channel — same pattern as AdminWhatsAppNotifications
     // (filtered conversation_id channels often miss events under RLS).
@@ -765,12 +776,13 @@ export function MessagesInbox({
           const row = payload.new as Record<string, unknown> | null;
           if (!row?.id) return;
           mergeMessage(row);
-          scheduleConversationsRefresh();
+          // Status ticks (delivered/read) must not refetch the whole list.
+          if (payload.eventType === "INSERT") {
+            scheduleConversationsRefresh();
+          }
         },
       )
-      .subscribe((status, err) => {
-        console.log("[inbox] messages channel:", status, err ?? "");
-      });
+      .subscribe();
 
     const onBridgeRefresh = (event: Event) => {
       const detail = (event as CustomEvent<WaInboxRefreshDetail>).detail;
@@ -848,81 +860,12 @@ export function MessagesInbox({
     return () => window.clearInterval(timer);
   }, [selectedId, fetchMessages]);
 
-  async function handleSend(presetBody?: string) {
-    if (!selected) return;
-    if (pendingFile && !presetBody) {
-      await handleSendMedia();
-      return;
-    }
-    const body = (presetBody ?? draftRef.current).trim();
-    if (!body) return;
-    if (apiEnabled && !windowOpen) return;
-
-    if (!presetBody) {
-      draftRef.current = "";
-      setDraft("");
-    }
-
-    const conversationId = selected.id;
-    const phone = selected.wa_phone ?? "";
-    const optimistic: InboxMessage = {
-      id: `local_${crypto.randomUUID()}`,
-      direction: "outbound",
-      body,
-      status: "pending",
-      automated: false,
-      created_at: new Date().toISOString(),
-      media_type: null,
-      media_url: null,
-      source: "panel",
-    };
-    setMessages((rows) => [...rows, optimistic]);
-    setConversations((rows) =>
-      rows.map((row) =>
-        row.id === conversationId
-          ? {
-              ...row,
-              last_message_at: optimistic.created_at,
-              last_message_preview: body.slice(0, 160),
-              last_message_direction: "outbound",
-              unread_count: 0,
-            }
-          : row,
-      ),
-    );
-
-    const fd = new FormData();
-    fd.set("conversation_id", conversationId);
-    fd.set("phone", phone);
-    fd.set("body", body);
-    try {
-      await sendConversationMessage(fd);
-      if (selectedIdRef.current !== conversationId) return;
-      setMessages((rows) =>
-        rows.map((row) =>
-          row.id === optimistic.id && row.status === "pending"
-            ? { ...row, status: "sent" }
-            : row,
-        ),
-      );
-    } catch (error) {
-      console.error("[inbox] send:", error);
-      if (selectedIdRef.current !== conversationId) return;
-      setMessages((rows) =>
-        rows.map((row) =>
-          row.id === optimistic.id ? { ...row, status: "failed" } : row,
-        ),
-      );
-    }
-  }
-
-  function clearPendingFile() {
+  const clearPendingFile = useCallback(() => {
     setPendingFile(null);
     setMediaError(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
+  }, []);
 
-  function onPickFile(file: File | undefined) {
+  const onPickFile = useCallback((file: File | undefined) => {
     setMediaError(null);
     if (!file) return;
     const mime = (file.type || "").toLowerCase();
@@ -937,105 +880,184 @@ export function MessagesInbox({
       name.endsWith(".pdf");
     if (!ok) {
       setMediaError("JPEG, PNG veya PDF seçin.");
-      clearPendingFile();
+      setPendingFile(null);
       return;
     }
     const isPdf = mime === "application/pdf" || name.endsWith(".pdf");
     const max = isPdf ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > max) {
-      setMediaError(isPdf ? "PDF en fazla 20 MB olabilir." : "Görsel en fazla 5 MB olabilir.");
-      clearPendingFile();
+      setMediaError(
+        isPdf ? "PDF en fazla 20 MB olabilir." : "Görsel en fazla 5 MB olabilir.",
+      );
+      setPendingFile(null);
       return;
     }
     setPendingFile(file);
-  }
+  }, []);
 
-  async function handleSendMedia() {
-    if (!selected || !pendingFile) return;
-    if (apiEnabled && !windowOpen) return;
-    if (sendingMedia) return;
+  const handleSendMedia = useCallback(
+    async (caption: string) => {
+      const selectedRow =
+        conversationsRef.current.find((row) => row.id === selectedIdRef.current) ??
+        null;
+      if (!selectedRow || !pendingFile) return;
+      if (apiEnabled && !windowOpen) return;
+      if (sendingMedia) return;
 
-    const file = pendingFile;
-    const caption = draftRef.current.trim();
-    const conversationId = selected.id;
-    const phone = selected.wa_phone ?? "";
-    const isPdf =
-      file.type === "application/pdf" ||
-      file.name.toLowerCase().endsWith(".pdf");
-    const mediaType = isPdf ? "document" : "image";
-    const preview = caption || file.name;
-    const localPreviewUrl = URL.createObjectURL(file);
+      const file = pendingFile;
+      const trimmedCaption = caption.trim();
+      const conversationId = selectedRow.id;
+      const phone = selectedRow.wa_phone ?? "";
+      const isPdf =
+        file.type === "application/pdf" ||
+        file.name.toLowerCase().endsWith(".pdf");
+      const mediaType = isPdf ? "document" : "image";
+      const preview = trimmedCaption || file.name;
+      const localPreviewUrl = URL.createObjectURL(file);
 
-    setSendingMedia(true);
-    setMediaError(null);
-    draftRef.current = "";
-    setDraft("");
-    clearPendingFile();
+      setSendingMedia(true);
+      setMediaError(null);
+      setPendingFile(null);
 
-    const optimistic: InboxMessage = {
-      id: `local_${crypto.randomUUID()}`,
-      direction: "outbound",
-      body: preview,
-      status: "pending",
-      automated: false,
-      created_at: new Date().toISOString(),
-      media_type: mediaType,
-      media_url: localPreviewUrl,
-      source: "panel",
-    };
-    setMessages((rows) => [...rows, optimistic]);
-    setConversations((rows) =>
-      rows.map((row) =>
-        row.id === conversationId
-          ? {
-              ...row,
-              last_message_at: optimistic.created_at,
-              last_message_preview: preview.slice(0, 160),
-              last_message_direction: "outbound",
-              unread_count: 0,
-            }
-          : row,
-      ),
-    );
-
-    const fd = new FormData();
-    fd.set("conversation_id", conversationId);
-    fd.set("phone", phone);
-    fd.set("caption", caption);
-    fd.set("file", file);
-    try {
-      await sendConversationMedia(fd);
-      if (selectedIdRef.current !== conversationId) return;
-      setMessages((rows) =>
+      const optimistic: InboxMessage = {
+        id: `local_${crypto.randomUUID()}`,
+        direction: "outbound",
+        body: preview,
+        status: "pending",
+        automated: false,
+        created_at: new Date().toISOString(),
+        media_type: mediaType,
+        media_url: localPreviewUrl,
+        source: "panel",
+      };
+      setMessages((rows) => [...rows, optimistic]);
+      setConversations((rows) =>
         rows.map((row) =>
-          row.id === optimistic.id && row.status === "pending"
-            ? { ...row, status: "sent" }
+          row.id === conversationId
+            ? {
+                ...row,
+                last_message_at: optimistic.created_at,
+                last_message_preview: preview.slice(0, 160),
+                last_message_direction: "outbound",
+                unread_count: 0,
+              }
             : row,
         ),
       );
-    } catch (error) {
-      console.error("[inbox] media send:", error);
-      const message =
-        error instanceof Error ? error.message : "Medya gönderilemedi.";
-      if (selectedIdRef.current === conversationId) {
-        setMediaError(message);
+
+      const fd = new FormData();
+      fd.set("conversation_id", conversationId);
+      fd.set("phone", phone);
+      fd.set("caption", trimmedCaption);
+      fd.set("file", file);
+      try {
+        await sendConversationMedia(fd);
+        if (selectedIdRef.current !== conversationId) return;
+        setMessages((rows) =>
+          rows.map((row) =>
+            row.id === optimistic.id && row.status === "pending"
+              ? { ...row, status: "sent" }
+              : row,
+          ),
+        );
+      } catch (error) {
+        console.error("[inbox] media send:", error);
+        const message =
+          error instanceof Error ? error.message : "Medya gönderilemedi.";
+        if (selectedIdRef.current === conversationId) {
+          setMediaError(message);
+          setMessages((rows) =>
+            rows.map((row) =>
+              row.id === optimistic.id ? { ...row, status: "failed" } : row,
+            ),
+          );
+        }
+      } finally {
+        setSendingMedia(false);
+      }
+    },
+    [apiEnabled, pendingFile, sendingMedia, windowOpen],
+  );
+
+  const handleSend = useCallback(
+    async (body: string) => {
+      const selectedRow =
+        conversationsRef.current.find((row) => row.id === selectedIdRef.current) ??
+        null;
+      if (!selectedRow) return;
+      if (pendingFile) {
+        await handleSendMedia(body);
+        return;
+      }
+      const trimmed = body.trim();
+      if (!trimmed) return;
+      if (apiEnabled && !windowOpen) return;
+
+      const conversationId = selectedRow.id;
+      const phone = selectedRow.wa_phone ?? "";
+      const optimistic: InboxMessage = {
+        id: `local_${crypto.randomUUID()}`,
+        direction: "outbound",
+        body: trimmed,
+        status: "pending",
+        automated: false,
+        created_at: new Date().toISOString(),
+        media_type: null,
+        media_url: null,
+        source: "panel",
+      };
+      setMessages((rows) => [...rows, optimistic]);
+      setConversations((rows) =>
+        rows.map((row) =>
+          row.id === conversationId
+            ? {
+                ...row,
+                last_message_at: optimistic.created_at,
+                last_message_preview: trimmed.slice(0, 160),
+                last_message_direction: "outbound",
+                unread_count: 0,
+              }
+            : row,
+        ),
+      );
+
+      const fd = new FormData();
+      fd.set("conversation_id", conversationId);
+      fd.set("phone", phone);
+      fd.set("body", trimmed);
+      try {
+        await sendConversationMessage(fd);
+        if (selectedIdRef.current !== conversationId) return;
+        setMessages((rows) =>
+          rows.map((row) =>
+            row.id === optimistic.id && row.status === "pending"
+              ? { ...row, status: "sent" }
+              : row,
+          ),
+        );
+      } catch (error) {
+        console.error("[inbox] send:", error);
+        if (selectedIdRef.current !== conversationId) return;
         setMessages((rows) =>
           rows.map((row) =>
             row.id === optimistic.id ? { ...row, status: "failed" } : row,
           ),
         );
       }
-    } finally {
-      setSendingMedia(false);
-    }
-  }
+    },
+    [apiEnabled, handleSendMedia, pendingFile, windowOpen],
+  );
 
-  function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      void handleSend();
-    }
-  }
+  const onSendQuick = useCallback(
+    (id: string, body: string) => {
+      if (sendingQuickId) return;
+      setSendingQuickId(id);
+      void handleSend(body).finally(() => {
+        setSendingQuickId((current) => (current === id ? null : current));
+      });
+    },
+    [handleSend, sendingQuickId],
+  );
 
   function onListKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (!filtered.length) return;
@@ -1194,69 +1216,14 @@ export function MessagesInbox({
               </p>
             </div>
           ) : (
-            filtered.map((row) => {
-              const active = row.id === selectedId;
-              const awaiting =
-                row.status === "open" && row.last_message_direction === "inbound";
-              const label = row.contact_name || row.wa_phone || "Bilinmeyen";
-              return (
-                <button
-                  key={row.id}
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  aria-label={`${label}${row.pipelineLead?.status ? `, ${row.pipelineLead.status}` : ""}${row.unread_count ? `, ${row.unread_count} okunmamış` : ""}`}
-                  onClick={() => selectConversation(row.id)}
-                  className={`flex min-h-16 w-full items-center gap-3 border-b border-[#123524]/08 px-4 py-3.5 text-left transition ${
-                    active ? "bg-[#e7f5ed]" : "hover:bg-[#f7f9f8]"
-                  }`}
-                >
-                  <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
-                    style={{
-                      backgroundColor: avatarColor(row.id),
-                    }}
-                    aria-hidden
-                  >
-                    {avatarInitial(row.contact_name, row.wa_phone)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate font-semibold text-[#123524]">{label}</p>
-                      <span className="shrink-0 text-[10px] text-[#466254]">
-                        {listTimeLabel(row.last_message_at)}
-                      </span>
-                    </div>
-                    {row.pipelineLead?.status ? (
-                      <div className="mt-1">
-                        <LeadStatusBadge
-                          status={row.pipelineLead.status}
-                          needsFollowup={row.pipelineLead.needs_followup}
-                          hadSurgery={row.pipelineLead.had_surgery}
-                        />
-                      </div>
-                    ) : null}
-                    <div className="mt-0.5 flex items-center gap-2">
-                      {awaiting ? (
-                        <span
-                          className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0b6b45]"
-                          title="Yanıt bekliyor"
-                          aria-hidden
-                        />
-                      ) : null}
-                      <p className="min-w-0 flex-1 truncate text-xs text-[#466254]">
-                        {row.last_message_preview || row.wa_phone || "—"}
-                      </p>
-                      {row.unread_count > 0 ? (
-                        <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#0b6b45] px-1.5 text-[10px] font-bold text-white">
-                          {row.unread_count}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                </button>
-              );
-            })
+            filtered.map((row) => (
+              <ConversationListItem
+                key={row.id}
+                row={row}
+                active={row.id === selectedId}
+                onSelect={selectConversation}
+              />
+            ))
           )}
           {filtered.length > 0 && listCapped ? (
             <p className="px-4 py-3 text-center text-[11px] leading-5 text-[#466254]">
@@ -1437,170 +1404,34 @@ export function MessagesInbox({
                       </span>
                     )}
                   </div>
-                  {messages.map((message, index) => {
-                  const prev = messages[index - 1];
-                  const showDay =
-                    !prev || dayKey(prev.created_at) !== dayKey(message.created_at);
-                  const channel = sourceLabel(message.source);
-                  return (
-                    <div key={message.id}>
-                      {showDay ? (
-                        <p className="my-3 text-center text-[11px] font-semibold text-[#466254]">
-                          <span className="rounded-full bg-white/80 px-3 py-1">
-                            {threadDayLabel(message.created_at)}
-                          </span>
-                        </p>
-                      ) : null}
-                      <div
-                        className={`mb-1.5 max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
-                          message.direction === "outbound"
-                            ? "ml-auto bg-[#d9fdd3]"
-                            : "mr-auto bg-white"
-                        }`}
-                      >
-                        {message.media_type && message.media_url ? (
-                          <MessageMedia
-                            type={message.media_type}
-                            mediaId={message.media_url}
-                          />
-                        ) : null}
-                        <MessageBody text={message.body || "Medya içeriği"} />
-                        <p className="mt-1 flex items-center justify-end gap-1 text-[10px] text-[#466254]">
-                          {channel ? <span>{channel}</span> : null}
-                          <span>{clockLabel(message.created_at)}</span>
-                          {message.direction === "outbound" ? (
-                            <StatusTick status={message.status} />
-                          ) : null}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                  })}
+                  {messages.map((message, index) => (
+                    <ThreadMessage
+                      key={message.id}
+                      message={message}
+                      showDay={
+                        index === 0 ||
+                        dayKey(messages[index - 1]!.created_at) !==
+                          dayKey(message.created_at)
+                      }
+                    />
+                  ))}
                 </>
               )}
             </div>
 
-            <div className="shrink-0 border-t border-[#123524]/08 bg-white p-3 sm:p-4">
-              {!apiEnabled ? (
-                <p className="mb-2 text-xs text-amber-800">
-                  API bağlı değil — mesaj kaydedilir, gönderilmez.
-                </p>
-              ) : !windowOpen ? (
-                <p className="mb-2 text-xs text-amber-800">
-                  Serbest mesaj penceresi kapalı — template gerekli
-                </p>
-              ) : null}
-              {mediaError ? (
-                <p className="mb-2 text-xs text-red-700">{mediaError}</p>
-              ) : null}
-              {pendingFile ? (
-                <div className="mb-2 flex items-center gap-2 rounded-xl border border-[#123524]/12 bg-[#f4f6f5] px-3 py-2 text-sm text-[#123524]">
-                  <FileText className="h-4 w-4 shrink-0 text-[#0b6b45]" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {pendingFile.name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={clearPendingFile}
-                    className="rounded-full p-1 text-[#466254] hover:bg-white"
-                    aria-label="Dosyayı kaldır"
-                  >
-                    <X className="h-4 w-4" aria-hidden />
-                  </button>
-                </div>
-              ) : null}
-              <div
-                className="mb-2 flex flex-wrap gap-1.5"
-                role="group"
-                aria-label="Hazır mesajlar"
-              >
-                {CANNED_MESSAGES.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    disabled={
-                      Boolean(sendingQuickId) ||
-                      sendingMedia ||
-                      (apiEnabled && !windowOpen)
-                    }
-                    onClick={() => {
-                      if (sendingQuickId) return;
-                      setSendingQuickId(item.id);
-                      void handleSend(item.body).finally(() => {
-                        setSendingQuickId((current) =>
-                          current === item.id ? null : current,
-                        );
-                      });
-                    }}
-                    className="rounded-full border border-[#123524]/15 bg-[#e7f5ed] px-3 py-1.5 text-left text-[12px] font-semibold text-[#0b6b45] disabled:opacity-50"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-              <form
-                className="flex items-end gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void handleSend();
-                }}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf"
-                  className="sr-only"
-                  tabIndex={-1}
-                  onChange={(event) => {
-                    onPickFile(event.target.files?.[0]);
-                  }}
-                />
-                <button
-                  type="button"
-                  disabled={
-                    sendingMedia || (apiEnabled && !windowOpen)
-                  }
-                  onClick={() => fileInputRef.current?.click()}
-                  aria-label="Dosya ekle (JPEG, PNG, PDF)"
-                  title="JPEG, PNG veya PDF"
-                  className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#123524]/15 text-[#0b6b45] disabled:opacity-50"
-                >
-                  <Paperclip className="h-5 w-5" aria-hidden />
-                </button>
-                <textarea
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={onComposerKeyDown}
-                  rows={2}
-                  disabled={sendingMedia || (apiEnabled && !windowOpen)}
-                  placeholder={
-                    apiEnabled && !windowOpen
-                      ? "Serbest mesaj penceresi kapalı"
-                      : pendingFile
-                        ? "Açıklama yazın (opsiyonel)…"
-                        : "Mesaj yazın…"
-                  }
-                  aria-label="Mesaj yazın"
-                  className="min-h-12 flex-1 resize-none rounded-xl border border-[#123524]/15 px-3 py-2.5 text-base outline-none focus:border-[#0b6b45] disabled:bg-[#f4f6f5]"
-                />
-                <button
-                  type="submit"
-                  disabled={
-                    sendingMedia ||
-                    (!draft.trim() && !pendingFile) ||
-                    (apiEnabled && !windowOpen)
-                  }
-                  aria-label="Gönder"
-                  className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0b6b45] text-white disabled:opacity-50"
-                >
-                  {sendingMedia ? (
-                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                  ) : (
-                    <Send className="h-5 w-5" aria-hidden />
-                  )}
-                </button>
-              </form>
-            </div>
+            <MessageComposer
+              key={selected.id}
+              apiEnabled={apiEnabled}
+              windowOpen={windowOpen}
+              sendingMedia={sendingMedia}
+              sendingQuickId={sendingQuickId}
+              pendingFile={pendingFile}
+              mediaError={mediaError}
+              onClearPendingFile={clearPendingFile}
+              onPickFile={onPickFile}
+              onSend={handleSend}
+              onSendQuick={onSendQuick}
+            />
           </>
         )}
       </section>
@@ -1615,6 +1446,116 @@ function Tag({ children }: { children: ReactNode }) {
     </span>
   );
 }
+
+const ConversationListItem = memo(function ConversationListItem({
+  row,
+  active,
+  onSelect,
+}: {
+  row: InboxConversation;
+  active: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const awaiting =
+    row.status === "open" && row.last_message_direction === "inbound";
+  const label = row.contact_name || row.wa_phone || "Bilinmeyen";
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={active}
+      aria-label={`${label}${row.pipelineLead?.status ? `, ${row.pipelineLead.status}` : ""}${row.unread_count ? `, ${row.unread_count} okunmamış` : ""}`}
+      onClick={() => onSelect(row.id)}
+      className={`flex min-h-16 w-full items-center gap-3 border-b border-[#123524]/08 px-4 py-3.5 text-left transition ${
+        active ? "bg-[#e7f5ed]" : "hover:bg-[#f7f9f8]"
+      }`}
+    >
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+        style={{
+          backgroundColor: avatarColor(row.id),
+        }}
+        aria-hidden
+      >
+        {avatarInitial(row.contact_name, row.wa_phone)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate font-semibold text-[#123524]">{label}</p>
+          <span className="shrink-0 text-[10px] text-[#466254]">
+            {listTimeLabel(row.last_message_at)}
+          </span>
+        </div>
+        {row.pipelineLead?.status ? (
+          <div className="mt-1">
+            <LeadStatusBadge
+              status={row.pipelineLead.status}
+              needsFollowup={row.pipelineLead.needs_followup}
+              hadSurgery={row.pipelineLead.had_surgery}
+            />
+          </div>
+        ) : null}
+        <div className="mt-0.5 flex items-center gap-2">
+          {awaiting ? (
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0b6b45]"
+              title="Yanıt bekliyor"
+              aria-hidden
+            />
+          ) : null}
+          <p className="min-w-0 flex-1 truncate text-xs text-[#466254]">
+            {row.last_message_preview || row.wa_phone || "—"}
+          </p>
+          {row.unread_count > 0 ? (
+            <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#0b6b45] px-1.5 text-[10px] font-bold text-white">
+              {row.unread_count}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </button>
+  );
+});
+
+const ThreadMessage = memo(function ThreadMessage({
+  message,
+  showDay,
+}: {
+  message: InboxMessage;
+  showDay: boolean;
+}) {
+  const channel = sourceLabel(message.source);
+  return (
+    <div>
+      {showDay ? (
+        <p className="my-3 text-center text-[11px] font-semibold text-[#466254]">
+          <span className="rounded-full bg-white/80 px-3 py-1">
+            {threadDayLabel(message.created_at)}
+          </span>
+        </p>
+      ) : null}
+      <div
+        className={`mb-1.5 max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
+          message.direction === "outbound"
+            ? "ml-auto bg-[#d9fdd3]"
+            : "mr-auto bg-white"
+        }`}
+      >
+        {message.media_type && message.media_url ? (
+          <MessageMedia type={message.media_type} mediaId={message.media_url} />
+        ) : null}
+        <MessageBody text={message.body || "Medya içeriği"} />
+        <p className="mt-1 flex items-center justify-end gap-1 text-[10px] text-[#466254]">
+          {channel ? <span>{channel}</span> : null}
+          <span>{clockLabel(message.created_at)}</span>
+          {message.direction === "outbound" ? (
+            <StatusTick status={message.status} />
+          ) : null}
+        </p>
+      </div>
+    </div>
+  );
+});
 
 function StatusTick({ status }: { status: string }) {
   if (status === "failed") {
@@ -1632,7 +1573,7 @@ function StatusTick({ status }: { status: string }) {
   return <Check className="h-3.5 w-3.5 text-[#466254]" aria-label="Gönderildi" />;
 }
 
-function MessageBody({ text }: { text: string }) {
+const MessageBody = memo(function MessageBody({ text }: { text: string }) {
   const parts = text.split(/(https?:\/\/[^\s]+)/g);
   return (
     <p className="whitespace-pre-wrap break-words">
@@ -1653,9 +1594,9 @@ function MessageBody({ text }: { text: string }) {
       )}
     </p>
   );
-}
+});
 
-function MessageMedia({
+const MessageMedia = memo(function MessageMedia({
   type,
   mediaId,
 }: {
@@ -1693,4 +1634,4 @@ function MessageMedia({
       Belgeyi aç
     </a>
   );
-}
+});
