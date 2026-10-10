@@ -10,7 +10,7 @@ Hastanın omurga kemiklerine hiçbir hasar vermeden doğal yapıyı koruyarak i�
 
 Buna bağlı olarak iyileşme süreci çok hızlı oluyor sabah işleme alıyoruz 2 saat sonra kaldırıp yürütüyoruz 6-8 saat sonra taburcu oluyorsunuz pansuman dikiş aldırma korse takma gibi süreçler olmuyor.
 
-Sgklı hastalarda full endoskopik teknikte 200 bin tl’den başlıyor işlem ücretleri.
+Sigortalı veya emekli hastalarda full endoskopik teknikte 200 bin tl’den başlıyor işlem ücretleri.
 Adres: İstanbul Özel Silivri Anadolu hastanesi
 
 www.endospineistanbul.com
