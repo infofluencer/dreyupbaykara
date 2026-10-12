@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev --port 3005",
-    "build": "next build && node scripts/copy-standalone-assets.js",
+    "build": "NODE_OPTIONS=--max-old-space-size=2048 next build && node scripts/copy-standalone-assets.js",
     "start": "node scripts/prod-start.js",
     "lint": "eslint",
     "test:crm": "node scripts/test-crm.mjs",
