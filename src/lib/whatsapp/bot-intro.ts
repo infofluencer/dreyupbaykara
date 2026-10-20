@@ -11,6 +11,13 @@ import { sendMediaMessage, sendMessage } from "@/lib/whatsapp/send-message";
 /** Panelin “Genel bilgilendirme” hazır mesajıyla aynı metin — tek kaynak. */
 export const INTRO_BODY = cannedMessageBody("genel-bilgilendirme");
 
+/**
+ * Bilgilendirmenin ardından giden form. intro_sent_at kilidine bağlı olduğu
+ * için konuşma başına yalnızca bir kez gider; reklama tekrar tıklayan hastaya
+ * yeniden gönderilmez.
+ */
+export const INTRO_FORM_BODY = cannedMessageBody("bilgi-formu");
+
 export const INTRO_IMAGE_FILE = "islem_bolgesi.jpeg";
 export const INTRO_IMAGE_MIME = "image/jpeg";
 export const INTRO_IMAGE_CAPTION =
@@ -147,6 +154,13 @@ export async function maybeSendIntroMessage(options: {
     // Metin gitti; görsel için kilidi geri açmıyoruz ki bilgilendirme tekrarlanmasın.
     console.error("[whatsapp] intro image:", error);
     cachedMedia = null;
+  }
+
+  try {
+    await sendMessage(phone, INTRO_FORM_BODY, context);
+  } catch (error) {
+    // Kilit yine açılmıyor: tekrar denemede bilgilendirme de yinelenirdi.
+    console.error("[whatsapp] intro form:", error);
   }
 
   return true;

@@ -19,6 +19,14 @@ Bu siteden teknikle ilgili yine detaylı bilgilere ulaşabilirsiniz`,
 
   },
   {
+    id: "bilgi-formu",
+    label: "Bilgi formu",
+    body: `Lütfen bilgi için aşağıdaki bilgileri bize iletin!
+İsim Soyisim
+Daha önce ameliyat önerildi mi?
+MR ne zaman çekildi?`,
+  },
+  {
     id: "operasyon-sonrasi",
     label: "Operasyon sonrası bilgilendirme",
     body: `*BİLGİLENDİRME*

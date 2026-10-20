@@ -6,7 +6,11 @@ import {
 } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
-import { INTRO_BODY, INTRO_IMAGE_CAPTION } from "@/lib/whatsapp/bot-intro";
+import {
+  INTRO_BODY,
+  INTRO_FORM_BODY,
+  INTRO_IMAGE_CAPTION,
+} from "@/lib/whatsapp/bot-intro";
 import { faqLang } from "@/lib/whatsapp/bot-match";
 import { createClient } from "@/lib/supabase/server";
 
@@ -81,6 +85,14 @@ export default async function BotPage() {
               {INTRO_IMAGE_CAPTION}
             </figcaption>
           </figure>
+        </div>
+        <div className="space-y-2">
+          <p className="text-sm text-[#466254]">
+            Ardından bilgi formu gider (konuşma başına bir kez):
+          </p>
+          <p className="rounded-xl bg-[#f4f7f5] p-4 text-sm leading-6 whitespace-pre-line text-[#123524]">
+            {INTRO_FORM_BODY}
+          </p>
         </div>
       </section>
 
