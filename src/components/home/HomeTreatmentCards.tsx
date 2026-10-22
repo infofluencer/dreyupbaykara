@@ -42,9 +42,9 @@ export function HomeTreatmentCards({
         </div>
 
         <h1 className="font-[family-name:var(--font-instrument-sans)] text-[1.55rem] font-semibold leading-[1.1] tracking-[-0.03em] text-text">
-          {hero.titleBefore}{" "}
-          <span className="text-accent">{hero.titleHighlight}</span>{" "}
-          {hero.titleAfter}
+          {hero.titleBefore ? <>{hero.titleBefore} </> : null}
+          <span className="text-accent">{hero.titleHighlight}</span>
+          {hero.titleAfter ? <> {hero.titleAfter}</> : null}
         </h1>
 
         <div className="mt-2 border-l-2 border-accent/40 pl-3">
@@ -103,11 +103,19 @@ export function HomeTreatmentCards({
       </div>
 
       <h1 className="font-[family-name:var(--font-instrument-sans)] text-[2rem] font-semibold leading-[1.08] tracking-[-0.03em] text-text sm:text-[2.65rem] lg:text-[3.15rem]">
-        {hero.titleBefore}
-        <br />
+        {hero.titleBefore ? (
+          <>
+            {hero.titleBefore}
+            <br />
+          </>
+        ) : null}
         <span className="text-accent">{hero.titleHighlight}</span>
-        <br />
-        {hero.titleAfter}
+        {hero.titleAfter ? (
+          <>
+            <br />
+            {hero.titleAfter}
+          </>
+        ) : null}
       </h1>
 
       <div className="mt-5 max-w-lg border-l-2 border-accent/40 pl-4 sm:mt-6 sm:pl-5">

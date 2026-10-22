@@ -7,11 +7,11 @@ export type PageSeo = {
 /** Canonical marketing SEO: meta title, meta description, snippet (kısa açıklama). */
 export const PAGE_SEO = {
   home: {
-    title: "Endoskopik Bel Ameliyatı | Op. Dr. Eyüp Baykara",
+    title: "Kapalı Bel Ameliyatı | Endoskopik Bel Ameliyatı | Op. Dr. Eyüp Baykara",
     description:
-      "Full endoskopik bel fıtığı, boyun fıtığı ve kanal darlığı ameliyatı. Minimal invaziv, aynı gün taburcu — Op. Dr. Eyüp Baykara, Silivri / İstanbul.",
+      "Kapalı bel ameliyatı ve endoskopik bel ameliyatı: bel fıtığı, boyun fıtığı ve kanal darlığında minimal invaziv cerrahi. Aynı gün taburcu — Op. Dr. Eyüp Baykara, Silivri / İstanbul.",
     snippet:
-      "Full endoskopik omurga cerrahisi: bel fıtığı, boyun fıtığı ve kanal darlığında hızlı iyileşme.",
+      "Kapalı bel ameliyatı ve endoskopik bel ameliyatı ile bel fıtığı, boyun fıtığı ve kanal darlığında hızlı iyileşme.",
   },
   hakkimizda: {
     title: "Op. Dr. Eyüp Baykara Kimdir? | Beyin ve Sinir Cerrahisi",
@@ -59,11 +59,13 @@ export const PAGE_SEO = {
 
 export const SITE_KEYWORDS = [
   "endoskopik bel ameliyatı",
-  "full endoskopik bel fıtığı ameliyatı",
+  "kapalı bel ameliyatı",
   "kapalı bel fıtığı ameliyatı",
+  "kapalı boyun fıtığı ameliyatı",
+  "kanal darlığı ameliyatı",
+  "full endoskopik bel fıtığı ameliyatı",
   "bel fıtığı ameliyatı",
   "boyun fıtığı ameliyatı",
-  "kanal darlığı ameliyatı",
   "Op. Dr. Eyüp Baykara",
   "endoskopik omurga cerrahisi",
   "Silivri beyin cerrahisi",

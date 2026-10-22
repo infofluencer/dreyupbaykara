@@ -24,6 +24,343 @@ export type BlogPost = {
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "op-dr-eyup-baykara-kimdir",
+    title: "Op. Dr. Eyüp Baykara Kimdir?",
+    date: "2026-10-22",
+    excerpt:
+      "Op. Dr. Eyüp Baykara kimdir? İstanbul doğumlu beyin ve sinir cerrahisi uzmanının eğitimi, uzmanlık alanı ve full endoskopik omurga cerrahisindeki yaklaşımı.",
+    image: "/hero/hero_dr.webp",
+    imageAlt: "Op. Dr. Eyüp Baykara kimdir — beyin ve sinir cerrahisi uzmanı",
+    metaTitle: "Op. Dr. Eyüp Baykara Kimdir? | Beyin ve Sinir Cerrahisi",
+    metaDescription:
+      "Op. Dr. Eyüp Baykara kimdir? Trakya ve Pamukkale eğitimi, full endoskopik bel-boyun fıtığı ve kanal darlığı cerrahisi. Resmi site: eyupbaykara.com",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Op. Dr. Eyüp Baykara ile değerlendirme",
+    contactCardBody:
+      "Bel fıtığı, boyun fıtığı veya kanal darlığı için ön değerlendirme randevusu alın.",
+    toc: [
+      { id: "kimdir", label: "Op. Dr. Eyüp Baykara kimdir?" },
+      { id: "egitim", label: "Eğitim ve kariyer" },
+      { id: "uzmanlik", label: "Uzmanlık alanları" },
+      { id: "endoskopik", label: "Full endoskopik omurga cerrahisi" },
+      { id: "iletisim", label: "İletişim ve klinik" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Op. Dr. Eyüp Baykara kimdir?</strong> sorusu; bel fıtığı, boyun fıtığı ve kanal darlığı için endoskopik (kapalı) cerrahi arayan hastaların en sık sorduğu sorulardan biridir. Bu yazıda eğitimi, uzmanlık geçmişi ve klinik yaklaşımını özetliyoruz. Daha ayrıntılı özgeçmiş için resmi sitesine bakabilirsiniz: <a href="https://www.eyupbaykara.com/hakkimda" target="_blank" rel="noopener noreferrer">Dr. Baykara Kimdir? (eyupbaykara.com)</a>.</p>
+
+<h2 id="kimdir">Op. Dr. Eyüp Baykara kimdir?</h2>
+<p>Op. Dr. Eyüp Baykara, <strong>beyin ve sinir cerrahisi uzmanı</strong>dır. İstanbul doğumludur; ilk, orta ve lise eğitimini İstanbul’da özel bir kurumda birincilikle tamamlamıştır. Günümüzde özellikle <strong>full endoskopik tam kapalı</strong> bel fıtığı, boyun fıtığı ve platinsiz kanal darlığı ameliyatları ile tanınır.</p>
+<p>Resmi web sitesi: <a href="https://www.eyupbaykara.com/" target="_blank" rel="noopener noreferrer">www.eyupbaykara.com</a> — sitede tedavi alanları, blog yazıları ve iletişim bilgileri yer alır.</p>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara kimdir" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="egitim">Eğitim ve kariyer</h2>
+<p>Tıp eğitimini <strong>Trakya Üniversitesi Tıp Fakültesi</strong>nde tamamladıktan sonra Bayrampaşa Devlet Hastanesi acil servisinde hekimlik; aile sağlığı merkezinde aile hekimi ve sorumlu hekimlik görevlerini yürütmüştür.</p>
+<p>2011 yılında uzmanlık eğitimi için <strong>Pamukkale Üniversitesi Tıp Fakültesi Beyin ve Sinir Cerrahisi Ana Bilim Dalı</strong>nda ihtisasa başlamıştır. İhtisas sürecinde beyin damar hastalıkları, anevrizma cerrahisi, beyin anjiyosu, uyanık beyin tümörü cerrahisi ve Parkinson–beyin pili gibi alanlarda yoğun çalışmıştır. 2016’da uzmanlık tezini tamamlayarak beyin ve sinir cerrahisi uzmanı unvanını almıştır.</p>
+<p>Kaynak: <a href="https://www.eyupbaykara.com/hakkimda" target="_blank" rel="noopener noreferrer">eyupbaykara.com/hakkimda</a></p>
+
+<h2 id="uzmanlik">Uzmanlık alanları</h2>
+<p><a href="https://www.eyupbaykara.com/tedaviAlanlari" target="_blank" rel="noopener noreferrer">Tedavi alanları</a> arasında şunlar yer alır:</p>
+<ul>
+<li><a href="https://www.eyupbaykara.com/belFitigi" target="_blank" rel="noopener noreferrer">Bel fıtığı</a> ve <a href="/tedaviler/bel-fitigi-ameliyati">kapalı bel fıtığı ameliyatı</a></li>
+<li><a href="https://www.eyupbaykara.com/boyunFitigi" target="_blank" rel="noopener noreferrer">Boyun fıtığı</a> ve <a href="/tedaviler/boyun-fitigi-ameliyati">kapalı boyun fıtığı ameliyatı</a></li>
+<li><a href="https://www.eyupbaykara.com/omurilikKanalDarligi" target="_blank" rel="noopener noreferrer">Omurilik kanal darlığı</a> ve <a href="/tedaviler/kanal-darligi-ameliyati">kanal darlığı ameliyatı</a></li>
+<li>Skolyoz, kifoz, beyin tümörü, beyin kanaması, omurga ve omurilik tümörleri</li>
+</ul>
+
+<figure><img src="/hero/belfitigi.webp" alt="Full endoskopik bel fıtığı ameliyatı Op. Dr. Eyüp Baykara" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="endoskopik">Full endoskopik omurga cerrahisi</h2>
+<p>Dünyada interlaminar teknikle full endoskopik tam kapalı bel fıtığı ameliyatlarının yaygınlaşmasıyla birlikte Dr. Baykara bu alanda yoğunlaşmıştır. İhtisas sonrası eğitim ve bilimsel faaliyetlerini sürdürmüş; bugün Türkiye’de full endoskopik teknikle bel fıtığı, platinsiz kanal darlığı ve boyun fıtığı ameliyatlarını uygulayan sayılı cerrahlardan biri olarak anılmaktadır.</p>
+<p>Bu sitedeki <strong>endoskopik bel ameliyatı</strong> ve kapalı cerrahi içerikleri de aynı yaklaşımı yansıtır: <a href="/blog/kapali-bel-fitigi-ameliyati-endoskopik">kapalı bel fıtığı ameliyatı</a>, <a href="/blog/kapali-boyun-fitigi-ameliyati-nedir">kapalı boyun fıtığı ameliyatı</a>, <a href="/blog/kanal-darligi-ameliyati-nedir">kanal darlığı ameliyatı</a>.</p>
+
+<h2 id="iletisim">İletişim ve klinik</h2>
+<p>Klinik adresi resmi sitede de belirtildiği gibi <strong>Özel Silivri Anadolu Hastanesi</strong> — Mimar Sinan Mah., Mimar Sinan Cd. No:72, Silivri / İstanbul’dur. Randevu için bu sitedeki <a href="/iletisim">iletişim</a> sayfasını veya <a href="https://www.eyupbaykara.com/" target="_blank" rel="noopener noreferrer">eyupbaykara.com</a> üzerinden güncel bilgileri kullanabilirsiniz.</p>
+<p>Hakkımızda sayfamız: <a href="/hakkimizda">Op. Dr. Eyüp Baykara</a></p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p>Op. Dr. Eyüp Baykara; Trakya ve Pamukkale kökenli eğitimi, nörovasküler deneyimi ve full endoskopik omurga cerrahisindeki uzmanlığıyla hastalarına minimal invaziv seçenekler sunar. Güncel özgeçmiş ve yayınlar için <a href="https://www.eyupbaykara.com/hakkimda" target="_blank" rel="noopener noreferrer">Dr. Baykara Kimdir?</a> sayfasını ziyaret edin.</p>`,
+  },
+  {
+    slug: "op-dr-eyup-baykara-hakkinda",
+    title: "Op. Dr. Eyüp Baykara Hakkında",
+    date: "2026-10-22",
+    excerpt:
+      "Op. Dr. Eyüp Baykara hakkında: eğitim, endoskopik omurga cerrahisi, tedavi alanları ve Silivri’deki klinik. Resmi referanslar eyupbaykara.com’dan.",
+    image: "/hero/hero_dr.webp",
+    imageAlt: "Op. Dr. Eyüp Baykara hakkında — endoskopik omurga cerrahisi",
+    metaTitle: "Op. Dr. Eyüp Baykara Hakkında | Endoskopik Omurga Cerrahisi",
+    metaDescription:
+      "Op. Dr. Eyüp Baykara hakkında bilgi: full endoskopik bel-boyun fıtığı, kanal darlığı, klinik ve iletişim. Kaynak: www.eyupbaykara.com",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Op. Dr. Eyüp Baykara hakkında soru sorun",
+    contactCardBody:
+      "Tedavi süreci ve endoskopik yöntem uygunluğu için formu doldurun veya WhatsApp’tan yazın.",
+    toc: [
+      { id: "hakkinda", label: "Hakkında kısa özet" },
+      { id: "yaklasim", label: "Tedavi yaklaşımı" },
+      { id: "tedaviler", label: "Öne çıkan tedaviler" },
+      { id: "bilimsel", label: "Bilimsel üyelik ve yayınlar" },
+      { id: "neden", label: "Neden tercih edilir?" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Op. Dr. Eyüp Baykara hakkında</strong> merak edilenler; çoğu zaman eğitimi, hangi ameliyatları yaptığı ve hastanın iyileşme sürecine nasıl yaklaştığıdır. Bu yazı, resmi sitedeki bilgilere dayanarak klinik profili özetler. Ana kaynak: <a href="https://www.eyupbaykara.com/" target="_blank" rel="noopener noreferrer">www.eyupbaykara.com</a> ve <a href="https://www.eyupbaykara.com/hakkimda" target="_blank" rel="noopener noreferrer">hakkımda sayfası</a>.</p>
+
+<h2 id="hakkinda">Hakkında kısa özet</h2>
+<p>Op. Dr. Eyüp Baykara, İstanbul doğumlu bir <strong>beyin ve sinir cerrahisi uzmanı</strong>dır. Tıp fakültesi sonrası acil ve aile hekimliği deneyiminin ardından Pamukkale’de ihtisas yapmış; anevrizma, beyin anjiyosu, uyanık tümör cerrahisi ve Parkinson–beyin pili alanlarında da yoğun klinik deneyim biriktirmiştir.</p>
+<p>Kimdir sorusunun daha biyografik yanıtı için: <a href="/blog/op-dr-eyup-baykara-kimdir">Op. Dr. Eyüp Baykara Kimdir?</a></p>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara hakkında" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="yaklasim">Tedavi yaklaşımı</h2>
+<p>Dr. Baykara’nın omurga cerrahisindeki odak noktası <strong>full endoskopik tam kapalı</strong> tekniklerdir. Amaç; milimetrik girişle sinir baskısını kaldırmak, kas dokusunu korumak ve hastanın günlük yaşama dönüşünü hızlandırmaktır. Bu yaklaşım <strong>endoskopik bel ameliyatı</strong>, kapalı boyun fıtığı ve seçilmiş kanal darlığı vakalarında öne çıkar.</p>
+<p>Resmi sitedeki tedavi alanları listesi: <a href="https://www.eyupbaykara.com/tedaviAlanlari" target="_blank" rel="noopener noreferrer">eyupbaykara.com/tedaviAlanlari</a></p>
+
+<h2 id="tedaviler">Öne çıkan tedaviler</h2>
+<ul>
+<li><strong>Bel fıtığı:</strong> <a href="https://www.eyupbaykara.com/belFitigi" target="_blank" rel="noopener noreferrer">eyupbaykara.com bel fıtığı</a> · sitede <a href="/tedaviler/bel-fitigi-ameliyati">kapalı bel fıtığı ameliyatı</a></li>
+<li><strong>Boyun fıtığı:</strong> <a href="https://www.eyupbaykara.com/boyunFitigi" target="_blank" rel="noopener noreferrer">eyupbaykara.com boyun fıtığı</a> · <a href="/tedaviler/boyun-fitigi-ameliyati">kapalı boyun fıtığı ameliyatı</a></li>
+<li><strong>Kanal darlığı:</strong> <a href="https://www.eyupbaykara.com/omurilikKanalDarligi" target="_blank" rel="noopener noreferrer">omurilik kanal darlığı</a> · <a href="/tedaviler/kanal-darligi-ameliyati">kanal darlığı ameliyatı</a></li>
+</ul>
+<p>Resmi blogda full endoskopik yöntem ve hasta deneyimleri de yer alır: <a href="https://www.eyupbaykara.com/blogs" target="_blank" rel="noopener noreferrer">eyupbaykara.com/blogs</a></p>
+
+<figure><img src="/hero/kanaldarligi.webp" alt="Kanal darlığı ameliyatı Op. Dr. Eyüp Baykara" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="bilimsel">Bilimsel üyelik ve yayınlar</h2>
+<p><a href="https://www.eyupbaykara.com/hakkimda" target="_blank" rel="noopener noreferrer">Hakkımda sayfasında</a> belirtildiği üzere; yurt içi ve yurt dışı hakemli dergilerde yayınları, kongre ve kurs katılımları bulunmaktadır. Türk Nöroşirürji Derneği Nörovasküler Cerrahi Eğitim Öğretim Grubu ve Amerika Nöroşirürji Dernekleri Birliği (AANS/CNS) Serebrovasküler Grubu üyesidir.</p>
+
+<h2 id="neden">Neden tercih edilir?</h2>
+<ul>
+<li>Full endoskopik bel, boyun ve kanal darlığı cerrahisinde odaklı deneyim</li>
+<li>Minimal invaziv yaklaşım: küçük kesi, hızlı iyileşme hedefi</li>
+<li>Nörovasküler ve genel nöroşirürji geçmişi</li>
+<li>Silivri / İstanbul’da ulaşılabilir klinik (Özel Silivri Anadolu Hastanesi)</li>
+</ul>
+<p>Basında yer alan içerikler için resmi sitedeki <a href="https://www.eyupbaykara.com/basindabiz" target="_blank" rel="noopener noreferrer">basında biz</a> bölümüne de bakabilirsiniz.</p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p>Op. Dr. Eyüp Baykara hakkında güncel ve resmi bilgi için birincil kaynak <a href="https://www.eyupbaykara.com/" target="_blank" rel="noopener noreferrer">www.eyupbaykara.com</a>dır. Bu siteden randevu ve ön değerlendirme için <a href="/iletisim">iletişim</a> veya <a href="/hakkimizda">hakkımızda</a> sayfalarını kullanabilirsiniz.</p>`,
+  },
+  {
+    slug: "kapali-bel-fitigi-ameliyati-endoskopik",
+    title: "Kapalı Bel Fıtığı Ameliyatı",
+    date: "2026-10-22",
+    excerpt:
+      "Kapalı bel fıtığı ameliyatı ve endoskopik bel ameliyatı: milimetrik kesi, az ağrı ve aynı gün taburcu hedefi. Bel-bacak ağrısında modern çözüm.",
+    image: "/hero/belfitigi.webp",
+    imageAlt: "Kapalı bel fıtığı ameliyatı — endoskopik bel ameliyatı",
+    metaTitle:
+      "Kapalı Bel Fıtığı Ameliyatı | Endoskopik Bel Ameliyatı | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Kapalı bel fıtığı ameliyatı nedir? Endoskopik bel ameliyatı ile küçük kesi, hızlı iyileşme ve aynı gün taburcu. Bel ve bacak ağrısında modern cerrahi.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Kapalı bel fıtığı ameliyatı değerlendirmesi",
+    contactCardBody:
+      "Endoskopik bel ameliyatının size uygun olup olmadığını öğrenmek için formu doldurun veya WhatsApp’tan yazın.",
+    toc: [
+      { id: "nedir", label: "Kapalı bel fıtığı ameliyatı nedir?" },
+      { id: "endoskopik", label: "Endoskopik bel ameliyatı" },
+      { id: "belirtiler", label: "Hangi şikayetlerde düşünülür?" },
+      { id: "avantajlar", label: "Avantajları" },
+      { id: "surec", label: "Ameliyat süreci" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Kapalı bel fıtığı ameliyatı</strong>, bel fıtığında sinire baskı yapan disk dokusunun milimetrik bir kesiden kamera (endoskop) ile çıkarılmasıdır. Halk arasında sıklıkla <strong>endoskopik bel ameliyatı</strong> veya full endoskopik tam kapalı yöntem olarak anılır.</p>
+<p>Amaç; ağrıyı azaltmak, sinir baskısını kaldırmak ve açık cerrahiye göre daha hızlı iyileşme sunmaktır.</p>
+
+<h2 id="nedir">Kapalı bel fıtığı ameliyatı nedir?</h2>
+<p>Bel fıtığında disk dışarı taşarak sinir köküne baskı yapabilir; bel, kalça ve bacağa yayılan ağrı, uyuşma veya güç kaybı oluşur. Kapalı yöntemde büyük kesi yerine birkaç milimetrelik giriş kullanılır; kaslar mümkün olduğunca korunur.</p>
+<p>Tedavi sayfamızda yöntemin ayrıntılarını inceleyebilirsiniz: <a href="/tedaviler/bel-fitigi-ameliyati">kapalı bel fıtığı ameliyatı</a>.</p>
+
+<figure><img src="/hero/belfitigi.webp" alt="Kapalı bel fıtığı ameliyatı endoskopik bel ameliyatı" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="endoskopik">Endoskopik bel ameliyatı</h2>
+<p><strong>Endoskopik bel ameliyatı</strong>, kapalı bel fıtığı cerrahisinin kamera rehberliğindeki modern halidir. Cerrah endoskop ile fıtık bölgesini görüntüler; mikro aletlerle sinir üzerindeki baskıyı hedefli şekilde giderir.</p>
+<ul>
+<li>Yaklaşık 4 mm’lik tek giriş</li>
+<li>Yüksek çözünürlüklü görüntü altında hassas müdahale</li>
+<li>Daha az doku travması ve daha küçük iz hedefi</li>
+<li>Çoğu hastada aynı gün ayağa kalkma / taburcu planı</li>
+</ul>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara endoskopik bel ameliyatı" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="belirtiler">Hangi şikayetlerde düşünülür?</h2>
+<ul>
+<li>6 haftadan uzun süren bel ve bacak ağrısı</li>
+<li>İlaç ve fizik tedaviye rağmen geçmeyen siyatik ağrı</li>
+<li>Bacakta uyuşma, karıncalanma veya güç kaybı</li>
+<li>MR’da sinir basısı ile uyumlu bel fıtığı</li>
+</ul>
+<p>Uygunluk her zaman muayene ve görüntüleme ile belirlenir; her bel fıtığı ameliyat gerektirmez.</p>
+
+<h2 id="avantajlar">Avantajları</h2>
+<ul>
+<li>Küçük kesi ve minimal iz</li>
+<li>Genellikle daha az ameliyat sonrası ağrı</li>
+<li>Kısa hastane yatışı</li>
+<li>İş ve günlük yaşama daha hızlı dönüş hedefi</li>
+</ul>
+
+<h2 id="surec">Ameliyat süreci</h2>
+<ol>
+<li>Muayene, öykü ve MR değerlendirmesi</li>
+<li>Endoskopik kapalı bel fıtığı işlemi</li>
+<li>Erken mobilizasyon</li>
+<li>Kısa gözlem sonrası taburcu planı</li>
+<li>Hekim önerisiyle kontrollü aktivite artışı</li>
+</ol>
+
+<h2 id="sonuc">Sonuç</h2>
+<p>Kapalı bel fıtığı ameliyatı ve <strong>endoskopik bel ameliyatı</strong>, doğru hastada minimal invaziv ve hızlı iyileşme odaklı bir seçenektir. Değerlendirme için <a href="/iletisim">iletişim</a> sayfamızdan randevu alabilirsiniz.</p>`,
+  },
+  {
+    slug: "kapali-boyun-fitigi-ameliyati-nedir",
+    title: "Kapalı Boyun Fıtığı Ameliyatı",
+    date: "2026-10-22",
+    excerpt:
+      "Kapalı boyun fıtığı ameliyatı: milimetrik kesiden endoskopik yöntemle sinir baskısının giderilmesi. Boyun-kol ağrısında hızlı iyileşme hedefi.",
+    image: "/hero/boyunfitigi.webp",
+    imageAlt: "Kapalı boyun fıtığı ameliyatı",
+    metaTitle: "Kapalı Boyun Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Kapalı boyun fıtığı ameliyatı nedir? Boyun, omuz ve kol ağrısında endoskopik kapalı cerrahi: küçük kesi, az ağrı, hızlı günlük yaşama dönüş.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Kapalı boyun fıtığı ameliyatı için bilgi",
+    contactCardBody:
+      "Boyun ve kol şikayetleriniz için kapalı yöntemin uygunluğunu konuşmak üzere yazın.",
+    toc: [
+      { id: "nedir", label: "Kapalı boyun fıtığı ameliyatı nedir?" },
+      { id: "belirtiler", label: "Belirtiler" },
+      { id: "nasil", label: "Nasıl uygulanır?" },
+      { id: "avantajlar", label: "Avantajları" },
+      { id: "kimlere", label: "Kimlere uygundur?" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Kapalı boyun fıtığı ameliyatı</strong>, servikal disk fıtığında sinir köküne baskı yapan dokunun milimetrik kesiden endoskop ve mikro aletlerle temizlenmesidir. Açık cerrahiye göre daha az doku travması ve daha hızlı iyileşme hedeflenir.</p>
+<p>Boyun fıtığı; boyun, omuz, kol ve elde ağrı, uyuşma veya güç kaybına yol açabilir. Konservatif tedaviler yetersiz kaldığında kapalı yöntem gündeme gelebilir.</p>
+
+<h2 id="nedir">Kapalı boyun fıtığı ameliyatı nedir?</h2>
+<p>Kapalı / full endoskopik yaklaşımda birkaç milimetrelik girişten kamera ile hedef bölge görüntülenir. Sinir üzerindeki baskı hassas şekilde kaldırılır; boyun hareketlerini mümkün olduğunca korumak amaçlanır.</p>
+<p>Detaylı tedavi içeriği: <a href="/tedaviler/boyun-fitigi-ameliyati">kapalı boyun fıtığı ameliyatı</a>.</p>
+
+<figure><img src="/hero/boyunfitigi.webp" alt="Kapalı boyun fıtığı ameliyatı" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="belirtiler">Belirtiler</h2>
+<ul>
+<li>Boyundan omuza ve kola yayılan ağrı</li>
+<li>Kolda veya elde uyuşma / karıncalanma</li>
+<li>El becerisinde azalma veya güç kaybı</li>
+<li>Baş dönmesi veya boyun hareketlerinde kısıtlılık (vakaya göre)</li>
+</ul>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara kapalı boyun fıtığı ameliyatı" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="nasil">Nasıl uygulanır?</h2>
+<ol>
+<li>Muayene ve boyun MR değerlendirmesi</li>
+<li>Lokal veya genel anestezi planı</li>
+<li>Milimetrik kesi ve endoskopik görüntüleme</li>
+<li>Fıtık dokusunun çıkarılması / sinir dekompresyonu</li>
+<li>Erken mobilizasyon ve kısa gözlem</li>
+</ol>
+<p>İşlem süresi vakaya göre değişmekle birlikte genellikle kısa tutulur.</p>
+
+<h2 id="avantajlar">Avantajları</h2>
+<ul>
+<li>Küçük kesi ve minimal iz</li>
+<li>Kas ve bağ dokularına daha az hasar</li>
+<li>Genellikle daha az ağrı</li>
+<li>Aynı gün veya kısa sürede taburcu ihtimali</li>
+</ul>
+
+<h2 id="kimlere">Kimlere uygundur?</h2>
+<ul>
+<li>İlaç ve fizik tedaviye rağmen süren boyun-kol ağrısı</li>
+<li>Nörolojik bulguları olan boyun fıtığı</li>
+<li>Yaşam kalitesini düşüren uyuşma veya güç kaybı</li>
+</ul>
+<p>Uygun teknik, Op. Dr. Eyüp Baykara tarafından kişiye özel belirlenir. Bel fıtığı için de <a href="/blog/kapali-bel-fitigi-ameliyati-endoskopik">kapalı bel fıtığı ameliyatı</a> ve <strong>endoskopik bel ameliyatı</strong> seçenekleri mevcuttur.</p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p>Kapalı boyun fıtığı ameliyatı, doğru endikasyonda konforlu ve hızlı iyileşme odaklı bir çözümdür. Randevu için <a href="/iletisim">iletişim</a> sayfasını kullanın.</p>`,
+  },
+  {
+    slug: "kanal-darligi-ameliyati-nedir",
+    title: "Kanal Darlığı Ameliyatı",
+    date: "2026-10-22",
+    excerpt:
+      "Kanal darlığı ameliyatı: omurga kanalındaki sinir sıkışmasını endoskopik / kapalı yöntemle rahatlatma. Yürüme mesafesi ve ağrıda iyileşme hedefi.",
+    image: "/hero/kanaldarligi.webp",
+    imageAlt: "Kanal darlığı ameliyatı",
+    metaTitle: "Kanal Darlığı Ameliyatı | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Kanal darlığı ameliyatı nedir? Spinal stenozda endoskopik kapalı dekompresyon: ağrı, uyuşma ve yürüme zorluğuna minimal invaziv çözüm.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Kanal darlığı ameliyatı değerlendirmesi",
+    contactCardBody:
+      "Yürüme mesafesi kısalması ve bacak ağrısı için kapalı kanal darlığı cerrahisini konuşalım.",
+    toc: [
+      { id: "nedir", label: "Kanal darlığı ameliyatı nedir?" },
+      { id: "belirtiler", label: "Belirtiler" },
+      { id: "yontem", label: "Endoskopik / kapalı yöntem" },
+      { id: "avantajlar", label: "Avantajları" },
+      { id: "kimlere", label: "Kimlere önerilir?" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Kanal darlığı ameliyatı</strong>, omurga kanalının (spinal stenoz) daralması nedeniyle sıkışan sinirlerin rahatlatılmasını amaçlayan cerrahi yaklaşımdır. Günümüzde birçok hastada <strong>endoskopik / kapalı</strong> teknikle, açık cerrahiye göre daha az travma ile uygulanabilir.</p>
+<p>Kanal darlığı özellikle orta ve ileri yaşta; yürüme mesafesinde kısalma, bel-bacak ağrısı ve uyuşma ile kendini gösterir.</p>
+
+<h2 id="nedir">Kanal darlığı ameliyatı nedir?</h2>
+<p>Omurga kanalı daraldığında sinirler sıkışır. Ameliyatta daraltan kemik, bağ veya disk dokuları kontrollü şekilde temizlenerek kanal genişletilir (dekompresyon). Seçilmiş vakalarda platin olmadan endoskopik dekompresyon mümkün olabilir.</p>
+<p>Tedavi sayfası: <a href="/tedaviler/kanal-darligi-ameliyati">kanal darlığı ameliyatı</a>.</p>
+
+<figure><img src="/hero/kanaldarligi.webp" alt="Kanal darlığı ameliyatı" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="belirtiler">Belirtiler</h2>
+<ul>
+<li>Yürürken artan bel ve bacak ağrısı</li>
+<li>Kısa mesafede dinlenme ihtiyacı</li>
+<li>Bacaklarda uyuşma veya güç kaybı</li>
+<li>Öne eğilince geçici rahatlama hissi</li>
+</ul>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara kanal darlığı ameliyatı" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="yontem">Endoskopik / kapalı yöntem</h2>
+<p>Full endoskopik kapalı kanal darlığı ameliyatında milimetrik girişten kamera ile dar bölge görüntülenir; mikro aletlerle sinir baskısı azaltılır. Bu yaklaşım, özellikle vücuda daha az yük bindirmek isteyen hastalarda öne çıkar.</p>
+<p>Bel fıtığı eşlik ediyorsa <a href="/blog/kapali-bel-fitigi-ameliyati-endoskopik">kapalı bel fıtığı ameliyatı</a> ve <strong>endoskopik bel ameliyatı</strong> seçenekleri de aynı cerrahi yaklaşım ailesindedir.</p>
+
+<h2 id="avantajlar">Avantajları</h2>
+<ul>
+<li>Minimal invaziv giriş</li>
+<li>Daha az doku hasarı ve genellikle daha az ağrı</li>
+<li>Kısa yatış / aynı gün taburcu ihtimali</li>
+<li>Yürüme mesafesinde artış hedefi</li>
+</ul>
+
+<h2 id="kimlere">Kimlere önerilir?</h2>
+<ul>
+<li>MR’da belirgin kanal daralması olanlar</li>
+<li>Konservatif tedaviye rağmen süren yürüme zorluğu</li>
+<li>Nörolojik bulgularla seyreden spinal stenoz</li>
+</ul>
+<p>Sabitleme (platin) gerekip gerekmediği muayene ve görüntüleme ile netleşir.</p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p>Kanal darlığı ameliyatı, doğru hastada yaşam kalitesini ve yürüme mesafesini artırmayı hedefler. Bilgi ve randevu için <a href="/iletisim">iletişim</a> sayfamıza ulaşın.</p>`,
+  },
+  {
     slug: "endoskopik-ameliyat",
     title: "Endoskopik Ameliyat",
     date: "2026-09-17",

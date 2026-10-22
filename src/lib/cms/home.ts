@@ -58,15 +58,15 @@ export type HomeSections = {
 
 export const HOME_FALLBACK: HomeSections = {
   hero: {
-    kicker: "Full Endoskopik Cerrahi",
-    titleBefore: "Bitmek bilmeyen",
-    titleHighlight: "fıtık ağrılarınız",
-    titleAfter: "mı var?",
+    kicker: "Endoskopik bel ameliyatı",
+    titleBefore: "Kapalı bel",
+    titleHighlight: "ameliyatı",
+    titleAfter: "",
     line1: "Son çare değil —",
     line1Highlight: "tek çare",
-    line2: "Full Endoskopik Tedavi",
+    line2: "Endoskopik bel ameliyatı",
     description:
-      "4 milimetrelik bir delikten kamera ile girilip fıtıklaşan dokunun alınmasıdır.",
+      "Endoskopik bel ameliyatı ile 4 milimetrelik bir delikten kamera eşliğinde fıtıklaşan doku alınır; aynı gün taburcu hedefi.",
     ctaLabel: "Randevu Al",
     ctaHref: "/iletisim",
     doctorName1: "Op. Dr.",
@@ -136,14 +136,15 @@ function mergeHero(raw: unknown): HomeHero {
   const r = asRecord(raw);
   const f = HOME_FALLBACK.hero;
   return {
-    kicker: str(r.kicker, f.kicker),
-    titleBefore: str(r.titleBefore, f.titleBefore),
-    titleHighlight: str(r.titleHighlight, f.titleHighlight),
-    titleAfter: str(r.titleAfter, f.titleAfter),
+    // H1 / ana anahtar kelimeler index için statik fallback’ten (CMS override etmesin).
+    kicker: f.kicker,
+    titleBefore: f.titleBefore,
+    titleHighlight: f.titleHighlight,
+    titleAfter: f.titleAfter,
     line1: str(r.line1, f.line1),
     line1Highlight: str(r.line1Highlight, f.line1Highlight),
-    line2: str(r.line2, f.line2),
-    description: str(r.description, f.description),
+    line2: f.line2,
+    description: f.description,
     ctaLabel: str(r.ctaLabel, f.ctaLabel),
     ctaHref: str(r.ctaHref, f.ctaHref),
     doctorName1: str(r.doctorName1, f.doctorName1),

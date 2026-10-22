@@ -158,10 +158,10 @@ const SHARED_STATS: TreatmentStat[] = [
 export const treatments: Treatment[] = [
   {
     slug: "bel-fitigi-ameliyati",
-    navTitle: "Full Endoskopik Tam Kapalı Bel Fıtığı Ameliyatı",
-    h1: "Full Endoskopik Tam Kapalı Bel Fıtığı Ameliyatı",
+    navTitle: "Kapalı Bel Fıtığı Ameliyatı",
+    h1: "Kapalı Bel Fıtığı Ameliyatı",
     heroSubtitle:
-      "Disk kaymasıyla oluşan bel fıtığında küçük kesi, az doku hasarı ve hızlı iyileşme.",
+      "Endoskopik bel ameliyatı ile bel fıtığında küçük kesi, az doku hasarı ve hızlı iyileşme.",
     image: "/hero/belfitigi.webp",
     youtubeId: "VQBLCfwLiLo",
     shorts: [
@@ -230,17 +230,17 @@ export const treatments: Treatment[] = [
       },
     ],
     metaTitle:
-      "Full Endoskopik Bel Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara",
+      "Kapalı Bel Fıtığı Ameliyatı | Endoskopik Bel Ameliyatı | Op. Dr. Eyüp Baykara",
     metaDescription:
-      "Bel fıtığında full endoskopik kapalı ameliyat: küçük kesi, az doku hasarı ve hızlı iyileşme. Sırt ağrısı, bacak uyuşması ve güç kaybına minimal invaziv çözüm.",
+      "Kapalı bel fıtığı ameliyatı ve endoskopik bel ameliyatı: küçük kesi, az doku hasarı ve hızlı iyileşme. Sırt ağrısı, bacak uyuşması ve güç kaybına minimal invaziv çözüm.",
     bodyLocation: "Bel omurgası",
   },
   {
     slug: "boyun-fitigi-ameliyati",
-    navTitle: "Full Endoskopik Tam Kapalı Boyun Fıtığı Ameliyatı",
-    h1: "Full Endoskopik Tam Kapalı Boyun Fıtığı Ameliyatı",
+    navTitle: "Kapalı Boyun Fıtığı Ameliyatı",
+    h1: "Kapalı Boyun Fıtığı Ameliyatı",
     heroSubtitle:
-      "Boyun ağrısı, kol uyuşması ve baş dönmesinde full endoskopik kapalı tedavi.",
+      "Boyun ağrısı, kol uyuşması ve baş dönmesinde kapalı / endoskopik boyun fıtığı tedavisi.",
     image: "/hero/boyunfitigi.webp",
     youtubeId: "X1CmSDhe03g",
     shorts: [
@@ -309,17 +309,17 @@ export const treatments: Treatment[] = [
       },
     ],
     metaTitle:
-      "Full Endoskopik Boyun Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara",
+      "Kapalı Boyun Fıtığı Ameliyatı | Op. Dr. Eyüp Baykara",
     metaDescription:
-      "Boyun fıtığında full endoskopik kapalı ameliyat. Boyun ağrısı, kol uyuşması ve baş dönmesine minimal invaziv tedavi; hızlı iyileşme, küçük kesi.",
+      "Kapalı boyun fıtığı ameliyatı: boyun ağrısı, kol uyuşması ve baş dönmesine minimal invaziv tedavi; hızlı iyileşme, küçük kesi.",
     bodyLocation: "Boyun omurgası",
   },
   {
     slug: "kanal-darligi-ameliyati",
-    navTitle: "Full Endoskopik Tam Kapalı Kanal Darlığı Ameliyatı",
-    h1: "Full Endoskopik Tam Kapalı Kanal Darlığı Ameliyatı",
+    navTitle: "Kanal Darlığı Ameliyatı",
+    h1: "Kanal Darlığı Ameliyatı",
     heroSubtitle:
-      "Kanal darlığında ağrı, uyuşma ve güç kaybına minimal invaziv çözüm.",
+      "Kanal darlığı ameliyatında ağrı, uyuşma ve güç kaybına minimal invaziv çözüm.",
     image: "/hero/kanaldarligi.webp",
     youtubeId: "5lDawOOxgeM",
     shorts: [
@@ -411,10 +411,9 @@ export const treatments: Treatment[] = [
         a: "Sinir baskısı azaldığında birçok hastada yürüme mesafesi ve günlük aktivite kapasitesi belirgin şekilde iyileşir. Sonuçlar kişiye göre değişir.",
       },
     ],
-    metaTitle:
-      "Full Endoskopik Kanal Darlığı Ameliyatı | Op. Dr. Eyüp Baykara",
+    metaTitle: "Kanal Darlığı Ameliyatı | Op. Dr. Eyüp Baykara",
     metaDescription:
-      "Full endoskopik tam kapalı kanal darlığı ameliyatı: ağrı, uyuşma ve güç kaybına minimal invaziv çözüm. Hızlı iyileşme, daha az komplikasyon riski.",
+      "Kanal darlığı ameliyatı: ağrı, uyuşma ve güç kaybına endoskopik / kapalı minimal invaziv çözüm. Hızlı iyileşme, daha az komplikasyon riski.",
     bodyLocation: "Omurga kanalı",
   },
 ];
