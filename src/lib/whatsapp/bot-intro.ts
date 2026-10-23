@@ -8,15 +8,15 @@ import { isWhatsAppEnabled } from "@/lib/whatsapp/config";
 import { uploadWhatsAppMedia } from "@/lib/whatsapp/media";
 import { sendMediaMessage, sendMessage } from "@/lib/whatsapp/send-message";
 
-/** Panelin “Genel bilgilendirme” hazır mesajıyla aynı metin — tek kaynak. */
+/**
+ * Varsayılan metin: panelin “Genel bilgilendirme” hazır mesajı. Admin → Bot
+ * ekranından bot_settings.intro_message yazılırsa o gider.
+ */
 export const INTRO_BODY = cannedMessageBody("genel-bilgilendirme");
 
-/**
- * Bilgilendirmenin ardından giden form. intro_sent_at kilidine bağlı olduğu
- * için konuşma başına yalnızca bir kez gider; reklama tekrar tıklayan hastaya
- * yeniden gönderilmez.
- */
-export const INTRO_FORM_BODY = cannedMessageBody("bilgi-formu");
+export function resolveIntroBody(introMessage: string | null | undefined): string {
+  return introMessage?.trim() || INTRO_BODY;
+}
 
 export const INTRO_IMAGE_FILE = "islem_bolgesi.jpeg";
 export const INTRO_IMAGE_MIME = "image/jpeg";
@@ -113,8 +113,9 @@ export async function maybeSendIntroMessage(options: {
   supabase: SupabaseClient;
   conversationId: string;
   phone: string;
+  body: string;
 }): Promise<boolean> {
-  const { supabase, conversationId, phone } = options;
+  const { supabase, conversationId, phone, body } = options;
 
   // WA kapalıyken webhook'un kendisi zaten erken dönüyor.
   if (!isWhatsAppEnabled()) return false;
@@ -133,7 +134,7 @@ export async function maybeSendIntroMessage(options: {
   };
 
   try {
-    await sendMessage(phone, INTRO_BODY, context);
+    await sendMessage(phone, body, context);
   } catch (error) {
     await releaseIntro(supabase, conversationId);
     throw error;
@@ -154,13 +155,6 @@ export async function maybeSendIntroMessage(options: {
     // Metin gitti; görsel için kilidi geri açmıyoruz ki bilgilendirme tekrarlanmasın.
     console.error("[whatsapp] intro image:", error);
     cachedMedia = null;
-  }
-
-  try {
-    await sendMessage(phone, INTRO_FORM_BODY, context);
-  } catch (error) {
-    // Kilit yine açılmıyor: tekrar denemede bilgilendirme de yinelenirdi.
-    console.error("[whatsapp] intro form:", error);
   }
 
   return true;

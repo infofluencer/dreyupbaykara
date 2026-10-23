@@ -2,14 +2,14 @@ import Image from "next/image";
 import {
   deleteBotFaq,
   saveBotFaq,
+  saveBotIntroMessage,
   saveBotSettings,
 } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { requireAdminSession } from "@/lib/admin/auth";
 import {
-  INTRO_BODY,
-  INTRO_FORM_BODY,
   INTRO_IMAGE_CAPTION,
+  resolveIntroBody,
 } from "@/lib/whatsapp/bot-intro";
 import { faqLang } from "@/lib/whatsapp/bot-match";
 import { createClient } from "@/lib/supabase/server";
@@ -59,18 +59,24 @@ export default async function BotPage() {
         </p>
       </div>
 
-      <section className="space-y-4 rounded-2xl border border-[#123524]/10 bg-white p-5 sm:p-7">
+      <form
+        action={saveBotIntroMessage}
+        className="space-y-4 rounded-2xl border border-[#123524]/10 bg-white p-5 sm:p-7"
+      >
         <div>
           <h2 className="text-lg font-semibold">İlk mesaj bilgilendirmesi</h2>
           <p className="mt-1 text-sm text-[#466254]">
-            Hastanın ilk mesajına giden içerik. Metin, Inbox’taki “Genel
-            bilgilendirme” hazır mesajıyla aynıdır.
+            Hastanın ilk mesajına giden metin. Boş bırakıp kaydederseniz
+            Inbox’taki “Genel bilgilendirme” hazır mesajı gider.
           </p>
         </div>
         <div className="grid gap-5 sm:grid-cols-[1fr_auto]">
-          <p className="rounded-xl bg-[#f4f7f5] p-4 text-sm leading-6 whitespace-pre-line text-[#123524]">
-            {INTRO_BODY}
-          </p>
+          <textarea
+            name="intro_message"
+            rows={16}
+            defaultValue={resolveIntroBody(settings.intro_message)}
+            className={input}
+          />
           <figure className="space-y-2">
             {/* Görsel public/ altında değil; yetki kontrollü rotadan gelir. */}
             <Image
@@ -86,15 +92,10 @@ export default async function BotPage() {
             </figcaption>
           </figure>
         </div>
-        <div className="space-y-2">
-          <p className="text-sm text-[#466254]">
-            Ardından bilgi formu gider (konuşma başına bir kez):
-          </p>
-          <p className="rounded-xl bg-[#f4f7f5] p-4 text-sm leading-6 whitespace-pre-line text-[#123524]">
-            {INTRO_FORM_BODY}
-          </p>
-        </div>
-      </section>
+        <SubmitButton pendingLabel="Bilgilendirme kaydediliyor…" className="px-6">
+          Bilgilendirme metnini kaydet
+        </SubmitButton>
+      </form>
 
       <form
         action={saveBotSettings}

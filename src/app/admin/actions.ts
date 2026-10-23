@@ -1735,6 +1735,21 @@ export async function saveBotSettings(formData: FormData) {
   revalidatePath("/admin/bot");
 }
 
+export async function saveBotIntroMessage(formData: FormData) {
+  const session = await requireAdminSession(["admin"]);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("bot_settings")
+    .update({
+      // Boş kaydedilirse varsayılan metne döner.
+      intro_message: optionalText(formData, "intro_message"),
+      updated_by: session.userId,
+    })
+    .eq("id", true);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/bot");
+}
+
 export async function saveBotFaq(formData: FormData) {
   const session = await requireAdminSession(["admin", "editor"]);
   const supabase = await createClient();

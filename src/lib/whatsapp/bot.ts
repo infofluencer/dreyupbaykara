@@ -2,7 +2,10 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isWithinBusinessHours } from "@/lib/whatsapp/bot-hours";
-import { maybeSendIntroMessage } from "@/lib/whatsapp/bot-intro";
+import {
+  maybeSendIntroMessage,
+  resolveIntroBody,
+} from "@/lib/whatsapp/bot-intro";
 import { composeBotReply, matchBotFaqs } from "@/lib/whatsapp/bot-match";
 import { resolveUnmatchedReply } from "@/lib/whatsapp/bot-unmatched";
 import { sendMessage } from "@/lib/whatsapp/send-message";
@@ -12,6 +15,8 @@ type BotSettings = {
   enabled: boolean;
   /** Hastanın ilk mesajında genel bilgilendirme + işlem bölgesi görseli. */
   intro_enabled: boolean;
+  /** Panelden düzenlenen bilgilendirme metni; boşsa varsayılan gider. */
+  intro_message: string | null;
   /** SSS + mesai dışı akışı. Şu an askıda; açılınca eski davranış geri gelir. */
   faq_enabled: boolean;
   timezone: string;
@@ -50,6 +55,7 @@ export async function maybeReplyWithBot(options: {
       supabase,
       conversationId,
       phone,
+      body: resolveIntroBody(settings.intro_message),
     });
     if (introSent) return;
   }
