@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ADMIN_NAV, isAdminNavActive } from "@/components/admin/admin-nav";
+import { AdminNavPendingHint } from "@/components/admin/AdminNavPendingHint";
 import { AdminSignOut } from "@/components/admin/AdminSignOut";
 import { WhatsAppUnreadBadge } from "@/components/admin/WhatsAppUnreadBadge";
 
@@ -63,7 +64,7 @@ export function AdminSidebar() {
               key={item.href}
               href={item.href}
               title={item.label}
-              className={`group flex min-h-11 items-center rounded-xl px-3 text-sm font-medium transition ${
+              className={`group relative flex min-h-11 items-center rounded-xl px-3 text-sm font-medium transition ${
                 active
                   ? "bg-white text-[#123524] shadow-sm"
                   : "text-white/68 hover:bg-white/10 hover:text-white"
@@ -79,6 +80,7 @@ export function AdminSidebar() {
               />
               <span className="ml-3">{item.label}</span>
               {item.href === "/admin/messages" ? <WhatsAppUnreadBadge /> : null}
+              <AdminNavPendingHint />
             </Link>
           );
         })}

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { ADMIN_NAV, isAdminNavActive } from "@/components/admin/admin-nav";
+import { AdminNavPendingHint } from "@/components/admin/AdminNavPendingHint";
 import { AdminSignOut } from "@/components/admin/AdminSignOut";
 import { WhatsAppUnreadBadge } from "@/components/admin/WhatsAppUnreadBadge";
 
@@ -96,8 +97,12 @@ export function AdminMobileNav() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={() => setOpen(false)}
-                    className={`flex min-h-12 items-center rounded-xl px-3 text-sm font-medium transition ${
+                    // Başka sayfaya geçerken menüyü pathname effect'i kapatır;
+                    // o ana kadar açık kalır ki tıklama geri bildirimi görünsün.
+                    onClick={() => {
+                      if (active) setOpen(false);
+                    }}
+                    className={`relative flex min-h-12 items-center rounded-xl px-3 text-sm font-medium transition ${
                       active
                         ? "bg-white text-[#123524] shadow-sm"
                         : "text-white/70 hover:bg-white/10 hover:text-white"
@@ -113,6 +118,7 @@ export function AdminMobileNav() {
                     {item.href === "/admin/messages" ? (
                       <WhatsAppUnreadBadge />
                     ) : null}
+                    <AdminNavPendingHint />
                   </Link>
                 );
               })}

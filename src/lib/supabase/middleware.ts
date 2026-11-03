@@ -28,13 +28,21 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const path = request.nextUrl.pathname;
   const isAdmin = path.startsWith("/admin");
   const isLogin = path === "/admin/login";
+
+  /*
+    Proxy her gezinme ve prefetch isteğinin önünde çalışır; yanıtı dönmeden
+    loading.tsx de gösterilemez. getClaims JWT'yi yerelde doğrular (JWKS bellekte
+    önbelleklenir), Supabase'e gitmez. İptal edilmiş oturumu ise sayfalardaki
+    requireAdminSession yakalar ve /admin/login'e yollar. Bu yüzden login'de
+    getUser şart: JWT'ye güvenirsek süresi dolana kadar /admin'e geri döner,
+    yönlendirme döngüsü oluşur.
+  */
+  const user = isLogin
+    ? (await supabase.auth.getUser()).data.user
+    : (await supabase.auth.getClaims()).data?.claims;
 
   if (isAdmin && !isLogin && !user) {
     const redirectUrl = request.nextUrl.clone();
