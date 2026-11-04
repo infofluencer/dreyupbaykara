@@ -81,6 +81,7 @@ export function SectionPagination() {
     >
       <TrackedWhatsAppLink
         channel="top_bar"
+        target="_blank"
         className="pointer-events-auto flex min-h-10 w-full items-center justify-center gap-2.5 bg-[#0b6b45] px-4 py-2.5 text-center text-[13px] font-medium leading-snug text-white transition hover:bg-[#085436] sm:min-h-11 sm:text-sm"
       >
         <span>
@@ -201,12 +202,13 @@ export function SectionPagination() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/iletisim"
+            <TrackedWhatsAppLink
+              channel="nav_randevu"
+              target="_blank"
               className="hidden items-center justify-center rounded-full border border-[#c9d5ce] px-5 py-2 text-[13px] font-medium text-[#72a082] transition hover:border-[#72a082] hover:bg-[#72a082]/8 sm:inline-flex"
             >
               Randevu Al
-            </Link>
+            </TrackedWhatsAppLink>
 
             <button
               type="button"
@@ -305,13 +307,14 @@ export function SectionPagination() {
                   </Link>
                 );
               })}
-              <Link
-                href="/iletisim"
+              <TrackedWhatsAppLink
+                channel="nav_randevu_mobile"
+                target="_blank"
                 onClick={() => setMobileOpen(false)}
                 className="mt-2 inline-flex items-center justify-center rounded-full border border-[#c9d5ce] px-5 py-2.5 text-sm font-medium text-[#72a082]"
               >
                 Randevu Al
-              </Link>
+              </TrackedWhatsAppLink>
             </div>
           </div>
         ) : null}

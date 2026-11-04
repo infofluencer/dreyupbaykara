@@ -2,6 +2,7 @@
 
 import { motion, type MotionValue } from "framer-motion";
 import Image from "next/image";
+import { TrackedWhatsAppLink } from "@/components/TrackedWhatsAppLink";
 import { HOME_FALLBACK, type HomeHero } from "@/lib/cms/home";
 
 /** Üç kopya da aynı `sizes` ile: kaynak 1024px, ekranda en fazla 48px. */
@@ -61,12 +62,13 @@ export function HomeTreatmentCards({
         </div>
 
         <div className="mt-4">
-          <a
-            href={hero.ctaHref}
+          <TrackedWhatsAppLink
+            channel="hero_cta"
+            target="_blank"
             className="pointer-events-auto inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(11,107,69,0.35)] transition hover:bg-accent-glow"
           >
             {hero.ctaLabel}
-          </a>
+          </TrackedWhatsAppLink>
         </div>
       </motion.div>
     );
@@ -131,12 +133,13 @@ export function HomeTreatmentCards({
       </div>
 
       <div className="mt-7 flex max-w-[22rem] sm:mt-8 sm:max-w-[24rem]">
-        <a
-          href={hero.ctaHref}
+        <TrackedWhatsAppLink
+          channel="hero_cta"
+          target="_blank"
           className="pointer-events-auto inline-flex min-w-[15rem] items-center justify-center rounded-lg bg-accent px-10 py-3.5 text-base font-semibold text-white shadow-[0_0_24px_rgba(11,107,69,0.35)] transition hover:bg-accent-glow"
         >
           {hero.ctaLabel}
-        </a>
+        </TrackedWhatsAppLink>
       </div>
     </motion.div>
   );
