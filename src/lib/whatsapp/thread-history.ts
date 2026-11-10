@@ -19,8 +19,15 @@ export const WA_THREAD_OLDER_PAGE_SIZE = 200;
 /** Artımlı yoklamada tek seferde alınacak yeni mesaj tavanı. */
 const WA_THREAD_NEWER_PAGE_SIZE = 200;
 
+/**
+ * raw_payload'ın tamamı değil, yalnızca teslim hatası alanları çekilir:
+ * Meta status webhook'u delivery_error / delivery_code yazar, gönderim anında
+ * reddedilen mesajda ise error.message bulunur.
+ */
 export const WA_MESSAGE_SELECT =
-  "id, direction, body, status, automated, created_at, media_type, media_url, source";
+  "id, direction, body, status, automated, created_at, media_type, media_url, source, " +
+  "delivery_error:raw_payload->>delivery_error, delivery_code:raw_payload->>delivery_code, " +
+  "error_message:raw_payload->error->>message";
 
 export type ThreadMessageRow = {
   id: string;
@@ -32,6 +39,9 @@ export type ThreadMessageRow = {
   media_type: string | null;
   media_url: string | null;
   source: string | null;
+  delivery_error?: string | null;
+  delivery_code?: string | null;
+  error_message?: string | null;
 };
 
 export type ThreadPage = {
@@ -70,7 +80,7 @@ export async function fetchThreadMessages(
     .limit(WA_THREAD_PAGE_SIZE + 1);
   if (error) throw error;
 
-  const fetched = (data ?? []) as ThreadMessageRow[];
+  const fetched = (data ?? []) as unknown as ThreadMessageRow[];
   let hasOlder = fetched.length > WA_THREAD_PAGE_SIZE;
   const rows = hasOlder ? fetched.slice(0, WA_THREAD_PAGE_SIZE) : fetched;
 
@@ -93,7 +103,7 @@ export async function fetchThreadMessages(
       .order("created_at", { ascending: false })
       .limit(2_000);
     if (fillError) throw fillError;
-    const extra = (fill ?? []) as ThreadMessageRow[];
+    const extra = (fill ?? []) as unknown as ThreadMessageRow[];
     rows.push(...extra);
     if (extra.length >= 2_000) hasOlder = true;
   }
@@ -113,7 +123,7 @@ export async function fetchOlderThreadMessages(
     .limit(WA_THREAD_OLDER_PAGE_SIZE + 1);
   if (error) throw error;
 
-  const fetched = (data ?? []) as ThreadMessageRow[];
+  const fetched = (data ?? []) as unknown as ThreadMessageRow[];
   const hasOlder = fetched.length > WA_THREAD_OLDER_PAGE_SIZE;
   const rows = hasOlder ? fetched.slice(0, WA_THREAD_OLDER_PAGE_SIZE) : fetched;
   return { rows: rows.reverse(), hasOlder };
@@ -133,5 +143,5 @@ export async function fetchNewerThreadMessages(
     .order("created_at", { ascending: true })
     .limit(WA_THREAD_NEWER_PAGE_SIZE);
   if (error) throw error;
-  return (data ?? []) as ThreadMessageRow[];
+  return (data ?? []) as unknown as ThreadMessageRow[];
 }

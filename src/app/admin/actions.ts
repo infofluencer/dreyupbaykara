@@ -49,6 +49,10 @@ import {
   toOccupiedRange,
 } from "@/lib/crm/surgery-backfill";
 import { istanbulDayBoundsUtc } from "@/lib/whatsapp/automation-timing";
+import {
+  WA_AUTOMATION_TEMPLATE_SPECS,
+  renderTemplateBody,
+} from "@/lib/whatsapp/automation-templates";
 import type { LeadStage } from "@/types/crm";
 
 function revalidateMessages(conversationId?: string) {
@@ -130,6 +134,34 @@ function normalizePhone(value: string): string {
   return digits;
 }
 
+/**
+ * Hasta kaydını WhatsApp konuşmasına bağlar. Hasta sayfasındaki WhatsApp
+ * butonu konuşmayı lead_id ile bulur; bağ yoksa boş gelen kutusu açılıyordu.
+ * Ad da konuşmaya yazılır ki gelen kutusu panelde girilen adı göstersin.
+ */
+async function linkConversationToPatient(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  contactId: string,
+  name: string | null,
+  leadId: string | null,
+) {
+  await supabase
+    .from("conversations")
+    .update({
+      patient_id: contactId,
+      ...(name ? { contact_name: name } : {}),
+    })
+    .eq("contact_id", contactId);
+
+  if (leadId) {
+    await supabase
+      .from("conversations")
+      .update({ lead_id: leadId })
+      .eq("contact_id", contactId)
+      .is("lead_id", null);
+  }
+}
+
 export async function createManualLead(formData: FormData) {
   const session = await requireAdminSession(["admin", "doctor", "assistant"]);
   const supabase = await createClient();
@@ -156,7 +188,10 @@ export async function createManualLead(formData: FormData) {
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (existing) redirect(`/admin/patients/${contact.id}`);
+  if (existing) {
+    await linkConversationToPatient(supabase, contact.id, name || null, existing.id);
+    redirect(`/admin/patients/${contact.id}`);
+  }
 
   const inherited = await findContactAttribution(supabase, contact.id);
   const { data: lead, error } = await supabase
@@ -175,6 +210,8 @@ export async function createManualLead(formData: FormData) {
   if (error || !lead) {
     throw new Error(error?.message || "Talep oluşturulamadı.");
   }
+
+  await linkConversationToPatient(supabase, contact.id, name || null, lead.id);
 
   revalidatePath("/admin/leads");
   revalidatePath("/admin/patients");
@@ -229,23 +266,26 @@ export async function createPatient(formData: FormData) {
     .not("stage", "in", "(won,lost,spam)")
     .limit(1)
     .maybeSingle();
+  let leadId: string | null = existingLead?.id ?? null;
   if (!existingLead) {
     const inherited = await findContactAttribution(supabase, contact.id);
-    const { error: leadError } = await supabase.from("leads").insert({
-      contact_id: contact.id,
-      stage: "new",
-      site: inheritedSite(inherited) ?? "manual",
-      channel: text(formData, "channel") || "manual",
-      ...attributionInsertFields(inherited),
-      assigned_to: session.userId,
-    });
+    const { data: createdLead, error: leadError } = await supabase
+      .from("leads")
+      .insert({
+        contact_id: contact.id,
+        stage: "new",
+        site: inheritedSite(inherited) ?? "manual",
+        channel: text(formData, "channel") || "manual",
+        ...attributionInsertFields(inherited),
+        assigned_to: session.userId,
+      })
+      .select("id")
+      .single();
     if (leadError) throw new Error(leadError.message);
+    leadId = createdLead?.id ?? null;
   }
 
-  await supabase
-    .from("conversations")
-    .update({ patient_id: contact.id })
-    .eq("contact_id", contact.id);
+  await linkConversationToPatient(supabase, contact.id, name, leadId);
 
   revalidatePath("/admin/patients");
   revalidatePath("/admin/leads");
@@ -275,9 +315,17 @@ export async function updatePatient(formData: FormData) {
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
+
+  // Gelen kutusu konuşmadaki adı gösterir; hasta kartındaki düzeltme oraya da yansısın.
+  await supabase
+    .from("conversations")
+    .update({ contact_name: name, patient_id: id })
+    .eq("contact_id", id);
+
   revalidatePath("/admin/patients");
   revalidatePath(`/admin/patients/${id}`);
   revalidatePath("/admin/leads");
+  revalidatePath("/admin/messages");
 }
 
 export async function createPatientNote(formData: FormData) {
@@ -1368,7 +1416,34 @@ export async function deleteAppointment(formData: FormData) {
   revalidatePath("/admin/patients");
 }
 
-export async function sendConversationMessage(formData: FormData) {
+/**
+ * Gelen kutusu gönderimleri hata fırlatmak yerine sonuç döner: Next.js üretimde
+ * server action hatalarının metnini istemciye vermez, asistan yalnızca kırmızı
+ * bir ikon görürdü. Meta'nın hata metni (ör. "numara WhatsApp'ta değil")
+ * böylece ekranda okunabilir.
+ */
+export type SendActionResult = { ok: true } | { ok: false; error: string };
+
+function sendActionError(error: unknown, fallback: string): SendActionResult {
+  unstable_rethrow(error);
+  return {
+    ok: false,
+    error: error instanceof Error && error.message ? error.message : fallback,
+  };
+}
+
+export async function sendConversationMessage(
+  formData: FormData,
+): Promise<SendActionResult> {
+  try {
+    await sendConversationMessageInner(formData);
+    return { ok: true };
+  } catch (error) {
+    return sendActionError(error, "Mesaj gönderilemedi.");
+  }
+}
+
+async function sendConversationMessageInner(formData: FormData) {
   const session = await requireAdminSession(["admin", "doctor", "assistant"]);
   const supabase = await createClient();
   const conversationId = text(formData, "conversation_id");
@@ -1440,7 +1515,18 @@ export async function sendConversationMessage(formData: FormData) {
   // action from blocking the composer until the full RSC tree refreshes.
 }
 
-export async function sendConversationMedia(formData: FormData) {
+export async function sendConversationMedia(
+  formData: FormData,
+): Promise<SendActionResult> {
+  try {
+    await sendConversationMediaInner(formData);
+    return { ok: true };
+  } catch (error) {
+    return sendActionError(error, "Medya gönderilemedi.");
+  }
+}
+
+async function sendConversationMediaInner(formData: FormData) {
   const session = await requireAdminSession(["admin", "doctor", "assistant"]);
   const supabase = await createClient();
   const conversationId = text(formData, "conversation_id");
@@ -1639,7 +1725,18 @@ export async function releaseConversation(formData: FormData) {
   revalidateMessages(conversationId);
 }
 
-export async function sendConversationTemplate(formData: FormData) {
+export async function sendConversationTemplate(
+  formData: FormData,
+): Promise<SendActionResult> {
+  try {
+    await sendConversationTemplateInner(formData);
+    return { ok: true };
+  } catch (error) {
+    return sendActionError(error, "Şablon gönderilemedi.");
+  }
+}
+
+async function sendConversationTemplateInner(formData: FormData) {
   const session = await requireAdminSession(["admin", "doctor", "assistant"]);
   const supabase = await createClient();
   const conversationId = text(formData, "conversation_id");
@@ -1647,6 +1744,26 @@ export async function sendConversationTemplate(formData: FormData) {
   const templateName = text(formData, "template_name");
   const languageCode = text(formData, "language_code") || "tr";
   if (!templateName) throw new Error("Şablon adı zorunludur.");
+
+  // Yalnızca Meta'da onaylı, kodda tanımlı şablonlar; parametre sayısı şablonla eşleşmeli.
+  const spec = WA_AUTOMATION_TEMPLATE_SPECS.find(
+    (item) => item.templateName === templateName,
+  );
+  if (!spec) throw new Error("Tanımsız şablon.");
+
+  let params: string[] = [];
+  const paramsRaw = text(formData, "params");
+  if (paramsRaw) {
+    try {
+      const parsed: unknown = JSON.parse(paramsRaw);
+      if (Array.isArray(parsed)) params = parsed.map((item) => String(item ?? "").trim());
+    } catch {
+      throw new Error("Şablon parametreleri okunamadı.");
+    }
+  }
+  if (params.length !== spec.bodyParams.length || params.some((item) => !item)) {
+    throw new Error("Şablonun tüm alanlarını doldurun.");
+  }
 
   const { data: conversation } = await supabase
     .from("conversations")
@@ -1662,11 +1779,19 @@ export async function sendConversationTemplate(formData: FormData) {
   }
 
   const to = phone || conversation?.wa_phone || "";
-  const body = `[Şablon: ${templateName}]`;
+  const body = renderTemplateBody(spec.sampleBody, params);
+  const components = params.length
+    ? [
+        {
+          type: "body",
+          parameters: params.map((item) => ({ type: "text", text: item })),
+        },
+      ]
+    : undefined;
   const enabled = isWhatsAppEnabled();
 
   if (enabled) {
-    await sendTemplateMessage(to, templateName, languageCode, undefined, {
+    await sendTemplateMessage(to, templateName, languageCode, components, {
       to,
       conversationId,
       supabase,
@@ -1674,7 +1799,11 @@ export async function sendConversationTemplate(formData: FormData) {
       source: "panel",
       automated: false,
       bodyOverride: body,
-      extraPayload: { template_name: templateName, language_code: languageCode },
+      extraPayload: {
+        template_name: templateName,
+        language_code: languageCode,
+        template_params: params,
+      },
     });
   } else {
     const response = await sendTemplateMessage(to, templateName, languageCode);

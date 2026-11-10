@@ -100,6 +100,20 @@ export function priorAutomationRuleKey(ruleKey: string): string | undefined {
   ];
 }
 
+/**
+ * {{1}}, {{2}}… yerlerine parametreleri koyar. Panel önizlemesi ve gelen
+ * kutusu kaydı içindir; Meta'ya giden içerik onaylı şablonun kendisidir.
+ */
+export function renderTemplateBody(
+  sample: string,
+  params: readonly string[],
+): string {
+  return sample.replace(
+    /\{\{(\d+)\}\}/g,
+    (match, index: string) => params[Number(index) - 1] ?? match,
+  );
+}
+
 export function automationSampleBody(ruleKey: string): string | null {
   return (
     WA_AUTOMATION_TEMPLATE_SPECS.find((s) => s.key === ruleKey)?.sampleBody ??

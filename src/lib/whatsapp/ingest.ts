@@ -322,21 +322,40 @@ export async function ingestInboundWhatsAppMessage(
   if (!phone || !options.waMessageId) return null;
 
   // Stub contact only — is_patient stays false until staff registers them.
-  const { data: contact, error: contactError } = await supabase
+  // Kayıtlı hastada (is_patient) panelden girilen ad korunur; WhatsApp profil
+  // adı yalnızca stub kişilerde yazılır. Aksi halde "Ahmet Yılmaz" kaydı ilk
+  // gelen mesajda "ahmt" ya da çıplak numaraya dönüyordu.
+  const { data: existingContact } = await supabase
     .from("contacts")
-    .upsert(
-      {
-        phone,
-        name: options.contactName || phone,
-      },
-      { onConflict: "phone" },
-    )
     .select("id, name, phone, is_patient")
-    .single();
+    .eq("phone", phone)
+    .maybeSingle<{
+      id: string;
+      name: string | null;
+      phone: string;
+      is_patient: boolean | null;
+    }>();
 
-  if (contactError || !contact) {
-    console.error("[whatsapp] contact:", contactError?.message);
-    return null;
+  let contact = existingContact ?? null;
+
+  if (!contact || !contact.is_patient) {
+    const { data: upserted, error: contactError } = await supabase
+      .from("contacts")
+      .upsert(
+        {
+          phone,
+          name: options.contactName || contact?.name || phone,
+        },
+        { onConflict: "phone" },
+      )
+      .select("id, name, phone, is_patient")
+      .single();
+
+    if (contactError || !upserted) {
+      console.error("[whatsapp] contact:", contactError?.message);
+      return null;
+    }
+    contact = upserted;
   }
 
   const leadRef = extractLeadRef(options.body);

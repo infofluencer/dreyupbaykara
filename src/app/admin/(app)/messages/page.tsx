@@ -12,6 +12,7 @@ import {
   inboxRangeCutoffIso,
   type InboxContactLead,
 } from "@/lib/whatsapp/inbox-range";
+import { messageErrorFromRow } from "@/lib/whatsapp/inbox-format";
 import { fetchThreadMessages } from "@/lib/whatsapp/thread-history";
 
 const CONVERSATION_SELECT = `
@@ -174,6 +175,7 @@ export default async function AdminMessagesPage({
     ...message,
     direction: message.direction as "inbound" | "outbound",
     source: message.source ?? null,
+    ...messageErrorFromRow(message as unknown as Record<string, unknown>),
   }));
 
   return (

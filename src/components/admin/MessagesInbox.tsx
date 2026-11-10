@@ -46,6 +46,7 @@ import {
   markConversationRead,
   sendConversationMedia,
   sendConversationMessage,
+  sendConversationTemplate,
 } from "@/app/admin/actions";
 import { createClient } from "@/lib/supabase/client";
 import dynamic from "next/dynamic";
@@ -57,6 +58,9 @@ import {
   isWithin24hFromMessages,
   listTimeLabel,
   threadDayLabel,
+  deliveryErrorLabel,
+  messageErrorFromRow,
+  undeliverableNotice,
 } from "@/lib/whatsapp/inbox-format";
 import {
   WA_INBOX_REFRESH_EVENT,
@@ -120,6 +124,9 @@ export type InboxMessage = {
   media_type: string | null;
   media_url: string | null;
   source: string | null;
+  /** Meta teslim / gönderim hata metni (yalnızca status = failed). */
+  error: string | null;
+  error_code: number | null;
 };
 
 type FilterKey = "all" | "open" | "awaiting";
@@ -141,6 +148,7 @@ function mapInboxMessage(row: Record<string, unknown>): InboxMessage {
     media_type: (row.media_type as string | null) ?? null,
     media_url: (row.media_url as string | null) ?? null,
     source: (row.source as string | null) ?? null,
+    ...messageErrorFromRow(row),
   };
 }
 
@@ -302,8 +310,9 @@ export function MessagesInbox({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [sendingMedia, setSendingMedia] = useState(false);
-  const [mediaError, setMediaError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [sendingQuickId, setSendingQuickId] = useState<string | null>(null);
+  const [sendingTemplate, setSendingTemplate] = useState(false);
   const [, startTransition] = useTransition();
   const threadRef = useRef<HTMLDivElement>(null);
   /** "Daha eski mesajlar" sonrası otomatik en-alta kaydırmayı bir tur atla. */
@@ -351,6 +360,7 @@ export function MessagesInbox({
     null;
 
   const windowOpen = isWithin24hFromMessages(messages);
+  const undeliverable = useMemo(() => undeliverableNotice(messages), [messages]);
 
   const fetchMessages = useCallback(async (conversationId: string) => {
     const page = await fetchThreadMessages(
@@ -534,7 +544,7 @@ export function MessagesInbox({
       setSelectedId(id);
       setLoadError(null);
       setPendingFile(null);
-      setMediaError(null);
+      setSendError(null);
       appliedServerMessagesForRef.current = id;
       setConversations((rows) =>
         rows.map((row) =>
@@ -862,11 +872,11 @@ export function MessagesInbox({
 
   const clearPendingFile = useCallback(() => {
     setPendingFile(null);
-    setMediaError(null);
+    setSendError(null);
   }, []);
 
   const onPickFile = useCallback((file: File | undefined) => {
-    setMediaError(null);
+    setSendError(null);
     if (!file) return;
     const mime = (file.type || "").toLowerCase();
     const name = file.name.toLowerCase();
@@ -879,14 +889,14 @@ export function MessagesInbox({
       name.endsWith(".png") ||
       name.endsWith(".pdf");
     if (!ok) {
-      setMediaError("JPEG, PNG veya PDF seçin.");
+      setSendError("JPEG, PNG veya PDF seçin.");
       setPendingFile(null);
       return;
     }
     const isPdf = mime === "application/pdf" || name.endsWith(".pdf");
     const max = isPdf ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > max) {
-      setMediaError(
+      setSendError(
         isPdf ? "PDF en fazla 20 MB olabilir." : "Görsel en fazla 5 MB olabilir.",
       );
       setPendingFile(null);
@@ -916,7 +926,7 @@ export function MessagesInbox({
       const localPreviewUrl = URL.createObjectURL(file);
 
       setSendingMedia(true);
-      setMediaError(null);
+      setSendError(null);
       setPendingFile(null);
 
       const optimistic: InboxMessage = {
@@ -929,6 +939,8 @@ export function MessagesInbox({
         media_type: mediaType,
         media_url: localPreviewUrl,
         source: "panel",
+        error: null,
+        error_code: null,
       };
       setMessages((rows) => [...rows, optimistic]);
       setConversations((rows) =>
@@ -951,7 +963,8 @@ export function MessagesInbox({
       fd.set("caption", trimmedCaption);
       fd.set("file", file);
       try {
-        await sendConversationMedia(fd);
+        const result = await sendConversationMedia(fd);
+        if (!result.ok) throw new Error(result.error);
         if (selectedIdRef.current !== conversationId) return;
         setMessages((rows) =>
           rows.map((row) =>
@@ -965,10 +978,12 @@ export function MessagesInbox({
         const message =
           error instanceof Error ? error.message : "Medya gönderilemedi.";
         if (selectedIdRef.current === conversationId) {
-          setMediaError(message);
+          setSendError(message);
           setMessages((rows) =>
             rows.map((row) =>
-              row.id === optimistic.id ? { ...row, status: "failed" } : row,
+              row.id === optimistic.id
+                ? { ...row, status: "failed", error: message }
+                : row,
             ),
           );
         }
@@ -1005,6 +1020,8 @@ export function MessagesInbox({
         media_type: null,
         media_url: null,
         source: "panel",
+        error: null,
+        error_code: null,
       };
       setMessages((rows) => [...rows, optimistic]);
       setConversations((rows) =>
@@ -1025,8 +1042,10 @@ export function MessagesInbox({
       fd.set("conversation_id", conversationId);
       fd.set("phone", phone);
       fd.set("body", trimmed);
+      setSendError(null);
       try {
-        await sendConversationMessage(fd);
+        const result = await sendConversationMessage(fd);
+        if (!result.ok) throw new Error(result.error);
         if (selectedIdRef.current !== conversationId) return;
         setMessages((rows) =>
           rows.map((row) =>
@@ -1038,14 +1057,93 @@ export function MessagesInbox({
       } catch (error) {
         console.error("[inbox] send:", error);
         if (selectedIdRef.current !== conversationId) return;
+        const message =
+          error instanceof Error ? error.message : "Mesaj gönderilemedi.";
+        setSendError(message);
         setMessages((rows) =>
           rows.map((row) =>
-            row.id === optimistic.id ? { ...row, status: "failed" } : row,
+            row.id === optimistic.id
+              ? { ...row, status: "failed", error: message }
+              : row,
           ),
         );
       }
     },
     [apiEnabled, handleSendMedia, pendingFile, windowOpen],
+  );
+
+  const handleSendTemplate = useCallback(
+    async (templateName: string, params: string[], preview: string) => {
+      const selectedRow =
+        conversationsRef.current.find((row) => row.id === selectedIdRef.current) ??
+        null;
+      if (!selectedRow || sendingTemplate) return;
+
+      const conversationId = selectedRow.id;
+      const optimistic: InboxMessage = {
+        id: `local_${crypto.randomUUID()}`,
+        direction: "outbound",
+        body: preview,
+        status: "pending",
+        automated: false,
+        created_at: new Date().toISOString(),
+        media_type: null,
+        media_url: null,
+        source: "panel",
+        error: null,
+        error_code: null,
+      };
+      setSendingTemplate(true);
+      setSendError(null);
+      setMessages((rows) => [...rows, optimistic]);
+      setConversations((rows) =>
+        rows.map((row) =>
+          row.id === conversationId
+            ? {
+                ...row,
+                last_message_at: optimistic.created_at,
+                last_message_preview: preview.slice(0, 160),
+                last_message_direction: "outbound",
+                unread_count: 0,
+              }
+            : row,
+        ),
+      );
+
+      const fd = new FormData();
+      fd.set("conversation_id", conversationId);
+      fd.set("phone", selectedRow.wa_phone ?? "");
+      fd.set("template_name", templateName);
+      fd.set("params", JSON.stringify(params));
+      try {
+        const result = await sendConversationTemplate(fd);
+        if (!result.ok) throw new Error(result.error);
+        if (selectedIdRef.current !== conversationId) return;
+        setMessages((rows) =>
+          rows.map((row) =>
+            row.id === optimistic.id && row.status === "pending"
+              ? { ...row, status: "sent" }
+              : row,
+          ),
+        );
+      } catch (error) {
+        console.error("[inbox] template send:", error);
+        if (selectedIdRef.current !== conversationId) return;
+        const message =
+          error instanceof Error ? error.message : "Şablon gönderilemedi.";
+        setSendError(message);
+        setMessages((rows) =>
+          rows.map((row) =>
+            row.id === optimistic.id
+              ? { ...row, status: "failed", error: message }
+              : row,
+          ),
+        );
+      } finally {
+        setSendingTemplate(false);
+      }
+    },
+    [sendingTemplate],
   );
 
   const onSendQuick = useCallback(
@@ -1362,6 +1460,24 @@ export function MessagesInbox({
               )}
             </header>
 
+            {undeliverable ? (
+              <div
+                role="alert"
+                className="flex shrink-0 items-start gap-2 border-b border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-800"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <p>
+                  <span className="font-semibold">
+                    Bu numaraya WhatsApp mesajı ulaşmıyor.
+                  </span>{" "}
+                  Son deneme{" "}
+                  {new Date(undeliverable.at).toLocaleDateString("tr-TR")}.
+                  Numara WhatsApp&apos;ta olmayabilir ya da hasta başka bir
+                  numara kullanıyor olabilir; numarayı hastayla teyit edin.
+                </p>
+              </div>
+            ) : null}
+
             <div
               ref={threadRef}
               className="min-h-0 flex-1 space-y-1 overflow-y-auto bg-[#efe9df] px-3 py-4 sm:px-4"
@@ -1426,7 +1542,10 @@ export function MessagesInbox({
               sendingMedia={sendingMedia}
               sendingQuickId={sendingQuickId}
               pendingFile={pendingFile}
-              mediaError={mediaError}
+              sendError={sendError}
+              sendingTemplate={sendingTemplate}
+              contactName={selected.contact_name}
+              onSendTemplate={handleSendTemplate}
               onClearPendingFile={clearPendingFile}
               onPickFile={onPickFile}
               onSend={handleSend}
@@ -1552,6 +1671,11 @@ const ThreadMessage = memo(function ThreadMessage({
             <StatusTick status={message.status} />
           ) : null}
         </p>
+        {message.direction === "outbound" && message.status === "failed" ? (
+          <p className="mt-1 text-[11px] font-medium text-red-700">
+            İletilemedi: {deliveryErrorLabel(message.error_code, message.error)}
+          </p>
+        ) : null}
       </div>
     </div>
   );

@@ -3,25 +3,37 @@
 import {
   memo,
   useCallback,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
   type KeyboardEvent,
 } from "react";
 import { FileText, Loader2, Paperclip, Send, X } from "lucide-react";
+import {
+  WA_AUTOMATION_TEMPLATE_SPECS,
+  renderTemplateBody,
+} from "@/lib/whatsapp/automation-templates";
 import { CANNED_MESSAGES } from "@/lib/whatsapp/canned-messages";
 
 type MessageComposerProps = {
   apiEnabled: boolean;
   windowOpen: boolean;
   sendingMedia: boolean;
+  sendingTemplate: boolean;
   sendingQuickId: string | null;
   pendingFile: File | null;
-  mediaError: string | null;
+  sendError: string | null;
+  contactName: string | null;
   onClearPendingFile: () => void;
   onPickFile: (file: File | undefined) => void;
   onSend: (body: string) => Promise<void>;
   onSendQuick: (id: string, body: string) => void;
+  onSendTemplate: (
+    templateName: string,
+    params: string[],
+    preview: string,
+  ) => Promise<void>;
 };
 
 /**
@@ -32,13 +44,16 @@ export const MessageComposer = memo(function MessageComposer({
   apiEnabled,
   windowOpen,
   sendingMedia,
+  sendingTemplate,
   sendingQuickId,
   pendingFile,
-  mediaError,
+  sendError,
+  contactName,
   onClearPendingFile,
   onPickFile,
   onSend,
   onSendQuick,
+  onSendTemplate,
 }: MessageComposerProps) {
   const [draft, setDraft] = useState("");
   const draftRef = useRef("");
@@ -69,11 +84,10 @@ export const MessageComposer = memo(function MessageComposer({
     [submit],
   );
 
-  const inputDisabled = sendingMedia || (apiEnabled && !windowOpen);
+  const windowClosed = apiEnabled && !windowOpen;
+  const inputDisabled = sendingMedia || windowClosed;
   const sendDisabled =
-    sendingMedia ||
-    (!draft.trim() && !pendingFile) ||
-    (apiEnabled && !windowOpen);
+    sendingMedia || (!draft.trim() && !pendingFile) || windowClosed;
 
   return (
     <div className="shrink-0 border-t border-[#123524]/08 bg-white p-3 sm:p-4">
@@ -81,13 +95,24 @@ export const MessageComposer = memo(function MessageComposer({
         <p className="mb-2 text-xs text-amber-800">
           API bağlı değil — mesaj kaydedilir, gönderilmez.
         </p>
-      ) : !windowOpen ? (
+      ) : windowClosed ? (
         <p className="mb-2 text-xs text-amber-800">
-          Serbest mesaj penceresi kapalı — template gerekli
+          Hasta son 24 saatte yazmadı; WhatsApp serbest metne izin vermiyor.
+          Aşağıdan onaylı bir şablon gönderebilirsiniz. Hasta cevap verince
+          serbest yazışma yeniden açılır.
         </p>
       ) : null}
-      {mediaError ? (
-        <p className="mb-2 text-xs text-red-700">{mediaError}</p>
+      {sendError ? (
+        <p role="alert" className="mb-2 text-xs text-red-700">
+          {sendError}
+        </p>
+      ) : null}
+      {windowClosed ? (
+        <TemplatePicker
+          contactName={contactName}
+          sending={sendingTemplate}
+          onSend={onSendTemplate}
+        />
       ) : null}
       {pendingFile ? (
         <div className="mb-2 flex items-center gap-2 rounded-xl border border-[#123524]/12 bg-[#f4f6f5] px-3 py-2 text-sm text-[#123524]">
@@ -114,11 +139,7 @@ export const MessageComposer = memo(function MessageComposer({
           <button
             key={item.id}
             type="button"
-            disabled={
-              Boolean(sendingQuickId) ||
-              sendingMedia ||
-              (apiEnabled && !windowOpen)
-            }
+            disabled={Boolean(sendingQuickId) || sendingMedia || windowClosed}
             onClick={() => onSendQuick(item.id, item.body)}
             className="rounded-full border border-[#123524]/15 bg-[#e7f5ed] px-3 py-1.5 text-left text-[12px] font-semibold text-[#0b6b45] disabled:opacity-50"
           >
@@ -158,8 +179,8 @@ export const MessageComposer = memo(function MessageComposer({
           rows={2}
           disabled={inputDisabled}
           placeholder={
-            apiEnabled && !windowOpen
-              ? "Serbest mesaj penceresi kapalı"
+            windowClosed
+              ? "Serbest mesaj penceresi kapalı — yukarıdan şablon gönderin"
               : pendingFile
                 ? "Açıklama yazın (opsiyonel)…"
                 : "Mesaj yazın…"
@@ -183,3 +204,142 @@ export const MessageComposer = memo(function MessageComposer({
     </div>
   );
 });
+
+/* ── 24 saat dışı: onaylı şablonla gönderim ──────────────────────────────── */
+
+type TemplateSpec = (typeof WA_AUTOMATION_TEMPLATE_SPECS)[number];
+type TemplateParam = TemplateSpec["bodyParams"][number];
+
+const TEMPLATE_LABELS: Record<TemplateSpec["key"], string> = {
+  surgery_day: "Ameliyat sonrası bilgilendirme",
+  surgery_google_review: "Google yorum isteği",
+  surgery_2d: "Ameliyat randevusu teyidi",
+  appt_1d: "Yarınki randevu hatırlatma",
+  appt_1h: "Bugünkü randevu hatırlatma",
+};
+
+const PARAM_LABELS: Record<TemplateParam, string> = {
+  name: "Hasta adı",
+  date: "Tarih",
+  time: "Saat",
+};
+
+const PARAM_PLACEHOLDERS: Record<TemplateParam, string> = {
+  name: "Ad Soyad",
+  date: "12 Kasım Çarşamba",
+  time: "10:30",
+};
+
+/** Panelde seçilecek sıra: değişkensiz (tek tık) şablonlar önce. */
+const TEMPLATE_ORDER: TemplateSpec["key"][] = [
+  "surgery_day",
+  "surgery_google_review",
+  "surgery_2d",
+  "appt_1d",
+  "appt_1h",
+];
+
+const TEMPLATES = TEMPLATE_ORDER.map(
+  (key) => WA_AUTOMATION_TEMPLATE_SPECS.find((spec) => spec.key === key)!,
+);
+
+function TemplatePicker({
+  contactName,
+  sending,
+  onSend,
+}: {
+  contactName: string | null;
+  sending: boolean;
+  onSend: MessageComposerProps["onSendTemplate"];
+}) {
+  const [templateKey, setTemplateKey] = useState<TemplateSpec["key"]>(
+    TEMPLATES[0]!.key,
+  );
+  const [values, setValues] = useState<Record<string, string>>({
+    // Numara yerine ad geçiyorsa alanı boş bırak, asistan yazsın.
+    name: contactName && !/^\+?\d[\d\s]*$/.test(contactName) ? contactName : "",
+  });
+  const [showPreview, setShowPreview] = useState(false);
+
+  const spec = TEMPLATES.find((item) => item.key === templateKey) ?? TEMPLATES[0]!;
+  const params = useMemo(
+    () => spec.bodyParams.map((param) => (values[param] ?? "").trim()),
+    [spec, values],
+  );
+  const preview = useMemo(
+    () => renderTemplateBody(spec.sampleBody, params),
+    [spec, params],
+  );
+  const complete = params.every(Boolean);
+
+  return (
+    <div className="mb-3 space-y-2 rounded-xl border border-[#0b6b45]/20 bg-[#f4faf6] p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-xs font-semibold text-[#123524]" htmlFor="wa-template">
+          Şablon
+        </label>
+        <select
+          id="wa-template"
+          value={templateKey}
+          disabled={sending}
+          onChange={(event) => {
+            setTemplateKey(event.target.value as TemplateSpec["key"]);
+            setShowPreview(false);
+          }}
+          className="min-h-10 flex-1 rounded-lg border border-[#123524]/15 bg-white px-3 text-sm outline-none focus:border-[#0b6b45]"
+        >
+          {TEMPLATES.map((item) => (
+            <option key={item.key} value={item.key}>
+              {TEMPLATE_LABELS[item.key]}
+            </option>
+          ))}
+        </select>
+      </div>
+      {spec.bodyParams.length ? (
+        <div className="grid gap-2 sm:grid-cols-3">
+          {spec.bodyParams.map((param) => (
+            <label key={param} className="block text-xs text-[#466254]">
+              <span className="mb-1 block font-semibold">{PARAM_LABELS[param]}</span>
+              <input
+                value={values[param] ?? ""}
+                disabled={sending}
+                placeholder={PARAM_PLACEHOLDERS[param]}
+                onChange={(event) =>
+                  setValues((prev) => ({ ...prev, [param]: event.target.value }))
+                }
+                className="min-h-10 w-full rounded-lg border border-[#123524]/15 bg-white px-3 text-sm text-[#123524] outline-none focus:border-[#0b6b45]"
+              />
+            </label>
+          ))}
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setShowPreview((value) => !value)}
+          className="text-xs font-semibold text-[#0b6b45]"
+        >
+          {showPreview ? "Önizlemeyi gizle" : "Metni gör"}
+        </button>
+        <button
+          type="button"
+          disabled={sending || !complete}
+          onClick={() => void onSend(spec.templateName, params, preview)}
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-[#0b6b45] px-4 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          {sending ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Send className="h-4 w-4" aria-hidden />
+          )}
+          Şablonu gönder
+        </button>
+      </div>
+      {showPreview ? (
+        <p className="whitespace-pre-wrap rounded-lg border border-[#123524]/10 bg-white p-3 text-xs text-[#123524]">
+          {preview}
+        </p>
+      ) : null}
+    </div>
+  );
+}
