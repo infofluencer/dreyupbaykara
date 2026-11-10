@@ -146,12 +146,34 @@ async function handleStatuses(
       });
     }
 
-    const { data: message } = await supabase
-      .from("messages")
-      .update({ status: status.status })
-      .eq("wa_message_id", status.id)
-      .select("id, raw_payload")
-      .maybeSingle();
+    // Satır henüz yoksa (durum webhook'u mesajdan önce geldi) DB tarafında
+    // park edilir ve mesaj insert edilirken uygulanır; durum geriye gitmez.
+    const { data: applied, error: applyError } = await supabase
+      .rpc("apply_whatsapp_status", {
+        p_wa_message_id: status.id,
+        p_status: status.status,
+        p_errors: status.errors ?? null,
+      })
+      .maybeSingle<{
+        message_id: string | null;
+        raw_payload: unknown;
+        found: boolean;
+      }>();
+    let message: { id: string; raw_payload: unknown } | null =
+      applied?.found && applied.message_id
+        ? { id: applied.message_id, raw_payload: applied.raw_payload }
+        : null;
+    if (applyError) {
+      // Migration henüz uygulanmadıysa eski davranışa düş.
+      console.error("[whatsapp] status apply:", applyError.message);
+      const { data } = await supabase
+        .from("messages")
+        .update({ status: status.status })
+        .eq("wa_message_id", status.id)
+        .select("id, raw_payload")
+        .maybeSingle();
+      message = data;
+    }
 
     if (status.status === "failed" && message) {
       const payload = (message.raw_payload ?? {}) as Record<string, unknown>;
