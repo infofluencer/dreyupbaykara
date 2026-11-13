@@ -24,6 +24,290 @@ export type BlogPost = {
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "bacaga-vuran-fitik-agrisi-nasil-gecer-rehber",
+    title: "Bacağa Vuran Fıtık Ağrısı Nasıl Geçer?",
+    date: "2026-11-13",
+    excerpt:
+      "Bacağa vuran fıtık ağrısı nasıl geçer? Siyatik ağrıda evde yöntemler, ne zaman doktora gidilir ve endoskopik bel ameliyatı seçenekleri.",
+    image: "/hero/belfitigi.webp",
+    imageAlt: "Bacağa vuran fıtık ağrısı nasıl geçer",
+    metaTitle:
+      "Bacağa Vuran Fıtık Ağrısı Nasıl Geçer? | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Bacağa vuran fıtık ağrısı nasıl geçer? Bel fıtığına bağlı siyatik ağrıda dinlenme, fizik tedavi ve kapalı / endoskopik bel ameliyatı seçeneklerini öğrenin.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Bacağa vuran ağrı için değerlendirme",
+    contactCardBody:
+      "Şikayetiniz sürüyorsa Op. Dr. Eyüp Baykara ile ön değerlendirme için formu doldurun veya WhatsApp’tan yazın.",
+    toc: [
+      { id: "nedir", label: "Bacağa vuran fıtık ağrısı nedir?" },
+      { id: "nasil-gecer", label: "Bacağa vuran fıtık ağrısı nasıl geçer?" },
+      { id: "evde", label: "Evde ne yapılabilir?" },
+      { id: "ne-zaman", label: "Ne zaman doktora gidilmeli?" },
+      { id: "tedavi", label: "Tedavi ve ameliyat seçenekleri" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Bacağa vuran fıtık ağrısı nasıl geçer?</strong> sorusu, bel fıtığı ve siyatik şikâyeti olanların en çok aradığı konulardan biridir. Ağrı çoğu zaman belden kalçaya, uyluğa ve bacağa yayılır; uyuşma, karıncalanma veya güçsüzlük eşlik edebilir.</p>
+<p>Bu yazıda ağrının nedenlerini, evde uygulanabilecek yaklaşımları ve kalıcı çözüm seçeneklerini özetliyoruz. Detaylı özgeçmiş için <a href="/blog/op-dr-eyup-baykara-kimdir">Op. Dr. Eyüp Baykara kimdir</a> yazısına da bakabilirsiniz.</p>
+
+<h2 id="nedir">Bacağa vuran fıtık ağrısı nedir?</h2>
+<p>Bel fıtığında disk dokusu sinir köküne baskı yapabilir. Bu baskı <strong>siyatik sinir</strong> hattı boyunca bacağa yansır. Tek taraflı (sağ veya sol) olması sık görülür; sol bacağa vuran fıtık ağrısı da aynı mekanizmayla oluşur.</p>
+
+<figure><img src="/hero/belfitigi.webp" alt="Bacağa vuran fıtık ağrısı nasıl geçer" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="nasil-gecer">Bacağa vuran fıtık ağrısı nasıl geçer?</h2>
+<p>Birçok hafif–orta vakada ağrı, 4–6 hafta içinde konservatif (ameliyatsız) yöntemlerle gerileyebilir. Kalıcı geçiş için sinir baskısının azalması gerekir. Yaklaşımlar:</p>
+<ul>
+<li>Kısa süreli aktivite düzenlemesi (yatak istirahati uzun süreli önerilmez)</li>
+<li>Hekim önerisiyle ağrı kesici / antiinflamatuar</li>
+<li>Fizik tedavi ve uygun egzersiz</li>
+<li>Gerekirse enjeksiyon veya cerrahi değerlendirme</li>
+</ul>
+<p>İlgili yazı: <a href="/blog/bacaga-vuran-fitik-agrisi-evde-nasil-gecer">bacağa vuran fıtık ağrısı evde nasıl geçer</a>.</p>
+
+<h2 id="evde">Evde ne yapılabilir?</h2>
+<p>Evde sıcak/soğuk uygulama, kısa yürüyüşler ve hekimin önerdiği bel egzersizleri şikâyeti yumuşatabilir. Ancak güç kaybı, idrar–dışkı kontrolünde bozulma veya şiddetli uyuşmada evde beklenmemelidir.</p>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara bacağa vuran fıtık ağrısı" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="ne-zaman">Ne zaman doktora gidilmeli?</h2>
+<ul>
+<li>6 haftadan uzun süren bacağa vuran ağrı</li>
+<li>İlaç ve fizik tedaviye rağmen artan şikâyet</li>
+<li>Ayakta güç kaybı, yürüme zorluğu</li>
+<li>İlerleyici uyuşma</li>
+</ul>
+
+<h2 id="tedavi">Tedavi ve ameliyat seçenekleri</h2>
+<p>Konservatif tedavi yetersiz kaldığında <a href="/tedaviler/bel-fitigi-ameliyati">kapalı bel fıtığı ameliyatı</a> / <strong>endoskopik bel ameliyatı</strong> gündeme gelebilir. Amaç sinire baskı yapan fıtık dokusunu milimetrik kesiden çıkarmaktır.</p>
+<p>Hasta deneyimleri için: <a href="/hasta-deneyimleri">hasta deneyimleri</a> · <a href="/blog/op-dr-eyup-baykara-yorumlari">Op. Dr. Eyüp Baykara yorumları</a></p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p><strong>Bacağa vuran fıtık ağrısı nasıl geçer?</strong> — doğru tanı, sabırlı konservatif tedavi ve gerektiğinde modern kapalı cerrahi ile. Randevu için <a href="/iletisim">iletişim</a> sayfasını kullanın.</p>`,
+  },
+  {
+    slug: "bacaga-vuran-fitik-agrisi-evde-nasil-gecer",
+    title: "Bacağa Vuran Fıtık Ağrısı Evde Nasıl Geçer?",
+    date: "2026-11-13",
+    excerpt:
+      "Bacağa vuran fıtık ağrısı evde nasıl geçer? Güvenli ev yöntemleri, kaçınılması gerekenler ve ne zaman doktora başvurmanız gerektiği.",
+    image: "/hero/belfitigi.webp",
+    imageAlt: "Bacağa vuran fıtık ağrısı evde nasıl geçer",
+    metaTitle:
+      "Bacağa Vuran Fıtık Ağrısı Evde Nasıl Geçer? | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Bacağa vuran fıtık ağrısı evde nasıl geçer? Bel fıtığı siyatik ağrısında evde yapılacaklar, riskler ve Op. Dr. Eyüp Baykara ile ne zaman değerlendirme gerekir.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Evde geçmeyen ağrı için yazın",
+    contactCardBody:
+      "Ev yöntemleri yetmiyorsa endoskopik bel ameliyatı uygunluğunu konuşmak için formu doldurun.",
+    toc: [
+      { id: "evde", label: "Evde nasıl geçer?" },
+      { id: "yapilacaklar", label: "Yapılabilecekler" },
+      { id: "yapilmayacaklar", label: "Yapılmaması gerekenler" },
+      { id: "uyari", label: "Kırmızı bayraklar" },
+      { id: "sonraki", label: "Sonraki adım" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Bacağa vuran fıtık ağrısı evde nasıl geçer?</strong> Hafif vakalarda dinlenme, doğru pozisyon ve hekim önerili ilaçlarla şikâyet yumuşayabilir. Ancak “evde kesin geçer” garantisi yoktur; sinir baskısı süren hastalarda uzman değerlendirmesi şarttır.</p>
+<p>Genel rehber: <a href="/blog/bacaga-vuran-fitik-agrisi-nasil-gecer-rehber">bacağa vuran fıtık ağrısı nasıl geçer</a>.</p>
+
+<h2 id="evde">Bacağa vuran fıtık ağrısı evde nasıl geçer?</h2>
+<p>Amaç ağrıyı artırmadan günlük işlevi sürdürmektir. Kısa süreli yatış, ardından kontrollü hareket çoğu hastada uzun yatak istirahatinden daha iyidir.</p>
+
+<figure><img src="/hero/belfitigi.webp" alt="Bacağa vuran fıtık ağrısı evde nasıl geçer" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="yapilacaklar">Evde yapılabilecekler</h2>
+<ul>
+<li>Hekim / eczacı önerisiyle ağrı kesici kullanmak</li>
+<li>Bel bölgesine kısa süreli soğuk veya sıcak uygulama (şişliğe göre)</li>
+<li>Sırt üstü dizler bükülü hafif dinlenme pozisyonu</li>
+<li>Günde birkaç kez kısa yürüyüş</li>
+<li>Ağır kaldırmamak, ani öne eğilmekten kaçınmak</li>
+</ul>
+
+<h2 id="yapilmayacaklar">Yapılmaması gerekenler</h2>
+<ul>
+<li>Günlerce yataktan çıkmamak</li>
+<li>Kontrolsüz “çekme–çekiştirme” manevraları</li>
+<li>Ağrıya rağmen ağır spor / koşu</li>
+<li>İnternetten rastgele egzersiz programı uygulamak</li>
+</ul>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara bel fıtığı değerlendirmesi" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="uyari">Kırmızı bayraklar</h2>
+<p>Sol veya sağ bacağa vuran ağrıda şu durumlarda acil değerlendirme gerekir: bacakta belirgin güç kaybı, eyer tipi uyuşma, idrar veya dışkı kontrolünde bozulma.</p>
+<p>İlgili: <a href="/blog/sol-bacaga-vuran-fitik-agrisi-nasil-gecer">sol bacağa vuran fıtık ağrısı nasıl geçer</a>.</p>
+
+<h2 id="sonraki">Sonraki adım</h2>
+<p>2–3 haftada düzelme yoksa MR ve beyin–sinir cerrahisi muayenesi planlanmalıdır. Seçilmiş hastalarda <a href="/tedaviler/bel-fitigi-ameliyati">kapalı bel fıtığı ameliyatı</a> kalıcı çözüm sunabilir.</p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p><strong>Bacağa vuran fıtık ağrısı evde nasıl geçer?</strong> — doğru bakımla kısmen rahatlayabilir; geçmeyen ağrıda Op. Dr. Eyüp Baykara ile iletişime geçin: <a href="/iletisim">iletişim</a>.</p>`,
+  },
+  {
+    slug: "sol-bacaga-vuran-fitik-agrisi-nasil-gecer",
+    title: "Sol Bacağa Vuran Fıtık Ağrısı Nasıl Geçer?",
+    date: "2026-11-13",
+    excerpt:
+      "Sol bacağa vuran fıtık ağrısı nasıl geçer? Sol siyatik ağrıda nedenler, ev bakımı ve endoskopik bel fıtığı tedavisi.",
+    image: "/hero/belfitigi.webp",
+    imageAlt: "Sol bacağa vuran fıtık ağrısı nasıl geçer",
+    metaTitle:
+      "Sol Bacağa Vuran Fıtık Ağrısı Nasıl Geçer? | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Sol bacağa vuran fıtık ağrısı nasıl geçer? Bel fıtığında sol siyatik ağrı, belirtiler, evde yaklaşım ve kapalı / endoskopik tedavi seçenekleri.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Sol bacağa vuran ağrı değerlendirmesi",
+    contactCardBody:
+      "Sol bacak ağrınız için ön bilgi ve randevu — formu doldurun veya WhatsApp’tan yazın.",
+    toc: [
+      { id: "neden", label: "Neden sol bacağa vurur?" },
+      { id: "belirtiler", label: "Belirtiler" },
+      { id: "nasil", label: "Nasıl geçer?" },
+      { id: "tedavi", label: "Tedavi seçenekleri" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Sol bacağa vuran fıtık ağrısı nasıl geçer?</strong> Bel fıtığı genellikle tek taraflı sinir kökünü etkiler; fıtık sol tarafta ise ağrı sol kalça ve sol bacağa yayılır. Mekanizma sağ tarafla aynıdır; taraf farkı baskı yapılan sinir köküne bağlıdır.</p>
+
+<h2 id="neden">Neden sol bacağa vurur?</h2>
+<p>Omurgadaki disk taşması sol sinir köküne baskı yaptığında ağrı sol bacak hattında hissedilir. MR görüntülemesi hangi seviyede (ör. L4–L5, L5–S1) baskı olduğunu gösterir.</p>
+
+<figure><img src="/hero/belfitigi.webp" alt="Sol bacağa vuran fıtık ağrısı nasıl geçer" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="belirtiler">Belirtiler</h2>
+<ul>
+<li>Solda bel–kalça–bacak ağrısı</li>
+<li>Sol ayakta uyuşma veya karıncalanma</li>
+<li>Uzun oturunca artan ağrı</li>
+<li>İleri vakada sol ayakta güç kaybı</li>
+</ul>
+
+<h2 id="nasil">Sol bacağa vuran fıtık ağrısı nasıl geçer?</h2>
+<p>İlk basamak çoğu hastada ilaç, aktivite düzenlemesi ve fizik tedavidir. Ev bakımı için: <a href="/blog/bacaga-vuran-fitik-agrisi-evde-nasil-gecer">bacağa vuran fıtık ağrısı evde nasıl geçer</a>. Genel rehber: <a href="/blog/bacaga-vuran-fitik-agrisi-nasil-gecer-rehber">bacağa vuran fıtık ağrısı nasıl geçer</a>.</p>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara sol bacağa vuran fıtık" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="tedavi">Tedavi seçenekleri</h2>
+<p>Şikâyet sürüyorsa Op. Dr. Eyüp Baykara muayene ve MR ile plan yapar. Uygun hastalarda <a href="/tedaviler/bel-fitigi-ameliyati">kapalı bel fıtığı ameliyatı</a> ile sinir baskısı kaldırılabilir. Ücret bilgisi genel çerçevesi için: <a href="/blog/dr-eyup-baykara-ameliyat-ucreti">Dr. Eyüp Baykara ameliyat ücreti</a>.</p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p><strong>Sol bacağa vuran fıtık ağrısı nasıl geçer?</strong> — doğru tanı ve kişiye özel tedavi ile. <a href="/iletisim">İletişim</a> veya WhatsApp üzerinden ulaşabilirsiniz.</p>`,
+  },
+  {
+    slug: "op-dr-eyup-baykara-yorumlari",
+    title: "Op. Dr. Eyüp Baykara Yorumları",
+    date: "2026-11-13",
+    excerpt:
+      "Op. Dr. Eyüp Baykara yorumları ve hasta deneyimleri: full endoskopik bel fıtığı ameliyatı sonrası gerçek hikâyeler ve Google yorumlarına nasıl ulaşılır.",
+    image: "/hero/hero_dr.webp",
+    imageAlt: "Op. Dr. Eyüp Baykara yorumları",
+    metaTitle: "Op. Dr. Eyüp Baykara Yorumları | Hasta Deneyimleri",
+    metaDescription:
+      "Op. Dr. Eyüp Baykara yorumları, Dr. Eyüp Baykara yorumlar ve hasta videoları. Endoskopik bel ameliyatı deneyimleri için hasta hikâyelerine göz atın.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Yorumlardan sonra randevu",
+    contactCardBody:
+      "Hasta deneyimlerini inceledikten sonra ön değerlendirme için formu doldurun.",
+    toc: [
+      { id: "yorumlar", label: "Op. Dr. Eyüp Baykara yorumları" },
+      { id: "nerede", label: "Yorumlar nerede okunur?" },
+      { id: "ne-anlatir", label: "Hastalar ne anlatıyor?" },
+      { id: "sikayet", label: "Şikâyet ve geri bildirim" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Op. Dr. Eyüp Baykara yorumları</strong>, ameliyat kararı öncesi en çok incelenen içeriklerden biridir. “Dr. Eyüp Baykara yorumlar”, “Eyüp Baykara yorumlar” aramaları da aynı ihtiyacı yansıtır: gerçek hasta deneyimi.</p>
+
+<h2 id="yorumlar">Op. Dr. Eyüp Baykara yorumları</h2>
+<p>Hastalar sıklıkla ameliyat sonrası ağrı azalması, aynı gün taburcu, küçük kesi ve iletişim sürecini değerlendirir. Bu sitede derlenmiş videolar ve hikâyeler için <a href="/hasta-deneyimleri">hasta deneyimleri</a> sayfasını ziyaret edin.</p>
+
+<figure><img src="/hero/hero_dr.webp" alt="Op. Dr. Eyüp Baykara yorumları" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="nerede">Yorumlar nerede okunur?</h2>
+<ul>
+<li>Bu sitedeki <a href="/hasta-deneyimleri">hasta deneyimleri</a> bölümü</li>
+<li>Google işletme / harita yorumları</li>
+<li>Resmi bilgilendirme: <a href="https://www.eyupbaykara.com/" target="_blank" rel="noopener noreferrer">eyupbaykara.com</a></li>
+</ul>
+<p>Kimdir / hakkında: <a href="/blog/op-dr-eyup-baykara-kimdir">Op. Dr. Eyüp Baykara kimdir</a> · <a href="/blog/op-dr-eyup-baykara-hakkinda">hakkında</a></p>
+
+<h2 id="ne-anlatir">Hastalar ne anlatıyor?</h2>
+<p>Full endoskopik / kapalı bel fıtığı ameliyatı olan birçok hasta; bacağa vuran ağrıda azalma, kısa hastane süreci ve günlük yaşama dönüş temposunu vurgular. Her vaka kişiye özeldir; yorumlar bilgilendirir ama muayene yerine geçmez.</p>
+
+<figure><img src="/hero/belfitigi.webp" alt="Endoskopik bel ameliyatı hasta deneyimi" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="sikayet">Şikâyet ve geri bildirim</h2>
+<p>“Eyüp Baykara şikayet” arayanlar çoğu zaman süreç, randevu veya beklenti yönetimi hakkında bilgi arar. Memnuniyet ve geri bildirim için şeffaf iletişim önemlidir: <a href="/iletisim">iletişim</a> · <a href="/hasta-deneyimleri">hasta deneyimleri</a>.</p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p><strong>Op. Dr. Eyüp Baykara yorumları</strong>nı inceledikten sonra kendi MR ve muayene bulgularınızla değerlendirme almak en doğrusudur. WhatsApp veya form ile bize ulaşabilirsiniz.</p>`,
+  },
+  {
+    slug: "dr-eyup-baykara-ameliyat-ucreti",
+    title: "Dr. Eyüp Baykara Ameliyat Ücreti",
+    date: "2026-11-13",
+    excerpt:
+      "Dr. Eyüp Baykara ameliyat ücreti nasıl belirlenir? Bel fıtığı, boyun fıtığı ve kanal darlığı endoskopik cerrahisinde fiyatı etkileyen faktörler.",
+    image: "/hero/hero_dr.webp",
+    imageAlt: "Dr. Eyüp Baykara ameliyat ücreti",
+    metaTitle: "Dr. Eyüp Baykara Ameliyat Ücreti | Op. Dr. Eyüp Baykara",
+    metaDescription:
+      "Dr. Eyüp Baykara ameliyat ücreti: endoskopik bel fıtığı, boyun fıtığı ve kanal darlığı ameliyatında ücreti etkileyen unsurlar. Güncel bilgi için iletişime geçin.",
+    showLeadForm: true,
+    showWhatsAppCta: true,
+    showContactCard: true,
+    contactCardTitle: "Ameliyat ücreti için teklif alın",
+    contactCardBody:
+      "MR ve şikâyetinize göre ön bilgilendirme için formu doldurun; sizi arayalım.",
+    toc: [
+      { id: "ucret", label: "Ameliyat ücreti nasıl belirlenir?" },
+      { id: "faktorler", label: "Fiyatı etkileyen faktörler" },
+      { id: "paket", label: "Neler dahil olabilir?" },
+      { id: "nasil", label: "Nasıl teklif alınır?" },
+      { id: "sonuc", label: "Sonuç" },
+    ],
+    contentHtml: `<p><strong>Dr. Eyüp Baykara ameliyat ücreti</strong> (Op. Dr. Eyüp Baykara ameliyat ücreti) aramaları sık yapılır. Net tutar; ameliyat türü, hastane paketleri, anestezi ve ek tetkiklere göre kişiye özel netleşir. Bu yazı sabit fiyat listesi değil, şeffaf bilgilendirme amaçlıdır.</p>
+
+<h2 id="ucret">Dr. Eyüp Baykara ameliyat ücreti nasıl belirlenir?</h2>
+<p>Ücret; seçilen cerrahi yönteme (ör. full endoskopik bel fıtığı, boyun fıtığı, kanal darlığı), işlemin karmaşıklığına ve hastane koşullarına bağlıdır. Güncel teklif için muayene / görüntüleme sonrası bilgi verilir.</p>
+
+<figure><img src="/hero/hero_dr.webp" alt="Dr. Eyüp Baykara ameliyat ücreti" loading="lazy" width="1000" height="1250" /></figure>
+
+<h2 id="faktorler">Fiyatı etkileyen faktörler</h2>
+<ul>
+<li>Ameliyat tipi: <a href="/tedaviler/bel-fitigi-ameliyati">bel fıtığı</a>, <a href="/tedaviler/boyun-fitigi-ameliyati">boyun fıtığı</a>, <a href="/tedaviler/kanal-darligi-ameliyati">kanal darlığı</a></li>
+<li>Tek seviye / çok seviye işlem</li>
+<li>Hastane paket kapsamı (ameliyathane, yatış, malzemeler)</li>
+<li>Anestezi ve ek tetkikler</li>
+<li>Sigorta / anlaşmalı kurum durumu (varsa)</li>
+</ul>
+
+<figure><img src="/hero/belfitigi.webp" alt="Endoskopik bel ameliyatı ücreti" loading="lazy" width="1000" height="667" /></figure>
+
+<h2 id="paket">Neler dahil olabilir?</h2>
+<p>Paketler merkeze göre değişir. Genelde cerrahi ücret, ameliyathane kullanımı ve kısa gözlem süreci konuşulur. Net kalemler randevu sonrası yazılı / sözlü teklifte belirtilir.</p>
+
+<h2 id="nasil">Nasıl teklif alınır?</h2>
+<ol>
+<li><a href="/iletisim">İletişim</a> formunu doldurun veya WhatsApp’tan yazın</li>
+<li>MR ve şikâyet özetinizi iletin</li>
+<li>Muayene sonrası size özel ücret bilgilendirmesi alın</li>
+</ol>
+<p>Hasta yorumları: <a href="/blog/op-dr-eyup-baykara-yorumlari">Op. Dr. Eyüp Baykara yorumları</a> · Klinik: Özel Silivri Anadolu Hastanesi · Resmi site: <a href="https://www.eyupbaykara.com/" target="_blank" rel="noopener noreferrer">eyupbaykara.com</a></p>
+
+<h2 id="sonuc">Sonuç</h2>
+<p><strong>Dr. Eyüp Baykara ameliyat ücreti</strong> için en doğru yol kişiye özel değerlendirmedir. Aşağıdaki teklif formu veya WhatsApp ile bize ulaşın.</p>`,
+  },
+  {
     slug: "op-dr-eyup-baykara-kimdir",
     title: "Op. Dr. Eyüp Baykara Kimdir?",
     date: "2026-10-22",
