@@ -1672,9 +1672,10 @@ export async function markConversationRead(formData: FormData) {
   const conversationId = text(formData, "conversation_id");
   const clearError = await clearConversationUnread(supabase, conversationId);
   if (clearError) throw new Error(clearError);
-  // Inbox client updates unread locally; revalidating /admin/messages here
-  // remounts the page before ?c= is set and closes the thread panel.
-  revalidatePath("/admin");
+  // Revalidate yok: Next 16'da revalidatePath çağıran action, bulunduğu sayfayı
+  // (gelen kutusu: 800 sohbet + lead'ler + mesajlar) aynı istekte sunucuda
+  // yeniden render ediyor ve sıradaki action'ları bekletiyordu. Gelen kutusu
+  // okunmamışı yerelde/realtime ile güncelliyor; /admin zaten dinamik.
 }
 
 export async function claimConversation(formData: FormData) {
@@ -1830,7 +1831,7 @@ async function sendConversationTemplateInner(formData: FormData) {
       unread_count: 0,
     })
     .eq("id", conversationId);
-  revalidateMessages(conversationId);
+  // Metin gönderimiyle aynı: gelen kutusu iyimser + realtime, revalidate yok.
 }
 
 export async function saveBotSettings(formData: FormData) {

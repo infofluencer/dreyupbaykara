@@ -20,13 +20,20 @@ export const WA_THREAD_OLDER_PAGE_SIZE = 200;
 const WA_THREAD_NEWER_PAGE_SIZE = 200;
 
 /**
- * raw_payload'ın tamamı değil, yalnızca teslim hatası alanları çekilir:
+ * Liste sorgusu raw_payload'a hiç dokunmaz: o kolon büyük webhook JSON'u
+ * (TOAST) taşıyor ve her satırda açmak sorguyu belirgin yavaşlatıyordu.
+ * Teslim hatası yalnızca `failed` giden mesajda gösterildiği için alanları
+ * ayrı ve küçük bir sorguyla sadece o satırlara ekleriz (attachDeliveryErrors).
+ */
+export const WA_MESSAGE_SELECT =
+  "id, direction, body, status, automated, created_at, media_type, media_url, source";
+
+/**
  * Meta status webhook'u delivery_error / delivery_code yazar, gönderim anında
  * reddedilen mesajda ise error.message bulunur.
  */
-export const WA_MESSAGE_SELECT =
-  "id, direction, body, status, automated, created_at, media_type, media_url, source, " +
-  "delivery_error:raw_payload->>delivery_error, delivery_code:raw_payload->>delivery_code, " +
+const WA_MESSAGE_ERROR_SELECT =
+  "id, delivery_error:raw_payload->>delivery_error, delivery_code:raw_payload->>delivery_code, " +
   "error_message:raw_payload->error->>message";
 
 export type ThreadMessageRow = {
@@ -54,6 +61,44 @@ export type ThreadPage = {
 /** 5 günlük pencerenin başlangıcı (ISO). */
 export function threadWindowStartIso(now: number = Date.now()): string {
   return new Date(now - WA_THREAD_WINDOW_DAYS * 86_400_000).toISOString();
+}
+
+/** Başarısız mesajlara hata alanlarını ekler (yerinde). Genelde 0–birkaç satır. */
+async function attachDeliveryErrors(
+  supabase: SupabaseClient,
+  rows: ThreadMessageRow[],
+): Promise<ThreadMessageRow[]> {
+  const failedIds = rows
+    .filter((row) => row.status === "failed")
+    .map((row) => row.id);
+  if (!failedIds.length) return rows;
+
+  const { data, error } = await supabase
+    .from("messages")
+    .select(WA_MESSAGE_ERROR_SELECT)
+    .in("id", failedIds);
+  if (error) {
+    // Hata metni olmadan da mesaj "İletilemedi" görünür; listeyi düşürme.
+    console.error("[whatsapp] delivery errors:", error.message);
+    return rows;
+  }
+
+  const byId = new Map(
+    ((data ?? []) as unknown as Array<{
+      id: string;
+      delivery_error: string | null;
+      delivery_code: string | null;
+      error_message: string | null;
+    }>).map((row) => [row.id, row]),
+  );
+  for (const row of rows) {
+    const extra = byId.get(row.id);
+    if (!extra) continue;
+    row.delivery_error = extra.delivery_error;
+    row.delivery_code = extra.delivery_code;
+    row.error_message = extra.error_message;
+  }
+  return rows;
 }
 
 function select(supabase: SupabaseClient, conversationId: string) {
@@ -108,6 +153,7 @@ export async function fetchThreadMessages(
     if (extra.length >= 2_000) hasOlder = true;
   }
 
+  await attachDeliveryErrors(supabase, rows);
   return { rows: rows.reverse(), hasOlder };
 }
 
@@ -126,6 +172,7 @@ export async function fetchOlderThreadMessages(
   const fetched = (data ?? []) as unknown as ThreadMessageRow[];
   const hasOlder = fetched.length > WA_THREAD_OLDER_PAGE_SIZE;
   const rows = hasOlder ? fetched.slice(0, WA_THREAD_OLDER_PAGE_SIZE) : fetched;
+  await attachDeliveryErrors(supabase, rows);
   return { rows: rows.reverse(), hasOlder };
 }
 
@@ -143,5 +190,8 @@ export async function fetchNewerThreadMessages(
     .order("created_at", { ascending: true })
     .limit(WA_THREAD_NEWER_PAGE_SIZE);
   if (error) throw error;
-  return (data ?? []) as unknown as ThreadMessageRow[];
+  return attachDeliveryErrors(
+    supabase,
+    (data ?? []) as unknown as ThreadMessageRow[],
+  );
 }

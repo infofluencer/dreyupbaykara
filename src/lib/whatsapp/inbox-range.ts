@@ -36,6 +36,18 @@ export type InboxContactLead = {
 const CONTACT_CHUNK = 100;
 
 /**
+ * URL uzunluğu sınırı için id'ler parçalara bölünür; parçalar sırayla değil
+ * aynı anda istenir (800 sohbette 8 ardışık gidiş-dönüş yerine 1).
+ */
+function chunkIds(ids: string[]): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += CONTACT_CHUNK) {
+    chunks.push(ids.slice(index, index + CONTACT_CHUNK));
+  }
+  return chunks;
+}
+
+/**
  * İstanbul takvim günü: bugün dahil son N günün 00:00'ı.
  * `all` için null — tarih filtresi yok.
  */
@@ -64,19 +76,17 @@ export async function fetchInboxContactFlags(
   const unique = [...new Set(contactIds.filter(Boolean))];
   if (!unique.length) return [];
 
-  const rows: Array<{ id: string; is_patient: boolean | null }> = [];
-  for (let index = 0; index < unique.length; index += CONTACT_CHUNK) {
-    const chunk = unique.slice(index, index + CONTACT_CHUNK);
-    const { data, error } = await supabase
-      .from("contacts")
-      .select("id, is_patient")
-      .in("id", chunk);
-    if (error) throw error;
-    rows.push(
-      ...((data ?? []) as Array<{ id: string; is_patient: boolean | null }>),
-    );
-  }
-  return rows;
+  const pages = await Promise.all(
+    chunkIds(unique).map(async (chunk) => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id, is_patient")
+        .in("id", chunk);
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; is_patient: boolean | null }>;
+    }),
+  );
+  return pages.flat();
 }
 
 export async function fetchInboxContactLeads(
@@ -86,19 +96,19 @@ export async function fetchInboxContactLeads(
   const unique = [...new Set(contactIds.filter(Boolean))];
   if (!unique.length) return [];
 
-  const rows: InboxContactLead[] = [];
-  for (let index = 0; index < unique.length; index += CONTACT_CHUNK) {
-    const chunk = unique.slice(index, index + CONTACT_CHUNK);
-    const { data, error } = await supabase
-      .from("leads")
-      .select(
-        "id, contact_id, status, stage, created_at, lost_reason, needs_followup, had_surgery",
-      )
-      .in("contact_id", chunk)
-      .order("created_at", { ascending: false })
-      .limit(chunk.length * 5);
-    if (error) throw error;
-    rows.push(...((data ?? []) as InboxContactLead[]));
-  }
-  return rows;
+  const pages = await Promise.all(
+    chunkIds(unique).map(async (chunk) => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select(
+          "id, contact_id, status, stage, created_at, lost_reason, needs_followup, had_surgery",
+        )
+        .in("contact_id", chunk)
+        .order("created_at", { ascending: false })
+        .limit(chunk.length * 5);
+      if (error) throw error;
+      return (data ?? []) as InboxContactLead[];
+    }),
+  );
+  return pages.flat();
 }

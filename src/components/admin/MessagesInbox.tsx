@@ -14,7 +14,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   Check,
@@ -276,6 +276,14 @@ function phoneSearchVariants(query: string): string[] {
   );
 }
 
+/** URL'i sunucu render'ı tetiklemeden günceller (bkz. urlSelectedId). */
+function replaceInboxUrl(conversationId: string | null) {
+  const next = conversationId
+    ? `/admin/messages?c=${encodeURIComponent(conversationId)}`
+    : "/admin/messages";
+  window.history.replaceState(null, "", next);
+}
+
 export function MessagesInbox({
   conversations: initialConversations,
   selectedId: initialSelectedId,
@@ -289,7 +297,14 @@ export function MessagesInbox({
   hasOlderMessages?: boolean;
   apiEnabled: boolean;
 }) {
-  const router = useRouter();
+  /**
+   * Seçili sohbet URL'e `history.replaceState` ile yazılır: router.replace
+   * her tıklamada sayfayı sunucuda baştan render ediyordu (800 sohbet +
+   * lead'ler + mesajlar) ve istemci aynı mesajları zaten ayrıca çekiyor.
+   * Next bu çağrıyı useSearchParams ile senkronlar; bildirimden gelen
+   * router.push(?c=) ise yine buradan yakalanır.
+   */
+  const urlSelectedId = useSearchParams().get("c");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [leadStatusFilter, setLeadStatusFilter] =
     useState<LeadStatusFilter>("all");
@@ -393,8 +408,9 @@ export function MessagesInbox({
         .filter((row) => row.pipelineLead)
         .map((row) => [row.contact_id, row.pipelineLead] as const),
     );
+    const prevById = new Map(prev.map((row) => [row.id, row]));
     const next = (data ?? []).map((row) => {
-      const previous = prev.find((item) => item.id === String(row.id));
+      const previous = prevById.get(String(row.id));
       const mapped = mapConversation(row as Record<string, unknown>, previous);
       const preserved = byContact.get(mapped.contact_id);
       return preserved ? { ...mapped, pipelineLead: preserved } : mapped;
@@ -551,7 +567,7 @@ export function MessagesInbox({
           row.id === id ? { ...row, unread_count: 0 } : row,
         ),
       );
-      router.replace(`/admin/messages?c=${id}`, { scroll: false });
+      replaceInboxUrl(id);
 
       setLoadingMessages(true);
       setHasOlder(false);
@@ -577,7 +593,7 @@ export function MessagesInbox({
         });
       });
     },
-    [fetchMessages, router],
+    [fetchMessages],
   );
 
   const selectTimeRange = useCallback(
@@ -616,7 +632,7 @@ export function MessagesInbox({
     appliedServerMessagesForRef.current = null;
     setMessages([]);
     setHasOlder(false);
-    router.replace("/admin/messages", { scroll: false });
+    replaceInboxUrl(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -645,18 +661,18 @@ export function MessagesInbox({
       skipNextUrlSyncRef.current = false;
       return;
     }
-    if (initialSelectedId === selectedId) return;
-    if (initialSelectedId) {
-      setSelectedId(initialSelectedId);
+    if (urlSelectedId === selectedId) return;
+    if (urlSelectedId) {
+      setSelectedId(urlSelectedId);
       return;
     }
     setSelectedId(null);
     appliedServerMessagesForRef.current = null;
     setMessages([]);
     setHasOlder(false);
-    // Sync from URL only when the server-provided id changes.
+    // Sync from URL only when ?c= changes (notification push, back/forward).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialSelectedId]);
+  }, [urlSelectedId]);
 
   useEffect(() => {
     const el = threadRef.current;
@@ -1356,7 +1372,7 @@ export function MessagesInbox({
                       setSelectedId(null);
                       appliedServerMessagesForRef.current = null;
                       setMessages([]);
-                      router.replace("/admin/messages", { scroll: false });
+                      replaceInboxUrl(null);
                     }}
                     className="mb-1 inline-flex min-h-10 items-center gap-1 rounded-lg pr-2 text-sm font-medium text-[#0b6b45] lg:hidden"
                     aria-label="Konuşma listesine dön"
